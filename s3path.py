@@ -21,6 +21,9 @@ class _S3Flavour(_PosixFlavour):
                 parsed.remove(part)
         return drv, root, parsed
 
+    def make_uri(self, path):
+        uri = super().make_uri(path)
+        return uri.replace('file:///', 's3://')
 
 _s3_flavour = _S3Flavour()
 
