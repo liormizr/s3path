@@ -10,6 +10,7 @@ name = "pypi"
 pytest = "*"
 ipython = "*"
 ipdb = "*"
+moto = "*"
 
 [requires]
 python_version = "3.6"
