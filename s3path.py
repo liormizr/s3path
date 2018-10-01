@@ -180,49 +180,8 @@ class PureS3Path(PurePath):
         return self._flavour.sep.join(self.parts[key_starts_index:])
 
 
-class S3Path(Path, PureS3Path):
-    """Path subclass for AWS S3 service.
-
-    S3 is not a file-system but we can look at it like a POSIX system.
-
-    # todo: finish the doc's
-    # On a POSIX system, instantiating a Path should return this object.
-    """
-    __slots__ = ()
+class PathNotSupportedMixin:
     _NOT_SUPPORTED_MESSAGE = '{method} is unsupported on S3 service'
-
-    def stat(self):
-        self._absolute_path_validation()
-        if not self.bucket or not self.key:
-            return None
-        return super().stat()
-
-    def exists(self):
-        self._absolute_path_validation()
-        return self._accessor.exists(self)
-
-    def is_dir(self):
-        self._absolute_path_validation()
-        if not self.exists():
-            return False
-        if self.bucket and not self.key:
-            return True
-        return self._accessor.is_dir(self)
-
-    def is_file(self):
-        self._absolute_path_validation()
-        if not self.exists():
-            return False
-        if not self.bucket or not self.key:
-            return False
-        try:
-            return bool(self.stat())
-        except ClientError:
-            return False
-
-    def iterdir(self):
-        self._absolute_path_validation()
-        yield from super().iterdir()
 
     @classmethod
     def cwd(cls):
@@ -269,6 +228,50 @@ class S3Path(Path, PureS3Path):
     def lstat(self):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lstat.__qualname__)
         raise NotImplementedError(message)
+
+
+class S3Path(PathNotSupportedMixin, Path, PureS3Path):
+    """Path subclass for AWS S3 service.
+
+    S3 is not a file-system but we can look at it like a POSIX system.
+
+    # todo: finish the doc's
+    # On a POSIX system, instantiating a Path should return this object.
+    """
+    __slots__ = ()
+
+    def stat(self):
+        self._absolute_path_validation()
+        if not self.bucket or not self.key:
+            return None
+        return super().stat()
+
+    def exists(self):
+        self._absolute_path_validation()
+        return self._accessor.exists(self)
+
+    def is_dir(self):
+        self._absolute_path_validation()
+        if not self.exists():
+            return False
+        if self.bucket and not self.key:
+            return True
+        return self._accessor.is_dir(self)
+
+    def is_file(self):
+        self._absolute_path_validation()
+        if not self.exists():
+            return False
+        if not self.bucket or not self.key:
+            return False
+        try:
+            return bool(self.stat())
+        except ClientError:
+            return False
+
+    def iterdir(self):
+        self._absolute_path_validation()
+        yield from super().iterdir()
 
     def _init(self, template=None):
         super()._init(template)
