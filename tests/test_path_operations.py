@@ -95,6 +95,13 @@ def test_is_char_device():
         path.is_char_device()
 
 
+def test_lstat():
+    error_message = f'{S3Path.__name__}.lstat() is unsupported on S3 service'
+    path = S3Path('/fake-bucket/fake-key')
+    with pytest.raises(NotImplementedError, message=error_message):
+        path.lstat()
+
+
 def test_stat(s3_mock):
     path = S3Path('fake-bucket/fake-key')
     with pytest.raises(ValueError):

@@ -266,6 +266,9 @@ class S3Path(Path, PureS3Path):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.is_char_device.__qualname__)
         raise NotImplementedError(message)
 
+    def lstat(self):
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lstat.__qualname__)
+        raise NotImplementedError(message)
 
     def _init(self, template=None):
         super()._init(template)
