@@ -1,18 +1,19 @@
 """
 This library wrap's the boto3 api to provide a more Pythonice API to S3
 """
+from io import IOBase, RawIOBase, DEFAULT_BUFFER_SIZE
 from contextlib import suppress
 from collections import namedtuple
-from posix import DirEntry
-from pathlib import _PosixFlavour, _Accessor, _make_selector, _RecursiveWildcardSelector, PurePath, Path
+from pathlib import _PosixFlavour, _Accessor, PurePath, Path
 
 try:
     import boto3
     from botocore.exceptions import ClientError
+    from botocore.response import StreamingBody
 except ImportError:
     boto3 = None
     ClientError = Exception
-
+    StreamingBody = object
 
 StatResult = namedtuple('StatResult', 'size, last_modified')
 
@@ -42,6 +43,65 @@ class S3DirEntry:
     def stat(self):
         return self._stat
 
+
+class S3KeyReadFile(RawIOBase):
+    def __init__(
+            self, streaming_body, *,
+            mode='rb',
+            buffering=DEFAULT_BUFFER_SIZE,
+            encoding=None,
+            errors=None,
+            newline=None):
+        super().__init__()
+        self.streaming_body = streaming_body
+        self.mode = mode
+        self.buffering = buffering
+        self.encoding = encoding
+        self.errors = errors
+        self.newline = newline
+
+    def read(self, *args, **kwargs):
+        return self._string_parser(self.streaming_body.read())
+
+    def readlines(self, *args, **kwargs):
+        return [
+            self._string_parser(line)
+            for line in self.streaming_body.iter_lines(chunk_size=self.buffering)
+        ]
+
+    def readline(self):
+        with suppress(StopIteration, ValueError):
+            line = next(self.streaming_body.iter_lines(chunk_size=self.buffering))
+            return self._string_parser(line)
+        return self._string_parser(b'')
+
+    def __getattr__(self, item):
+        try:
+            return getattr(self.streaming_body, item)
+        except AttributeError:
+            return super().__getattribute__(item)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def _string_parser(self, bytes_string):
+        if 'b' in self.mode:
+            return bytes_string
+        return bytes_string.decode(self.encoding or 'utf-8')
+
+
+def get_file_object(mode, **kwargs):
+    return _file_object_factory[mode](mode=mode, **kwargs)
+_file_object_factory = {
+    'r': S3KeyReadFile,
+    'br': S3KeyReadFile,
+    'rb': S3KeyReadFile,
+    'tr': S3KeyReadFile,
+    'rt': S3KeyReadFile,
+}
 
 class _S3Flavour(_PosixFlavour):
     is_supported = bool(boto3)
@@ -77,10 +137,10 @@ class _S3Accessor(_Accessor):
         self.s3 = boto3.resource('s3')
 
     def stat(self, path):
-        simple_object = self.s3.ObjectSummary(path.bucket, path.key)
+        object_summery = self.s3.ObjectSummary(path.bucket, path.key)
         return StatResult(
-            size=simple_object.size,
-            last_modified=simple_object.last_modified,
+            size=object_summery.size,
+            last_modified=object_summery.last_modified,
         )
 
     def is_dir(self, path):
@@ -124,6 +184,21 @@ class _S3Accessor(_Accessor):
     def listdir(self, path):
         for entry in self.scandir(path):
             yield entry.name
+
+    def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
+        object_summery = self.s3.ObjectSummary(path.bucket, path.key)
+        streaming_body = object_summery.get()['Body']
+        return get_file_object(
+            mode,
+            streaming_body=streaming_body,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline)
+
+    def owner(self, path):
+        object_summery = self.s3.ObjectSummary(path.bucket, path.key)
+        return object_summery.owner['DisplayName']
 
     def _generate_prefix(self, path):
         sep = path._flavour.sep
@@ -197,6 +272,10 @@ class PathNotSupportedMixin:
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.chmod.__qualname__)
         raise NotImplementedError(message)
 
+    def lchmod(self, mode):
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lchmod.__qualname__)
+        raise NotImplementedError(message)
+
     def group(self):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.group.__qualname__)
         raise NotImplementedError(message)
@@ -227,6 +306,10 @@ class PathNotSupportedMixin:
 
     def lstat(self):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lstat.__qualname__)
+        raise NotImplementedError(message)
+
+    def mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.mkdir.__qualname__)
         raise NotImplementedError(message)
 
 
@@ -272,6 +355,32 @@ class S3Path(PathNotSupportedMixin, Path, PureS3Path):
     def iterdir(self):
         self._absolute_path_validation()
         yield from super().iterdir()
+
+    def open(self, mode='r', buffering=DEFAULT_BUFFER_SIZE, encoding=None, errors=None, newline=None):
+        self._absolute_path_validation()
+        supported_open_modes = ('r', 'br', 'rb', 'tr', 'rt', 'w', 'wb', 'bw', 'wt', 'tw')
+        if mode not in supported_open_modes:
+            raise ValueError('supported modes are {} got {}'.format(supported_open_modes, mode))
+        if buffering == 0 or buffering == 1:
+            raise ValueError('supported buffering values are only block sizes, no 0 or 1')
+        if 'b' in mode and encoding:
+            raise ValueError("binary mode doesn't take an encoding argument")
+
+        if self._closed:
+            self._raise_closed()
+        return self._accessor.open(
+            self,
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline)
+
+    def owner(self):
+        self._absolute_path_validation()
+        if not self.exists() or not self.key:
+            return KeyError('file not found')
+        return self._accessor.owner(self)
 
     def _init(self, template=None):
         super()._init(template)

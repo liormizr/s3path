@@ -28,6 +28,13 @@ def test_chmod():
         path.chmod(0o666)
 
 
+def test_lchmod():
+    error_message = f'{S3Path.__name__}.lchmod() is unsupported on S3 service'
+    path = S3Path('/fake-bucket/fake-key')
+    with pytest.raises(NotImplementedError, message=error_message):
+        path.lchmod(0o666)
+
+
 def test_group():
     error_message = f'{S3Path.__name__}.group() is unsupported on S3 service'
     path = S3Path('/fake-bucket/fake-key')
@@ -82,3 +89,10 @@ def test_lstat():
     path = S3Path('/fake-bucket/fake-key')
     with pytest.raises(NotImplementedError, message=error_message):
         path.lstat()
+
+
+def test_mkdir():
+    error_message = f'{S3Path.__name__}.mkdir() is unsupported on S3 service'
+    path = S3Path('/fake-bucket/fake-key')
+    with pytest.raises(NotImplementedError, message=error_message):
+        path.mkdir()

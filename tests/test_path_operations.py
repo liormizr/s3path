@@ -197,3 +197,61 @@ def test_iterdir(s3_mock):
         S3Path('/test-bucket/docs/index.rst'),
         S3Path('/test-bucket/docs/make.bat'),
     ]
+
+
+def test_open(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    simple_object.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    file_obj = path.open()
+    assert file_obj.read() == 'test data'
+
+
+def test_open_binary_read(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    simple_object.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    with path.open(mode='br') as file_obj:
+        assert file_obj.readlines() == [b'test data']
+
+    with path.open(mode='rb') as file_obj:
+        assert file_obj.readline() == b'test data'
+        assert file_obj.readline() == b''
+        assert file_obj.readline() == b''
+
+    assert path.read_bytes() == b'test data'
+
+
+def test_open_text_read(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    simple_object.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    with path.open(mode='r') as file_obj:
+        assert file_obj.readlines() == ['test data']
+
+    with path.open(mode='rt') as file_obj:
+        assert file_obj.readline() == 'test data'
+        assert file_obj.readline() == ''
+        assert file_obj.readline() == ''
+
+    assert path.read_text() == 'test data'
+
+
+@pytest.mark.skip()
+def test_owner(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    simple_object.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    assert path.owner() == '???'
