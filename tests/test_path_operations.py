@@ -7,6 +7,11 @@ from moto import mock_s3
 
 from s3path import PureS3Path, S3Path, StatResult, _s3_accessor
 
+# todo: test samefile/touch/write_text/write_bytes method
+# todo: test security and boto config changes
+# todo: test open method for write
+# todo: test open method check R/W bytes/unicode
+
 
 @pytest.fixture()
 def s3_mock():
@@ -31,15 +36,15 @@ def test_stat(s3_mock):
 
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'Test.test')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'Test.test')
+    object_summary.put(Body=b'test data')
 
     path = S3Path('/test-bucket/Test.test')
     stat = path.stat()
     assert isinstance(stat, StatResult)
     assert stat == StatResult(
-        size=simple_object.size,
-        last_modified=simple_object.last_modified,
+        size=object_summary.size,
+        last_modified=object_summary.last_modified,
     )
 
     path = S3Path('/test-bucket')
@@ -57,8 +62,8 @@ def test_exists(s3_mock):
 
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
 
     assert not S3Path('/test-bucket/Test.test').exists()
     path = S3Path('/test-bucket/directory/Test.test')
@@ -70,25 +75,23 @@ def test_exists(s3_mock):
 def test_glob(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
 
     assert list(S3Path('/test-bucket/').glob('*.test')) == []
     assert list(S3Path('/test-bucket/directory/').glob('*.test')) == [S3Path('/test-bucket/directory/Test.test')]
     assert list(S3Path('/test-bucket/').glob('**/*.test')) == [S3Path('/test-bucket/directory/Test.test')]
-    assert list(S3Path('/test-bucket/').rglob('*.test')) == [S3Path('/test-bucket/directory/Test.test')]
-    assert list(S3Path('/test-bucket/').rglob('**/*.test')) == [S3Path('/test-bucket/directory/Test.test')]
 
-    simple_object = s3.ObjectSummary('test-bucket', 'pathlib.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'setup.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/conf.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'setup.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
+    object_summary.put(Body=b'test data')
 
     assert sorted(S3Path.from_uri('s3://test-bucket/').glob('*.py')) == [
         S3Path('/test-bucket/pathlib.py'),
@@ -103,21 +106,49 @@ def test_glob(s3_mock):
         S3Path('/test-bucket/test_pathlib.py')]
 
 
+def test_rglob(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+
+    assert list(S3Path('/test-bucket/').rglob('*.test')) == [S3Path('/test-bucket/directory/Test.test')]
+    assert list(S3Path('/test-bucket/').rglob('**/*.test')) == [S3Path('/test-bucket/directory/Test.test')]
+
+    object_summary = s3.ObjectSummary('test-bucket', 'pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'setup.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
+    object_summary.put(Body=b'test data')
+
+    assert sorted(S3Path.from_uri('s3://test-bucket/').rglob('*.py')) == [
+        S3Path('/test-bucket/build/lib/pathlib.py'),
+        S3Path('/test-bucket/docs/conf.py'),
+        S3Path('/test-bucket/pathlib.py'),
+        S3Path('/test-bucket/setup.py'),
+        S3Path('/test-bucket/test_pathlib.py')]
+
+
 def test_is_dir(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'pathlib.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'setup.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/conf.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'setup.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
+    object_summary.put(Body=b'test data')
 
     assert not S3Path('/test-bucket/fake.test').is_dir()
     assert not S3Path('/test-bucket/fake/').is_dir()
@@ -134,18 +165,18 @@ def test_is_dir(s3_mock):
 def test_is_file(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'pathlib.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'setup.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/conf.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'setup.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
+    object_summary.put(Body=b'test data')
 
     assert not S3Path('/test-bucket/fake.test').is_file()
     assert not S3Path('/test-bucket/fake/').is_file()
@@ -162,30 +193,30 @@ def test_is_file(s3_mock):
 def test_iterdir(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'pathlib.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'setup.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/conf.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/make.bat')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/index.rst')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/Makefile')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/_templates/11conf.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/_build/22conf.py')
-    simple_object.put(Body=b'test data')
-    simple_object = s3.ObjectSummary('test-bucket', 'docs/_static/conf.py')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'setup.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/make.bat')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/index.rst')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/Makefile')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_templates/11conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_build/22conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_static/conf.py')
+    object_summary.put(Body=b'test data')
 
     s3_path = S3Path('/test-bucket/docs')
     assert sorted(s3_path.iterdir()) == [
@@ -199,22 +230,45 @@ def test_iterdir(s3_mock):
     ]
 
 
-def test_open(s3_mock):
+def test_open_for_reading(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
 
     path = S3Path('/test-bucket/directory/Test.test')
     file_obj = path.open()
     assert file_obj.read() == 'test data'
 
 
+def test_open_for_write(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    bucket = s3.Bucket('test-bucket')
+    assert sum(1 for _ in bucket.objects.all()) == 0
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    file_obj = path.open(mode='bw')
+    assert file_obj.writable()
+    file_obj.write(b'test data\n')
+    file_obj.writelines([b'test data'])
+
+    assert sum(1 for _ in bucket.objects.all()) == 1
+
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    streaming_body = object_summary.get()['Body']
+
+    assert list(streaming_body.iter_lines()) == [
+        b'test data',
+        b'test data'
+    ]
+
+
 def test_open_binary_read(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
 
     path = S3Path('/test-bucket/directory/Test.test')
     with path.open(mode='br') as file_obj:
@@ -225,14 +279,22 @@ def test_open_binary_read(s3_mock):
         assert file_obj.readline() == b''
         assert file_obj.readline() == b''
 
+
+def test_read_bytes(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/directory/Test.test')
     assert path.read_bytes() == b'test data'
 
 
 def test_open_text_read(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
 
     path = S3Path('/test-bucket/directory/Test.test')
     with path.open(mode='r') as file_obj:
@@ -243,6 +305,14 @@ def test_open_text_read(s3_mock):
         assert file_obj.readline() == ''
         assert file_obj.readline() == ''
 
+
+def test_read_text(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/directory/Test.test')
     assert path.read_text() == 'test data'
 
 
@@ -250,8 +320,108 @@ def test_open_text_read(s3_mock):
 def test_owner(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
-    simple_object = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    simple_object.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
 
     path = S3Path('/test-bucket/directory/Test.test')
     assert path.owner() == '???'
+
+
+def test_rename_s3_to_s3(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/make.bat')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/index.rst')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/Makefile')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_templates/11conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_build/22conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_static/conf.py')
+    object_summary.put(Body=b'test data')
+
+    s3.create_bucket(Bucket='target-bucket')
+
+    S3Path('/test-bucket/docs/conf.py').rename('/test-bucket/docs/conf1.py')
+    assert not S3Path('/test-bucket/docs/conf.py').exists()
+    assert S3Path('/test-bucket/docs/conf1.py').is_file()
+
+    path = S3Path('/test-bucket/docs/')
+    path.rename(S3Path('/target-bucket') / S3Path('folder'))
+    assert not path.exists()
+    assert S3Path('/target-bucket/folder/conf1.py').is_file()
+    assert S3Path('/target-bucket/folder/make.bat').is_file()
+    assert S3Path('/target-bucket/folder/index.rst').is_file()
+    assert S3Path('/target-bucket/folder/Makefile').is_file()
+    assert S3Path('/target-bucket/folder/_templates/11conf.py').is_file()
+    assert S3Path('/target-bucket/folder/_build/22conf.py').is_file()
+    assert S3Path('/target-bucket/folder/_static/conf.py').is_file()
+
+
+def test_replace_s3_to_s3(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/make.bat')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/index.rst')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/Makefile')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_templates/11conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_build/22conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_static/conf.py')
+    object_summary.put(Body=b'test data')
+
+    s3.create_bucket(Bucket='target-bucket')
+
+    S3Path('/test-bucket/docs/conf.py').replace('/test-bucket/docs/conf1.py')
+    assert not S3Path('/test-bucket/docs/conf.py').exists()
+    assert S3Path('/test-bucket/docs/conf1.py').is_file()
+
+    path = S3Path('/test-bucket/docs/')
+    path.replace(S3Path('/target-bucket') / S3Path('folder'))
+    assert not path.exists()
+    assert S3Path('/target-bucket/folder/conf1.py').is_file()
+    assert S3Path('/target-bucket/folder/make.bat').is_file()
+    assert S3Path('/target-bucket/folder/index.rst').is_file()
+    assert S3Path('/target-bucket/folder/Makefile').is_file()
+    assert S3Path('/target-bucket/folder/_templates/11conf.py').is_file()
+    assert S3Path('/target-bucket/folder/_build/22conf.py').is_file()
+    assert S3Path('/target-bucket/folder/_static/conf.py').is_file()
+
+
+def test_rmdir(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/make.bat')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/index.rst')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/Makefile')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_templates/11conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_build/22conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/_static/conf.py')
+    object_summary.put(Body=b'test data')
+
+    conf_path = S3Path('/test-bucket/docs/_templates')
+    assert conf_path.is_dir()
+    conf_path.rmdir()
+    assert not conf_path.exists()
+
+    path = S3Path('/test-bucket/docs/')
+    path.rmdir()
+    assert not path.exists()

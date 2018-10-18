@@ -1,10 +1,12 @@
 """
 This library wrap's the boto3 api to provide a more Pythonice API to S3
 """
-from io import IOBase, RawIOBase, DEFAULT_BUFFER_SIZE
 from contextlib import suppress
 from collections import namedtuple
+from functools import wraps, partial
+from tempfile import NamedTemporaryFile
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
+from io import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
 
 try:
     import boto3
@@ -15,93 +17,6 @@ except ImportError:
     ClientError = Exception
     StreamingBody = object
 
-StatResult = namedtuple('StatResult', 'size, last_modified')
-
-
-class S3DirEntry:
-    def __init__(self, name, is_dir, size=None, last_modified=None):
-        self.name = name
-        self._is_dir = is_dir
-        self._stat = StatResult(size=size, last_modified=last_modified)
-
-    def __repr__(self):
-        return '{}(name={}, is_dir={}, stat={})'.format(
-            type(self).__name__, self.name, self._is_dir, self._stat)
-
-    def inode(self, *args, **kwargs):
-        return None
-
-    def is_dir(self):
-        return self._is_dir
-
-    def is_file(self):
-        return not self._is_dir
-
-    def is_symlink(self, *args, **kwargs):
-        return False
-
-    def stat(self):
-        return self._stat
-
-
-class S3KeyReadFile(RawIOBase):
-    def __init__(
-            self, streaming_body, *,
-            mode='rb',
-            buffering=DEFAULT_BUFFER_SIZE,
-            encoding=None,
-            errors=None,
-            newline=None):
-        super().__init__()
-        self.streaming_body = streaming_body
-        self.mode = mode
-        self.buffering = buffering
-        self.encoding = encoding
-        self.errors = errors
-        self.newline = newline
-
-    def read(self, *args, **kwargs):
-        return self._string_parser(self.streaming_body.read())
-
-    def readlines(self, *args, **kwargs):
-        return [
-            self._string_parser(line)
-            for line in self.streaming_body.iter_lines(chunk_size=self.buffering)
-        ]
-
-    def readline(self):
-        with suppress(StopIteration, ValueError):
-            line = next(self.streaming_body.iter_lines(chunk_size=self.buffering))
-            return self._string_parser(line)
-        return self._string_parser(b'')
-
-    def __getattr__(self, item):
-        try:
-            return getattr(self.streaming_body, item)
-        except AttributeError:
-            return super().__getattribute__(item)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-    def _string_parser(self, bytes_string):
-        if 'b' in self.mode:
-            return bytes_string
-        return bytes_string.decode(self.encoding or 'utf-8')
-
-
-def get_file_object(mode, **kwargs):
-    return _file_object_factory[mode](mode=mode, **kwargs)
-_file_object_factory = {
-    'r': S3KeyReadFile,
-    'br': S3KeyReadFile,
-    'rb': S3KeyReadFile,
-    'tr': S3KeyReadFile,
-    'rt': S3KeyReadFile,
-}
 
 class _S3Flavour(_PosixFlavour):
     is_supported = bool(boto3)
@@ -187,10 +102,10 @@ class _S3Accessor(_Accessor):
 
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         object_summery = self.s3.ObjectSummary(path.bucket, path.key)
-        streaming_body = object_summery.get()['Body']
-        return get_file_object(
-            mode,
-            streaming_body=streaming_body,
+        file_object = S3KeyReadableFileObject if 'r' in mode else S3KeyWritableFileObject
+        return file_object(
+            object_summery,
+            mode=mode,
             buffering=buffering,
             encoding=encoding,
             errors=errors,
@@ -200,6 +115,30 @@ class _S3Accessor(_Accessor):
         object_summery = self.s3.ObjectSummary(path.bucket, path.key)
         return object_summery.owner['DisplayName']
 
+    def rename(self, path, target):
+        if not self.is_dir(path):
+            target_bucket = self.s3.Bucket(target.bucket)
+            object_summery = self.s3.ObjectSummary(path.bucket, path.key)
+            old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
+            target_bucket.copy(old_source, target.key)
+            object_summery.delete()
+            return
+        bucket = self.s3.Bucket(path.bucket)
+        target_bucket = self.s3.Bucket(target.bucket)
+        for object_summery in bucket.objects.filter(Prefix=path.key):
+            old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
+            new_key = object_summery.key.replace(path.key, target.key)
+            target_bucket.copy(old_source, new_key)
+            object_summery.delete()
+
+    def replace(self, path, target):
+        return self.rename(path, target)
+
+    def rmdir(self, path):
+        bucket = self.s3.Bucket(path.bucket)
+        for object_summery in bucket.objects.filter(Prefix=path.key):
+            object_summery.delete()
+
     def _generate_prefix(self, path):
         sep = path._flavour.sep
         if not path.key:
@@ -207,6 +146,16 @@ class _S3Accessor(_Accessor):
         if not path.key.endswith(sep):
             return path.key + sep
         return path.key
+
+
+def _string_parser(text, *, mode, encoding):
+    if isinstance(text, bytes):
+        if 'b' in mode:
+            return text
+        return text.decode(encoding or 'utf-8')
+    if 't' in mode or 'r' == mode:
+        return text
+    return text.encode(encoding or 'utf-8')
 
 
 _s3_flavour = _S3Flavour()
@@ -308,8 +257,16 @@ class PathNotSupportedMixin:
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lstat.__qualname__)
         raise NotImplementedError(message)
 
-    def mkdir(self, mode=0o777, parents=False, exist_ok=False):
+    def mkdir(self, *args, **kwargs):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.mkdir.__qualname__)
+        raise NotImplementedError(message)
+
+    def resolve(self):
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.resolve.__qualname__)
+        raise NotImplementedError(message)
+
+    def symlink_to(self, *args, **kwargs):
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.symlink_to.__qualname__)
         raise NotImplementedError(message)
 
 
@@ -335,16 +292,12 @@ class S3Path(PathNotSupportedMixin, Path, PureS3Path):
 
     def is_dir(self):
         self._absolute_path_validation()
-        if not self.exists():
-            return False
         if self.bucket and not self.key:
             return True
         return self._accessor.is_dir(self)
 
     def is_file(self):
         self._absolute_path_validation()
-        if not self.exists():
-            return False
         if not self.bucket or not self.key:
             return False
         try:
@@ -378,9 +331,40 @@ class S3Path(PathNotSupportedMixin, Path, PureS3Path):
 
     def owner(self):
         self._absolute_path_validation()
-        if not self.exists() or not self.key:
+        if not self.is_file():
             return KeyError('file not found')
         return self._accessor.owner(self)
+
+    def rename(self, target):
+        """
+        Need to support file or directory
+
+        """
+        self._absolute_path_validation()
+        if not isinstance(target, type(self)):
+            target = type(self)(target)
+        target._absolute_path_validation()
+        return super().rename(target)
+
+    def replace(self, target):
+        return self.rename(target)
+
+    def rmdir(self):
+        self._absolute_path_validation()
+        if self.is_file():
+            raise NotADirectoryError()
+        if not self.is_dir():
+            raise FileNotFoundError()
+        return super().rmdir()
+
+    def samefile(self, other_path):
+        self._absolute_path_validation()
+        if not isinstance(other_path, Path):
+            other_path = type(self)(other_path)
+        return self.bucket == other_path.bucket and self.key == self.key
+
+    def touch(self, mode=0o666, exist_ok=True):
+        self.write_text('')
 
     def _init(self, template=None):
         super()._init(template)
@@ -390,3 +374,171 @@ class S3Path(PathNotSupportedMixin, Path, PureS3Path):
     def _absolute_path_validation(self):
         if not self.is_absolute():
             raise ValueError('relative path have no bucket, key specification')
+
+
+class S3KeyWritableFileObject(RawIOBase):
+    def __init__(
+            self, object_summery, *,
+            mode='w',
+            buffering=DEFAULT_BUFFER_SIZE,
+            encoding=None,
+            errors=None,
+            newline=None):
+        super().__init__()
+        self.object_summery = object_summery
+        self.mode = mode
+        self.buffering = buffering
+        self.encoding = encoding
+        self.errors = errors
+        self.newline = newline
+        self._cache = NamedTemporaryFile(
+            mode=self.mode + '+',
+            buffering=self.buffering,
+            encoding=self.encoding,
+            newline=self.newline)
+        self._string_parser = partial(_string_parser, mode=self.mode, encoding=self.encoding)
+
+    def __getattr__(self, item):
+        try:
+            return getattr(self._cache, item)
+        except AttributeError:
+            return super().__getattribute__(item)
+
+    def writable_check(method):
+        @wraps(method)
+        def wrapper(self, *args, **kwargs):
+            if not self.writable():
+                raise UnsupportedOperation('not writable')
+            return method(self, *args, **kwargs)
+        return wrapper
+
+    def writable(self, *args, **kwargs):
+        return 'w' in self.mode
+
+    @writable_check
+    def write(self, text):
+        self._cache.write(self._string_parser(text))
+        self._cache.seek(0)
+        self.object_summery.put(Body=self._cache)
+
+    def writelines(self, lines):
+        self.write(self._string_parser('\n').join(self._string_parser(line) for line in lines))
+
+    def readable(self):
+        return False
+
+    def read(self, *args, **kwargs):
+        raise UnsupportedOperation('not readable')
+
+    def readlines(self, *args, **kwargs):
+        raise UnsupportedOperation('not readable')
+
+
+class S3KeyReadableFileObject(RawIOBase):
+    def __init__(
+            self, object_summery, *,
+            mode='b',
+            buffering=DEFAULT_BUFFER_SIZE,
+            encoding=None,
+            errors=None,
+            newline=None):
+        super().__init__()
+        self.object_summery = object_summery
+        self.mode = mode
+        self.buffering = buffering
+        self.encoding = encoding
+        self.errors = errors
+        self.newline = newline
+        self._streaming_body = None
+        self._string_parser = partial(_string_parser, mode=self.mode, encoding=self.encoding)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.readline()
+
+    def __getattr__(self, item):
+        try:
+            return getattr(self._streaming_body, item)
+        except AttributeError:
+            return super().__getattribute__(item)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def readable_check(method):
+        @wraps(method)
+        def wrapper(self, *args, **kwargs):
+            if not self.readable():
+                raise UnsupportedOperation('not readable')
+            return method(self, *args, **kwargs)
+        return wrapper
+
+    def readable(self):
+        if 'r' not in self.mode:
+            return False
+        with suppress(ClientError):
+            if self._streaming_body is None:
+                self._streaming_body = self.object_summery.get()['Body']
+            return True
+        return False
+
+    @readable_check
+    def read(self, *args, **kwargs):
+        return self._string_parser(self._streaming_body.read())
+
+    @readable_check
+    def readlines(self, *args, **kwargs):
+        return [
+            line
+            for line in iter(self.readline, self._string_parser(''))
+        ]
+
+    @readable_check
+    def readline(self):
+        with suppress(StopIteration, ValueError):
+            line = next(self._streaming_body.iter_lines(chunk_size=self.buffering))
+            return self._string_parser(line)
+        return self._string_parser(b'')
+
+    def write(self, *args, **kwargs):
+        raise UnsupportedOperation('not writable')
+
+    def writelines(self, *args, **kwargs):
+        raise UnsupportedOperation('not writable')
+
+    def writable(self, *args, **kwargs):
+        return False
+
+
+StatResult = namedtuple('StatResult', 'size, last_modified')
+
+
+class S3DirEntry:
+    def __init__(self, name, is_dir, size=None, last_modified=None):
+        self.name = name
+        self._is_dir = is_dir
+        self._stat = StatResult(size=size, last_modified=last_modified)
+
+    def __repr__(self):
+        return '{}(name={}, is_dir={}, stat={})'.format(
+            type(self).__name__, self.name, self._is_dir, self._stat)
+
+    def inode(self, *args, **kwargs):
+        return None
+
+    def is_dir(self):
+        return self._is_dir
+
+    def is_file(self):
+        return not self._is_dir
+
+    def is_symlink(self, *args, **kwargs):
+        return False
+
+    def stat(self):
+        return self._stat
