@@ -11,6 +11,8 @@ pytest = "*"
 ipython = "*"
 ipdb = "*"
 moto = "*"
+sphinx = "*"
+tox = "*"
 
 [requires]
 python_version = "3.6"
