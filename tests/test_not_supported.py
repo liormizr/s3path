@@ -1,8 +1,6 @@
 import pytest
 from s3path import S3Path
 
-# todo: test symlink_to method
-
 
 def test_not_supported(monkeypatch):
     monkeypatch.setattr(S3Path._flavour, 'is_supported', False)
@@ -105,3 +103,17 @@ def test_resolve():
     path = S3Path('/fake-bucket/fake-key')
     with pytest.raises(NotImplementedError, message=error_message):
         path.resolve()
+
+
+def test_unlink():
+    error_message = f'{S3Path.__name__}.unlink() is unsupported on S3 service'
+    path = S3Path('/fake-bucket/fake-key')
+    with pytest.raises(NotImplementedError, message=error_message):
+        path.unlink()
+
+
+def test_symlink_to():
+    error_message = f'{S3Path.__name__}.symlink_to() is unsupported on S3 service'
+    path = S3Path('/fake-bucket/fake-key')
+    with pytest.raises(NotImplementedError, message=error_message):
+        path.symlink_to('file_name')

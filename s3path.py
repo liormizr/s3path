@@ -269,6 +269,10 @@ class PathNotSupportedMixin:
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.symlink_to.__qualname__)
         raise NotImplementedError(message)
 
+    def unlink(self):
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.unlink.__qualname__)
+        raise NotImplementedError(message)
+
 
 class S3Path(PathNotSupportedMixin, Path, PureS3Path):
     """Path subclass for AWS S3 service.
