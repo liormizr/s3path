@@ -6,4 +6,5 @@ python:
   - '3.4'
 install: make init
 script: make tests
+dist: xenial
 
