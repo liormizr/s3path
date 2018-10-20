@@ -3,6 +3,6 @@ python:
   - '3.6'
 install:
   - pip install pipenv
-  - pipenv install -e . --dev
+  - pipenv install -e . --dev --skip-lock
 script: pipenv run pytest
 
