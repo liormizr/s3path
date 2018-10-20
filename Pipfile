@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 "boto3" = "*"
+"s3path" = {editable = true, path = "."}
 
 [dev-packages]
 pytest = "*"
@@ -13,6 +14,7 @@ ipdb = "*"
 moto = "*"
 sphinx = "*"
 tox = "*"
+tox-travis = "*"
 
 [requires]
 python_version = "3.6"

@@ -1,8 +1,9 @@
 language: python
 python:
+  - '3.7'
   - '3.6'
-install:
-  - pip install pipenv
-  - pipenv install -e . --dev --skip-lock
-script: pipenv run pytest
+  - '3.5'
+  - '3.4'
+install: make init
+script: make tests
 
