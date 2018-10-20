@@ -120,7 +120,7 @@ class _S3Accessor(_Accessor):
             target_bucket = self.s3.Bucket(target.bucket)
             object_summery = self.s3.ObjectSummary(path.bucket, path.key)
             old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
-            target_bucket.copy(old_source, target.key)
+            target_bucket.copy(old_source, target.key)  # todo: boto3 args: ExtraArgs=None, Callback=None, SourceClient=None, Config=None
             object_summery.delete()
             return
         bucket = self.s3.Bucket(path.bucket)
@@ -128,7 +128,7 @@ class _S3Accessor(_Accessor):
         for object_summery in bucket.objects.filter(Prefix=path.key):
             old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
             new_key = object_summery.key.replace(path.key, target.key)
-            target_bucket.copy(old_source, new_key)
+            target_bucket.copy(old_source, new_key)  # todo: boto3 args: ExtraArgs=None, Callback=None, SourceClient=None, Config=None
             object_summery.delete()
 
     def replace(self, path, target):
@@ -423,7 +423,7 @@ class S3KeyWritableFileObject(RawIOBase):
     def write(self, text):
         self._cache.write(self._string_parser(text))
         self._cache.seek(0)
-        self.object_summery.put(Body=self._cache)
+        self.object_summery.put(Body=self._cache)  # todo: boto3 args: a lot of options
 
     def writelines(self, lines):
         self.write(self._string_parser('\n').join(self._string_parser(line) for line in lines))
@@ -487,7 +487,7 @@ class S3KeyReadableFileObject(RawIOBase):
             return False
         with suppress(ClientError):
             if self._streaming_body is None:
-                self._streaming_body = self.object_summery.get()['Body']
+                self._streaming_body = self.object_summery.get()['Body']  # todo: boto3 args: a lot of options
             return True
         return False
 
