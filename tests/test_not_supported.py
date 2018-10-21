@@ -43,7 +43,7 @@ def test_group():
 
 
 def test_is_mount():
-    error_message = '{S3Path.__name__}.is_mount() is unsupported on S3 service'.format(S3Path.__name__)
+    error_message = '{}.is_mount() is unsupported on S3 service'.format(S3Path.__name__)
     path = S3Path('/fake-bucket/fake-key')
     with pytest.raises(NotImplementedError, message=error_message):
         path.is_mount()
