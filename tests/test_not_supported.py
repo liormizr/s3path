@@ -43,31 +43,19 @@ def test_group():
 
 
 def test_is_mount():
-    error_message = '{}.is_mount() is unsupported on S3 service'.format(S3Path.__name__)
-    path = S3Path('/fake-bucket/fake-key')
-    with pytest.raises(NotImplementedError, message=error_message):
-        path.is_mount()
+    assert not S3Path('/fake-bucket/fake-key').is_mount()
 
 
 def test_is_symlink():
-    error_message = '{}.is_symlink() is unsupported on S3 service'.format(S3Path.__name__)
-    path = S3Path('/fake-bucket/fake-key')
-    with pytest.raises(NotImplementedError, message=error_message):
-        path.is_symlink()
+    assert not S3Path('/fake-bucket/fake-key').is_symlink()
 
 
 def test_is_socket():
-    error_message = '{}.is_socket() is unsupported on S3 service'.format(S3Path.__name__)
-    path = S3Path('/fake-bucket/fake-key')
-    with pytest.raises(NotImplementedError, message=error_message):
-        path.is_socket()
+    assert not S3Path('/fake-bucket/fake-key').is_socket()
 
 
 def test_is_fifo():
-    error_message = '{}.is_fifo() is unsupported on S3 service'.format(S3Path.__name__)
-    path = S3Path('/fake-bucket/fake-key')
-    with pytest.raises(NotImplementedError, message=error_message):
-        path.is_fifo()
+    assert not S3Path('/fake-bucket/fake-key').is_fifo()
 
 
 def test_is_block_device():

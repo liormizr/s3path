@@ -49,7 +49,8 @@ class _S3Accessor(_Accessor):
     In this case this will access AWS S3 service
     """
     def __init__(self):
-        self.s3 = boto3.resource('s3')
+        if boto3 is not None:
+            self.s3 = boto3.resource('s3')
 
     def stat(self, path):
         object_summery = self.s3.ObjectSummary(path.bucket, path.key)
@@ -97,8 +98,10 @@ class _S3Accessor(_Accessor):
             yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
 
     def listdir(self, path):
-        for entry in self.scandir(path):
-            yield entry.name
+        return [
+            entry.name
+            for entry in self.scandir(path)
+        ]
 
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         object_summery = self.s3.ObjectSummary(path.bucket, path.key)
@@ -230,20 +233,16 @@ class PathNotSupportedMixin:
         raise NotImplementedError(message)
 
     def is_mount(self):
-        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.is_mount.__qualname__)
-        raise NotImplementedError(message)
+        return False
 
     def is_symlink(self):
-        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.is_symlink.__qualname__)
-        raise NotImplementedError(message)
+        return False
 
     def is_socket(self):
-        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.is_socket.__qualname__)
-        raise NotImplementedError(message)
+        return False
 
     def is_fifo(self):
-        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.is_fifo.__qualname__)
-        raise NotImplementedError(message)
+        return False
 
     def is_block_device(self):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.is_block_device.__qualname__)

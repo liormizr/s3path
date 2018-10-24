@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import boto3
@@ -279,6 +280,7 @@ def test_open_binary_read(s3_mock):
         assert file_obj.readline() == b''
 
 
+@pytest.mark.skipif(sys.version_info < (3, 5), reason="requires python3.5 or higher")
 def test_read_bytes(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
@@ -305,6 +307,7 @@ def test_open_text_read(s3_mock):
         assert file_obj.readline() == ''
 
 
+@pytest.mark.skipif(sys.version_info < (3, 5), reason="requires python3.5 or higher")
 def test_read_text(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')

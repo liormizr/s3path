@@ -1,4 +1,5 @@
 import os
+import sys
 import pytest
 from pathlib import Path
 from s3path import PureS3Path
@@ -8,8 +9,12 @@ def test_repr():
     assert repr(PureS3Path('setup.py')) == "PureS3Path('setup.py')"
     assert str(PureS3Path('setup.py')) == 'setup.py'
     assert bytes(PureS3Path('setup.py')) == b'setup.py'
-    assert os.fspath(PureS3Path('/usr/bin')) == '/usr/bin'
     assert PureS3Path('/usr/bin').as_posix() == '/usr/bin'
+
+
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires python3.6 or higher")
+def test_fspath():
+    assert os.fspath(PureS3Path('/usr/bin')) == '/usr/bin'
 
 
 def test_join_strs():
