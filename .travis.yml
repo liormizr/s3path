@@ -1,0 +1,14 @@
+language: python
+sudo: required
+dist: xenial
+python:
+  - '3.7'
+  - '3.6'
+  - '3.5'
+  - '3.4'
+
+before_install: sudo rm -f /etc/boto.cfg
+install: make init
+script:
+  - export BOTO_CONFIG=/dev/null
+  - make tests
