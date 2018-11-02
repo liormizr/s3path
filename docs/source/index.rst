@@ -1,17 +1,19 @@
-S3Path Simple Pathlib lick API for AWS S3 service:
-==================================================
+S3Path 
+======
+________________________________
+Like pathlib, but for S3 Buckets
+________________________________
 
-AWS S3 is one of the more popular services in AWS.
-S3 is a object storage built to store and retrieve any amount of data from anywhere.
+AWS S3 is among the most popular cloud storage solutions. It's object storage, is built to store and retrieve various amounts of data from anywhere.
 
-In python we have boto3 for the latest API to connect / put / get / list / delete files from s3.
+Currently, Python developers use Boto3 as the default API to connect / put / get / list / delete files from S3.
 
-This library is trying to integrate boto3 to pathlib api.
+S3Path blends Boto3's ease of use and the farmiliarity or pathlib's api.
 
 Basic use:
 ==========
 
-For example if we have this s3 bucket setup:
+The following example assumes an s3 bucket setup as specified bellow:
 
 * Bucket name = bucket
 * Keys:
