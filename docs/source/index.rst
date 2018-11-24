@@ -69,6 +69,9 @@ Opening a "file" (s3 key)::
    >>> with q.open() as f: f.readline()
    ...
    '#!/bin/bash\n'
+   
+
+
 
 Guide
 ^^^^^
@@ -86,3 +89,84 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+
+PureS3Path paths
+----------
+
+PureS3Path could be treated as a PurePath flavour. It treats S3 Buckets as a posix file system. The objects provide path-handling operations which don't actually
+access a filesystem. 
+
+     ::
+
+      >>> PureS3Path('setup.py')('setup.py')      # instantiating PureS3Path
+      PureS3Path('setup.py')
+
+   Each element of *pathsegments* can be either a string representing a
+   path segment, an object implementing the :class:`os.PathLike` interface
+   which returns a string, or another path object::
+
+      >>> PureS3Path('foo', 'some/path', 'bar')
+      PurePosixPath('foo/some/path/bar')
+      >>> PurePath(Path('foo'), Path('bar'))
+      PurePosixPath('foo/bar')
+
+   When *pathsegments* is empty, the current directory is assumed::
+
+      >>> PureS3Path()
+      PureS3Path('.')('.')
+
+   When several absolute paths are given, the last is taken as an anchor
+   (mimicking :func:`os.path.join`'s behaviour)::
+
+      >>> PureS3Path('/etc', '/usr', 'lib64')
+
+
+   
+
+   Spurious slashes and single dots are collapsed.::
+
+      >>> PureS3Path('foo//bar')
+      PureS3Path('foo/bar')
+      >>> PureS3Path('foo/./bar')
+      PureS3Path('foo/bar')
+      
+   Double dots (``'..'``) are treated as follows. 
+   This is different then PurePath since
+   symbolic links ar not a concern::   
+      >>> PureS3Path('foo/../bar')
+      PureS3Path('bar')
+
+   (a naïve approach would make ``PurePosixPath('foo/../bar')`` equivalent
+   to ``PurePosixPath('bar')``, which is wrong if ``foo`` is a symbolic link
+   to another directory)
+
+   Pure path objects implement the :class:`os.PathLike` interface, allowing them
+   to be used anywhere the interface is accepted.
+
+   .. versionchanged:: 3.6
+      Added support for the :class:`os.PathLike` interface.
+
+.. class:: PurePosixPath(*pathsegments)
+
+   A subclass of :class:`PurePath`, this path flavour represents non-Windows
+   filesystem paths::
+
+      >>> PurePosixPath('/etc')
+      PurePosixPath('/etc')
+
+   *pathsegments* is specified similarly to :class:`PurePath`.
+
+.. class:: PureWindowsPath(*pathsegments)
+
+   A subclass of :class:`PurePath`, this path flavour represents Windows
+   filesystem paths::
+
+      >>> PureWindowsPath('c:/Program Files/')
+      PureWindowsPath('c:/Program Files')
+
+   *pathsegments* is specified similarly to :class:`PurePath`.
+
+Regardless of the system you're running on, you can instantiate all of
+these classes, since they don't provide any operation that does system calls.
+
