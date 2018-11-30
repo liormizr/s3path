@@ -137,36 +137,341 @@ access a filesystem.
       >>> PureS3Path('foo/../bar')
       PureS3Path('bar')
 
-   (a naïve approach would make ``PurePosixPath('foo/../bar')`` equivalent
-   to ``PurePosixPath('bar')``, which is wrong if ``foo`` is a symbolic link
-   to another directory)
-
-   Pure path objects implement the :class:`os.PathLike` interface, allowing them
+   PureS3Path objects implement the :class:`os.PathLike` interface, allowing them
    to be used anywhere the interface is accepted.
 
    .. versionchanged:: 3.6
       Added support for the :class:`os.PathLike` interface.
 
-.. class:: PurePosixPath(*pathsegments)
 
-   A subclass of :class:`PurePath`, this path flavour represents non-Windows
-   filesystem paths::
+Operators
+^^^^^^^^^
 
-      >>> PurePosixPath('/etc')
-      PurePosixPath('/etc')
+The slash operator helps create child paths, similarly to :func:`os.path.join`::
 
-   *pathsegments* is specified similarly to :class:`PurePath`.
+   >>> p = PureS3Path('/etc')
+   >>> p
+   PureS3Path('/etc')
+   >>> p / 'init.d' / 'apache2'
+   PureS3Path('/etc/init.d/apache2')
+   >>> q = PureS3Path('bin')
+   >>> '/usr' / q
+   PureS3Path('/usr/bin')
 
-.. class:: PureWindowsPath(*pathsegments)
 
-   A subclass of :class:`PurePath`, this path flavour represents Windows
-   filesystem paths::
+Accessing individual parts
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-      >>> PureWindowsPath('c:/Program Files/')
+To access the individual "parts" (components) of a path, use the following
+property:
+
+.. data:: PureS3Path.parts
+
+   A tuple giving access to the path's various components::
+
+      >>> p = PureS3Path('foo//bar')
+      >>> p.parts
+      ('foo', 'bar')
+
+      >>> p = PureS3Path('/foo/bar')('c:/Program Files/PSF')
+      >>> p.parts
+      ('/', 'foo', 'bar')
+
+
+
+Methods and properties
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. testsetup::
+
+   from pathlib import PurePosixPath, PureWindowsPath
+
+ PureS3Path objects modify following methods and properties:
+
+.. data:: PureS3Path.drive
+
+   The drive property will simply return an empty string::
+
+      >>> PureS3Path('foo//bar').drive
+      ''
+
+
+.. data:: PurePath.root
+
+   A string representing the (local or global) root. This method will return an empty string or '/'::
+
+      >>> PureS3Path('foo//bar').root
+      ''
+      >>> PureS3Path('../bar').root
+      ''
+      >>> PureS3Path('/foo/bar').root
+      '/'
+
+   UNC shares always have a root::
+
+ 
+.. data:: PurePath.anchor
+
+   Modified to return an empty string or '/'::
+
+      >>> PureS3Path('foo//bar').anchor
+      ''
+      >>> PureS3Path('/foo/bar').anchor
+      '/'
+
+
+.. data:: PurePath.parents
+
+   An immutable sequence providing access to the logical ancestors of
+   the path::
+
+      >>> p = PureWindowsPath('c:/foo/bar/setup.py')
+      >>> p.parents[0]
+      PureWindowsPath('c:/foo/bar')
+      >>> p.parents[1]
+      PureWindowsPath('c:/foo')
+      >>> p.parents[2]
+      PureWindowsPath('c:/')
+
+
+.. data:: PurePath.parent
+
+   The logical parent of the path::
+
+      >>> p = PurePosixPath('/a/b/c/d')
+      >>> p.parent
+      PurePosixPath('/a/b/c')
+
+   You cannot go past an anchor, or empty path::
+
+      >>> p = PurePosixPath('/')
+      >>> p.parent
+      PurePosixPath('/')
+      >>> p = PurePosixPath('.')
+      >>> p.parent
+      PurePosixPath('.')
+
+   .. note::
+      This is a purely lexical operation, hence the following behaviour::
+
+         >>> p = PurePosixPath('foo/..')
+         >>> p.parent
+         PurePosixPath('foo')
+
+      If you want to walk an arbitrary filesystem path upwards, it is
+      recommended to first call :meth:`Path.resolve` so as to resolve
+      symlinks and eliminate `".."` components.
+
+
+.. data:: PurePath.name
+
+   A string representing the final path component, excluding the drive and
+   root, if any::
+
+      >>> PurePosixPath('my/library/setup.py').name
+      'setup.py'
+
+   UNC drive names are not considered::
+
+      >>> PureWindowsPath('//some/share/setup.py').name
+      'setup.py'
+      >>> PureWindowsPath('//some/share').name
+      ''
+
+
+.. data:: PurePath.suffix
+
+   The file extension of the final component, if any::
+
+      >>> PurePosixPath('my/library/setup.py').suffix
+      '.py'
+      >>> PurePosixPath('my/library.tar.gz').suffix
+      '.gz'
+      >>> PurePosixPath('my/library').suffix
+      ''
+
+
+.. data:: PurePath.suffixes
+
+   A list of the path's file extensions::
+
+      >>> PurePosixPath('my/library.tar.gar').suffixes
+      ['.tar', '.gar']
+      >>> PurePosixPath('my/library.tar.gz').suffixes
+      ['.tar', '.gz']
+      >>> PurePosixPath('my/library').suffixes
+      []
+
+
+.. data:: PurePath.stem
+
+   The final path component, without its suffix::
+
+      >>> PurePosixPath('my/library.tar.gz').stem
+      'library.tar'
+      >>> PurePosixPath('my/library.tar').stem
+      'library'
+      >>> PurePosixPath('my/library').stem
+      'library'
+
+
+.. method:: PurePath.as_posix()
+
+   Return a string representation of the path with forward slashes (``/``)::
+
+      >>> p = PureWindowsPath('c:\\windows')
+      >>> str(p)
+      'c:\\windows'
+      >>> p.as_posix()
+      'c:/windows'
+
+
+.. method:: PurePath.as_uri()
+
+   Represent the path as a ``file`` URI.  :exc:`ValueError` is raised if
+   the path isn't absolute.
+
+      >>> p = PurePosixPath('/etc/passwd')
+      >>> p.as_uri()
+      'file:///etc/passwd'
+      >>> p = PureWindowsPath('c:/Windows')
+      >>> p.as_uri()
+      'file:///c:/Windows'
+
+
+.. method:: PurePath.is_absolute()
+
+   Return whether the path is absolute or not.  A path is considered absolute
+   if it has both a root and (if the flavour allows) a drive::
+
+      >>> PurePosixPath('/a/b').is_absolute()
+      True
+      >>> PurePosixPath('a/b').is_absolute()
+      False
+
+      >>> PureWindowsPath('c:/a/b').is_absolute()
+      True
+      >>> PureWindowsPath('/a/b').is_absolute()
+      False
+      >>> PureWindowsPath('c:').is_absolute()
+      False
+      >>> PureWindowsPath('//some/share').is_absolute()
+      True
+
+
+.. method:: PurePath.is_reserved()
+
+   With :class:`PureWindowsPath`, return ``True`` if the path is considered
+   reserved under Windows, ``False`` otherwise.  With :class:`PurePosixPath`,
+   ``False`` is always returned.
+
+      >>> PureWindowsPath('nul').is_reserved()
+      True
+      >>> PurePosixPath('nul').is_reserved()
+      False
+
+   File system calls on reserved paths can fail mysteriously or have
+   unintended effects.
+
+
+.. method:: PurePath.joinpath(*other)
+
+   Calling this method is equivalent to combining the path with each of
+   the *other* arguments in turn::
+
+      >>> PurePosixPath('/etc').joinpath('passwd')
+      PurePosixPath('/etc/passwd')
+      >>> PurePosixPath('/etc').joinpath(PurePosixPath('passwd'))
+      PurePosixPath('/etc/passwd')
+      >>> PurePosixPath('/etc').joinpath('init.d', 'apache2')
+      PurePosixPath('/etc/init.d/apache2')
+      >>> PureWindowsPath('c:').joinpath('/Program Files')
       PureWindowsPath('c:/Program Files')
 
-   *pathsegments* is specified similarly to :class:`PurePath`.
 
-Regardless of the system you're running on, you can instantiate all of
-these classes, since they don't provide any operation that does system calls.
+.. method:: PurePath.match(pattern)
+
+   Match this path against the provided glob-style pattern.  Return ``True``
+   if matching is successful, ``False`` otherwise.
+
+   If *pattern* is relative, the path can be either relative or absolute,
+   and matching is done from the right::
+
+      >>> PurePath('a/b.py').match('*.py')
+      True
+      >>> PurePath('/a/b/c.py').match('b/*.py')
+      True
+      >>> PurePath('/a/b/c.py').match('a/*.py')
+      False
+
+   If *pattern* is absolute, the path must be absolute, and the whole path
+   must match::
+
+      >>> PurePath('/a.py').match('/*.py')
+      True
+      >>> PurePath('a/b.py').match('/*.py')
+      False
+
+   As with other methods, case-sensitivity is observed::
+
+      >>> PureWindowsPath('b.py').match('*.PY')
+      True
+
+
+.. method:: PurePath.relative_to(*other)
+
+   Compute a version of this path relative to the path represented by
+   *other*.  If it's impossible, ValueError is raised::
+
+      >>> p = PurePosixPath('/etc/passwd')
+      >>> p.relative_to('/')
+      PurePosixPath('etc/passwd')
+      >>> p.relative_to('/etc')
+      PurePosixPath('passwd')
+      >>> p.relative_to('/usr')
+      Traceback (most recent call last):
+        File "<stdin>", line 1, in <module>
+        File "pathlib.py", line 694, in relative_to
+          .format(str(self), str(formatted)))
+      ValueError: '/etc/passwd' does not start with '/usr'
+
+
+.. method:: PurePath.with_name(name)
+
+   Return a new path with the :attr:`name` changed.  If the original path
+   doesn't have a name, ValueError is raised::
+
+      >>> p = PureWindowsPath('c:/Downloads/pathlib.tar.gz')
+      >>> p.with_name('setup.py')
+      PureWindowsPath('c:/Downloads/setup.py')
+      >>> p = PureWindowsPath('c:/')
+      >>> p.with_name('setup.py')
+      Traceback (most recent call last):
+        File "<stdin>", line 1, in <module>
+        File "/home/antoine/cpython/default/Lib/pathlib.py", line 751, in with_name
+          raise ValueError("%r has an empty name" % (self,))
+      ValueError: PureWindowsPath('c:/') has an empty name
+
+
+.. method:: PurePath.with_suffix(suffix)
+
+   Return a new path with the :attr:`suffix` changed.  If the original path
+   doesn't have a suffix, the new *suffix* is appended instead.  If the
+   *suffix* is an empty string, the original suffix is removed::
+
+      >>> p = PureWindowsPath('c:/Downloads/pathlib.tar.gz')
+      >>> p.with_suffix('.bz2')
+      PureWindowsPath('c:/Downloads/pathlib.tar.bz2')
+      >>> p = PureWindowsPath('README')
+      >>> p.with_suffix('.txt')
+      PureWindowsPath('README.txt')
+      >>> p = PureWindowsPath('README.txt')
+      >>> p.with_suffix('')
+      PureWindowsPath('README')
+
+
+.. _concrete-paths:
+
+
+
 
