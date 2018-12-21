@@ -220,18 +220,10 @@ Methods and properties
       '/'
 
 
-.. data:: PurePath.parents
+.. data:: PureS3Path.parents
 
    An immutable sequence providing access to the logical ancestors of
    the path::
-
-      >>> p = PureWindowsPath('c:/foo/bar/setup.py')
-      >>> p.parents[0]
-      PureWindowsPath('c:/foo/bar')
-      >>> p.parents[1]
-      PureWindowsPath('c:/foo')
-      >>> p.parents[2]
-      PureWindowsPath('c:/')
 
 
 .. data:: PurePath.parent
@@ -244,39 +236,33 @@ Methods and properties
 
    You cannot go past an anchor, or empty path::
 
-      >>> p = PurePosixPath('/')
+      >>> p = PureS3Path('foo//bar').parent 
       >>> p.parent
-      PurePosixPath('/')
-      >>> p = PurePosixPath('.')
+      PureS3Path('foo')
+      >>> p = PureS3Path('foo/../bar')
       >>> p.parent
-      PurePosixPath('.')
+      PureS3Path('.')
 
    .. note::
       This is a purely lexical operation, hence the following behaviour::
 
-         >>> p = PurePosixPath('foo/..')
+         >>> p = PureS3Path('../bar')
          >>> p.parent
-         PurePosixPath('foo')
+         PureS3Path('foo', '../bar')
 
       If you want to walk an arbitrary filesystem path upwards, it is
       recommended to first call :meth:`Path.resolve` so as to resolve
       symlinks and eliminate `".."` components.
 
 
-.. data:: PurePath.name
+.. data:: PureS3Path.name
 
    A string representing the final path component, excluding the drive and
    root, if any::
 
-      >>> PurePosixPath('my/library/setup.py').name
+      >>> PureS3Path('my/library/setup.py').name
       'setup.py'
 
-   UNC drive names are not considered::
-
-      >>> PureWindowsPath('//some/share/setup.py').name
-      'setup.py'
-      >>> PureWindowsPath('//some/share').name
-      ''
 
 
 .. data:: PurePath.suffix
