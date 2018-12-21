@@ -265,15 +265,15 @@ Methods and properties
 
 
 
-.. data:: PurePath.suffix
+.. data:: PureS3Path.suffix
 
    The file extension of the final component, if any::
 
-      >>> PurePosixPath('my/library/setup.py').suffix
+      >>> PureS3Path('my/library/setup.py').suffix
       '.py'
-      >>> PurePosixPath('my/library.tar.gz').suffix
+      >>> PureS3Path('my/library.tar.gz').suffix
       '.gz'
-      >>> PurePosixPath('my/library').suffix
+      >>> PureS3Path('my/library').suffix
       ''
 
 
@@ -281,11 +281,11 @@ Methods and properties
 
    A list of the path's file extensions::
 
-      >>> PurePosixPath('my/library.tar.gar').suffixes
+      >>> PureS3Path('my/library.tar.gar').suffixes
       ['.tar', '.gar']
-      >>> PurePosixPath('my/library.tar.gz').suffixes
+      >>> PureS3Path('my/library.tar.gz').suffixes
       ['.tar', '.gz']
-      >>> PurePosixPath('my/library').suffixes
+      >>> PureS3Path('my/library').suffixes
       []
 
 
@@ -293,11 +293,11 @@ Methods and properties
 
    The final path component, without its suffix::
 
-      >>> PurePosixPath('my/library.tar.gz').stem
+      >>> PureS3Path('my/library.tar.gz').stem
       'library.tar'
-      >>> PurePosixPath('my/library.tar').stem
+      >>> PureS3Path('my/library.tar').stem
       'library'
-      >>> PurePosixPath('my/library').stem
+      >>> PureS3Path('my/library').stem
       'library'
 
 
