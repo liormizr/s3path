@@ -277,7 +277,7 @@ Methods and properties
       ''
 
 
-.. data:: PurePath.suffixes
+.. data:: PureS3Path.suffixes
 
    A list of the path's file extensions::
 
@@ -289,7 +289,7 @@ Methods and properties
       []
 
 
-.. data:: PurePath.stem
+.. data:: PureS3Path.stem
 
    The final path component, without its suffix::
 
@@ -301,59 +301,49 @@ Methods and properties
       'library'
 
 
-.. method:: PurePath.as_posix()
+.. method:: PureS3Path.as_posix()
 
    Return a string representation of the path with forward slashes (``/``)::
 
-      >>> p = PureWindowsPath('c:\\windows')
+      >>> p = PureS3Path('/usr/bin')
       >>> str(p)
-      'c:\\windows'
+      '/usr/bin'
       >>> p.as_posix()
-      'c:/windows'
+      '/usr/bin'
 
 
-.. method:: PurePath.as_uri()
+.. method:: PureS3Path.as_uri()
 
    Represent the path as a ``file`` URI.  :exc:`ValueError` is raised if
    the path isn't absolute.
 
-      >>> p = PurePosixPath('/etc/passwd')
+      >>> p = PureS3Path('/etc/passwd')
       >>> p.as_uri()
-      'file:///etc/passwd'
-      >>> p = PureWindowsPath('c:/Windows')
+      's3://etc/passwd'
+      >>> p = PureS3Path('/bucket/key')
       >>> p.as_uri()
-      'file:///c:/Windows'
+      's3://bucket/key'
 
 
-.. method:: PurePath.is_absolute()
+.. method:: PureS3Path('/a/b').is_absolute()
 
    Return whether the path is absolute or not.  A path is considered absolute
    if it has both a root and (if the flavour allows) a drive::
 
-      >>> PurePosixPath('/a/b').is_absolute()
+      >>> PureS3Path('/a/b').is_absolute()
       True
-      >>> PurePosixPath('a/b').is_absolute()
+      >>> PureS3Path('a/b').is_absolute()
       False
 
-      >>> PureWindowsPath('c:/a/b').is_absolute()
-      True
-      >>> PureWindowsPath('/a/b').is_absolute()
-      False
-      >>> PureWindowsPath('c:').is_absolute()
-      False
-      >>> PureWindowsPath('//some/share').is_absolute()
-      True
 
+.. method:: PureS3Path.is_reserved()
 
-.. method:: PurePath.is_reserved()
-
-   With :class:`PureWindowsPath`, return ``True`` if the path is considered
-   reserved under Windows, ``False`` otherwise.  With :class:`PurePosixPath`,
+   With :class:`PureS3Path`,
    ``False`` is always returned.
 
-      >>> PureWindowsPath('nul').is_reserved()
-      True
-      >>> PurePosixPath('nul').is_reserved()
+      >>> PureS3Path('a/b').is_reserved()
+      False
+      >>> PureS3Path('/a/b').is_reserved()
       False
 
    File system calls on reserved paths can fail mysteriously or have
@@ -365,17 +355,14 @@ Methods and properties
    Calling this method is equivalent to combining the path with each of
    the *other* arguments in turn::
 
-      >>> PurePosixPath('/etc').joinpath('passwd')
-      PurePosixPath('/etc/passwd')
-      >>> PurePosixPath('/etc').joinpath(PurePosixPath('passwd'))
-      PurePosixPath('/etc/passwd')
-      >>> PurePosixPath('/etc').joinpath('init.d', 'apache2')
-      PurePosixPath('/etc/init.d/apache2')
-      >>> PureWindowsPath('c:').joinpath('/Program Files')
-      PureWindowsPath('c:/Program Files')
+      >>> PureS3Path('/etc').joinpath('passwd')
+      PureS3Path('/etc/passwd')
+      >>> PureS3Path('/etc').joinpath(PureS3Path('passwd'))
+      PureS3Path('/etc/passwd')
+      >>> PureS3Path('/etc').joinpath('init.d', 'apache2') 
+      PureS3Path('/etc/init.d/apache2')
 
-
-.. method:: PurePath.match(pattern)
+.. method:: PureS3Path.match(pattern)
 
    Match this path against the provided glob-style pattern.  Return ``True``
    if matching is successful, ``False`` otherwise.
@@ -383,25 +370,20 @@ Methods and properties
    If *pattern* is relative, the path can be either relative or absolute,
    and matching is done from the right::
 
-      >>> PurePath('a/b.py').match('*.py')
+      >>> PureS3Path('a/b.py').match('*.py')
       True
-      >>> PurePath('/a/b/c.py').match('b/*.py')
+      >>> PureS3Path('/a/b/c.py').match('b/*.py')
       True
-      >>> PurePath('/a/b/c.py').match('a/*.py')
+      >>> PureS3Path('/a/b/c.py').match('a/*.py')
       False
 
    If *pattern* is absolute, the path must be absolute, and the whole path
    must match::
 
-      >>> PurePath('/a.py').match('/*.py')
+      >>> PureS3Path('/a.py').match('/*.py')
       True
-      >>> PurePath('a/b.py').match('/*.py')
+      >>> PureS3Path('a/b.py').match('/*.py')
       False
-
-   As with other methods, case-sensitivity is observed::
-
-      >>> PureWindowsPath('b.py').match('*.PY')
-      True
 
 
 .. method:: PurePath.relative_to(*other)
@@ -427,16 +409,15 @@ Methods and properties
    Return a new path with the :attr:`name` changed.  If the original path
    doesn't have a name, ValueError is raised::
 
-      >>> p = PureWindowsPath('c:/Downloads/pathlib.tar.gz')
-      >>> p.with_name('setup.py')
-      PureWindowsPath('c:/Downloads/setup.py')
-      >>> p = PureWindowsPath('c:/')
+      >>> p = PureS3Path('/Downloads/pathlib.tar.gz')
+      >>> p.with_name('setup.py')  
+      PureS3Path('/Downloads/setup.py')
+      >>> p = PureS3Path('/')
       >>> p.with_name('setup.py')
       Traceback (most recent call last):
         File "<stdin>", line 1, in <module>
-        File "/home/antoine/cpython/default/Lib/pathlib.py", line 751, in with_name
-          raise ValueError("%r has an empty name" % (self,))
-      ValueError: PureWindowsPath('c:/') has an empty name
+        ...
+      ValueError: PureS3Path('/') has an empty name
 
 
 .. method:: PurePath.with_suffix(suffix)
@@ -445,15 +426,15 @@ Methods and properties
    doesn't have a suffix, the new *suffix* is appended instead.  If the
    *suffix* is an empty string, the original suffix is removed::
 
-      >>> p = PureWindowsPath('c:/Downloads/pathlib.tar.gz')
+      >>> p = PureS3Path('/Downloads/pathlib.tar.gz')
       >>> p.with_suffix('.bz2')
-      PureWindowsPath('c:/Downloads/pathlib.tar.bz2')
+      PureS3Path('/Downloads/pathlib.tar.bz2')
       >>> p = PureWindowsPath('README')
       >>> p.with_suffix('.txt')
       PureWindowsPath('README.txt')
-      >>> p = PureWindowsPath('README.txt')
+      >>> p = PureS3Path('README')
       >>> p.with_suffix('')
-      PureWindowsPath('README')
+      PureS3Path('README')
 
 
 .. _concrete-paths:
