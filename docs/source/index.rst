@@ -590,25 +590,27 @@ call fails (for example because the path doesn't exist).
    .. versionadded:: 3.5
 
 
-.. method:: Path.glob(pattern)
+.. method:: Path.
+
+(pattern)
 
    Glob the given *pattern* in the directory represented by this path,
    yielding all matching files (of any kind)::
 
       >>> sorted(Path('.').glob('*.py'))
-      [PosixPath('pathlib.py'), PosixPath('setup.py'), PosixPath('test_pathlib.py')]
-      >>> sorted(Path('.').glob('*/*.py'))
-      [PosixPath('docs/conf.py')]
+      [S3Path('pathlib.py'), S3Path('setup.py'), S3Path('test_pathlib.py')]
+      >>> sorted(S3Path('.').glob('*/*.py'))
+      [S3Path('docs/conf.py')]
 
    The "``**``" pattern means "this directory and all subdirectories,
    recursively".  In other words, it enables recursive globbing::
 
-      >>> sorted(Path('.').glob('**/*.py'))
-      [PosixPath('build/lib/pathlib.py'),
-       PosixPath('docs/conf.py'),
-       PosixPath('pathlib.py'),
-       PosixPath('setup.py'),
-       PosixPath('test_pathlib.py')]
+      >>> sorted(S3Path('.').glob('**/*.py'))
+      [S3Path('build/lib/pathlib.py'),
+       S3Path('docs/conf.py'),
+       S3Path('pathlib.py'),
+       S3Path('setup.py'),
+       S3Path('test_pathlib.py')]
 
    .. note::
       Using the "``**``" pattern in large directory trees may consume
