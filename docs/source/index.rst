@@ -623,7 +623,7 @@ call fails (for example because the path doesn't exist).
    if the file's gid isn't found in the system database.
 
 
-.. method:: Path.is_dir()
+.. method:: S3Path.is_dir()
 
    Return ``True`` if the path points to a directory (or a symbolic link
    pointing to a directory), ``False`` if it points to another kind of file.
@@ -632,7 +632,7 @@ call fails (for example because the path doesn't exist).
    other errors (such as permission errors) are propagated.
 
 
-.. method:: Path.is_file()
+.. method:: S3Path.is_file()
 
    Return ``True`` if the path points to a regular file (or a symbolic link
    pointing to a regular file), ``False`` if it points to another kind of file.
@@ -857,7 +857,7 @@ call fails (for example because the path doesn't exist).
        PosixPath('test_pathlib.py')]
 
 
-.. method:: Path.rmdir()
+.. method:: S3Path.rmdir()
 
    Remove this directory.  The directory must be empty.
 
