@@ -765,49 +765,11 @@ call fails (for example because the path doesn't exist).
           'some text'
 
 
-    **Path.replace(target)
+    **S3Path('/test-bucket/docs/').replace(target)
 
        Rename this file or directory to the given *target*.  If *target* points
        to an existing file or directory, it will be unconditionally replaced.
 
-
-    **Path.resolve(strict=False)
-
-       Make the path absolute, resolving any symlinks.  A new path object is
-       returned::
-
-          >>> p = Path()
-          >>> p
-          PosixPath('.')
-          >>> p.resolve()
-          PosixPath('/home/antoine/pathlib')
-
-       "``..``" components are also eliminated (this is the only method to do so)::
-
-          >>> p = Path('docs/../setup.py')
-          >>> p.resolve()
-          PosixPath('/home/antoine/pathlib/setup.py')
-
-       If the path doesn't exist and *strict* is ``True``, :exc:`FileNotFoundError`
-       is raised.  If *strict* is ``False``, the path is resolved as far as possible
-       and any remainder is appended without checking whether it exists.  If an
-       infinite loop is encountered along the resolution path, :exc:`RuntimeError`
-       is raised.
-
-       .. versionadded:: 3.6
-          The *strict* argument.
-
-    **Path.rglob(pattern)
-
-       This is like calling :meth:`Path.glob` with "``**``" added in front of the
-       given *pattern*::
-
-          >>> sorted(Path().rglob("*.py"))
-          [PosixPath('build/lib/pathlib.py'),
-           PosixPath('docs/conf.py'),
-           PosixPath('pathlib.py'),
-           PosixPath('setup.py'),
-           PosixPath('test_pathlib.py')]
 
 
     **S3Path.rmdir()
