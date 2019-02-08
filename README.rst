@@ -52,7 +52,7 @@ Listing Python source files in this "directory" tree::
 
 Navigating inside a "directory" tree::
 
-   >>> p = Path('/bucket')
+   >>> p = S3Path('/bucket')
    >>> q = bucket_path / 'build' / 'lib' / 'pathlib.py'
    >>> q
    S3Path('/bucket/build/lib/pathlib.py')
@@ -84,9 +84,9 @@ path segment, an object implementing the :class:'os.PathLike' interface
 which returns a string, or another path object::
 
    >>> PureS3Path('foo', 'some/path', 'bar')
-   PurePosixPath('foo/some/path/bar')
-   >>> PurePath(Path('foo'), Path('bar'))
-   PurePosixPath('foo/bar')
+   PureS3Path('foo/some/path/bar')
+   >>> PureS3Path(Path('foo'), Path('bar'))
+   PureS3Path('foo/bar')
 
 When *pathsegments* is empty, the current directory is assumed::
 
@@ -185,18 +185,6 @@ PureS3Path objects modify following methods and properties:
       '/'
 
 
-**PureS3Path.parents**
-
-   An immutable sequence providing access to the logical ancestors of
-   the path::
-
-      >>> p = PureWindowsPath('c:/foo/bar/setup.py')
-      >>> p.parents[0]
-      PureWindowsPath('c:/foo/bar')
-      >>> p.parents[1]
-      PureWindowsPath('c:/foo')
-      >>> p.parents[2]
-      PureWindowsPath('c:/')
 
 **PurePath.parent**
 
