@@ -777,10 +777,10 @@ call fails (for example because the path doesn't exist).
        Remove this directory.  The directory must be empty.
 
 
-    **Path.samefile(other_path)
+    **S3Path.samefile(other_path)
 
        Return whether this path points to the same file as *other_path*, which
-       can be either a Path object, or a string.  The semantics are similar
+       can be either a S3Path object, or a string.  The semantics are similar
        to :func:`os.path.samefile` and :func:`os.path.samestat`.
 
        An :exc:`OSError` can be raised if either file cannot be accessed for some
@@ -788,36 +788,12 @@ call fails (for example because the path doesn't exist).
 
        ::
 
-          >>> p = Path('spam')
-          >>> q = Path('eggs')
+          >>> p = S3Path('bucket/file')
+          >>> q = S3Path('other/file')
           >>> p.samefile(q)
           False
-          >>> p.samefile('spam')
+          >>> p.samefile('bucket/file')
           True
-
-       .. versionadded:: 3.5
-
-
-    **Path.symlink_to(target, target_is_directory=False)
-
-       Make this path a symbolic link to *target*.  Under Windows,
-       *target_is_directory* must be true (default ``False``) if the link's target
-       is a directory.  Under POSIX, *target_is_directory*'s value is ignored.
-
-       ::
-
-          >>> p = Path('mylink')
-          >>> p.symlink_to('setup.py')
-          >>> p.resolve()
-          PosixPath('/home/antoine/pathlib/setup.py')
-          >>> p.stat().st_size
-          956
-          >>> p.lstat().st_size
-          8
-
-       .. note::
-          The order of arguments (link, target) is the reverse
-          of :func:`os.symlink`'s.
 
 
     **Path.touch(mode=0o666, exist_ok=True)
@@ -827,12 +803,6 @@ call fails (for example because the path doesn't exist).
        flags.  If the file already exists, the function succeeds if *exist_ok*
        is true (and its modification time is updated to the current time),
        otherwise :exc:`FileExistsError` is raised.
-
-
-    **Path.unlink()
-
-       Remove this file or symbolic link.  If the path points to a directory,
-       use :func:`Path.rmdir` instead.
 
 
     **Path.write_bytes(data)
