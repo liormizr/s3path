@@ -106,7 +106,7 @@ Spurious slashes and single dots are collapsed.::
       PureS3Path('foo/bar')
       
 Double dots (``'..'``) are treated as follows.
-This is *different then PurePath* since
+This is different then PurePath since
 symbolic links ar not a concern::
 
    >>> PureS3Path('foo/../bar')
@@ -175,7 +175,7 @@ PureS3Path objects modify following methods and properties:
       >>> PureWindowsPath('//host/share').root
       '\\'
 
-**PureS3Path.anchor**
+**PurePath.anchor**
 
    Modified to return an empty string or '/'::
 
@@ -186,13 +186,13 @@ PureS3Path objects modify following methods and properties:
 
 
 
-**PureS3Path.parent**
+**PurePath.parent**
 
    The logical parent of the path::
 
-      >>> p = PureS3Path('/a/b/c/d')
+      >>> p = PurePosixPath('/a/b/c/d')
       >>> p.parent
-      PureS3Path('/a/b/c')
+      PurePosixPath('/a/b/c')
 
    You cannot go past an anchor, or empty path::
 
@@ -346,16 +346,16 @@ PureS3Path objects modify following methods and properties:
       False
 
 
-**PureS3Path.relative_to(*other)**
+**PurePath.relative_to(*other)**
 
    Compute a version of this path relative to the path represented by
    *other*.  If it's impossible, ValueError is raised::
 
-      >>> p = PureS3Path('/etc/passwd')
+      >>> p = PurePosixPath('/etc/passwd')
       >>> p.relative_to('/')
-      PureS3Path('etc/passwd')
+      PurePosixPath('etc/passwd')
       >>> p.relative_to('/etc')
-      PureS3Path('passwd')
+      PurePosixPath('passwd')
       >>> p.relative_to('/usr')
       Traceback (most recent call last):
         File "<stdin>", line 1, in <module>
@@ -412,22 +412,39 @@ calls on path objects.  There are three ways to instantiate concrete paths:
    the system's path flavour (instantiating it creates either a
    :class:'S3Path' or a :class:'WindowsPath')::
 
-      >>> S3Path('setup.py')
-      S3Path('setup.py')
+      >>> Path('setup.py')
+      PosixPath('setup.py')
 
-   *pathsegments* is specified similarly to :class:'PureS3Path'.
+   *pathsegments* is specified similarly to :class:'PurePath'.
 
 **PosixPath(*pathsegments)**
 
-   A subclass of :class:'S3Path' and :class:'PureS3Path', this class
+   A subclass of :class:'Path' and :class:'PurePosixPath', this class
    represents concrete non-Windows filesystem paths::
 
-      >>> S3Path('/etc')
-      S3Path('/etc')
+      >>> PosixPath('/etc')
+      PosixPath('/etc')
 
    *pathsegments* is specified similarly to :class:'PurePath'.
 
 
+You can only instantiate the class flavour that corresponds to your system
+(allowing system calls on non-compatible path flavours could lead to
+bugs or failures in your application)::
+
+   >>> import os
+   >>> os.name
+   'posix'
+   >>> Path('setup.py')
+   PosixPath('setup.py')
+   >>> PosixPath('setup.py')
+   PosixPath('setup.py')
+   >>> WindowsPath('setup.py')
+   Traceback (most recent call last):
+     File "<stdin>", line 1, in <module>
+     File "pathlib.py", line 798, in __new__
+       % (cls.__name__,))
+   NotImplementedError: cannot instantiate 'WindowsPath' on your system
 
 
 Methods:
@@ -438,87 +455,103 @@ methods.  Many of these methods can raise an :exc:'OSError' if a system
 call fails (for example because the path doesn't exist).
 
 
+**Path.cwd()**
 
-    .. versionadded:: 3.5
+   Return a new path object representing the current directory (as returned
+   by :func:'os.getcwd')::
 
-  **S3Path.stat()**
-
-     TODO nees clarification
-
-     ::
-
-        >>> p = Path('setup.py')
-        >>> p.stat().st_size
-        956
-        >>> p.stat().st_mtime
-        1327883547.852554
+      >>> Path.cwd()
+      PosixPath('/home/antoine/pathlib')
 
 
-  **Path.chmod(mode)
+**Path.home()**
 
-     Change the file mode and permissions, like :func:`os.chmod`::
+   Return a new path object representing the user's home directory (as
+   returned by :func:'os.path.expanduser' with ``~`` construct)::
 
-        >>> p = Path('setup.py')
-        >>> p.stat().st_mode
-        33277
-        >>> p.chmod(0o444)
-        >>> p.stat().st_mode
-        33060
+      >>> Path.home()
+      PosixPath('/home/antoine')
+
+..    .. versionadded:: 3.5
+
+    **S3Path.stat()**
+
+       TODO nees clarification
+
+       ::
+
+          >>> p = Path('setup.py')
+          >>> p.stat().st_size
+          956
+          >>> p.stat().st_mtime
+          1327883547.852554
 
 
-  **S3Path.exists()
+    **Path.chmod(mode)
 
-     Whether the path points to an existing file or bucket::
+       Change the file mode and permissions, like :func:`os.chmod`::
 
-        >> S3Path('./fake-key').exists()
-        Will raise a ValueError
-        >>> S3Path('.').exists()
-        True
-        >>> Path('setup.py').exists()
-        True
-        >>> Path('/etc').exists()
-        True
-        >>> Path('nonexistentfile').exists()
-        False
+          >>> p = Path('setup.py')
+          >>> p.stat().st_mode
+          33277
+          >>> p.chmod(0o444)
+          >>> p.stat().st_mode
+          33060
+
+
+    **S3Path.exists()
+
+       Whether the path points to an existing file or bucket::
+
+          >> S3Path('./fake-key').exists()
+          Will raise a ValueError
+          >>> S3Path('.').exists()
+          True
+          >>> Path('setup.py').exists()
+          True
+          >>> Path('/etc').exists()
+          True
+          >>> Path('nonexistentfile').exists()
+          False
 
        .. note::
           If the path points to a symlink, :meth:`exists` returns whether the
           symlink *points to* an existing file or directory.
 
 
-  **Path.expanduser()
+    **Path.expanduser()
 
-     Return a new path with expanded ``~`` and ``~user`` constructs,
-     as returned by :meth:`os.path.expanduser`::
+       Return a new path with expanded ``~`` and ``~user`` constructs,
+       as returned by :meth:`os.path.expanduser`::
 
-        >>> p = PosixPath('~/films/Monty Python')
-        >>> p.expanduser()
-        PosixPath('/home/eric/films/Monty Python')
+          >>> p = PosixPath('~/films/Monty Python')
+          >>> p.expanduser()
+          PosixPath('/home/eric/films/Monty Python')
 
        .. versionadded:: 3.5
 
 
-  **Path.
+    **Path.
 
-  (pattern)
+    (pattern)
 
-   Glob the given *pattern* in the directory represented by this path,
-   yielding all matching files (of any kind)::
+       Glob the given *pattern* in the directory represented by this path,
+       yielding all matching files (of any kind)::
 
-      >>> sorted(Path('.').glob('*.py'))
-      [S3Path('pathlib.py'), S3Path('setup.py'), S3Path('test_pathlib.py')]
-      >>> sorted(S3Path('.').glob('*/*.py'))
-      [S3Path('docs/conf.py')]
+          >>> sorted(Path('.').glob('*.py'))
+          [S3Path('pathlib.py'), S3Path('setup.py'), S3Path('test_pathlib.py')]
+          >>> sorted(S3Path('.').glob('*/*.py'))
+          [S3Path('docs/conf.py')]
 
-   The "``**``" pattern means "this directory and all subdirectories,
-   recursively".  In other words, it enables recursive globbing::
+       The "``**``" pattern means "this directory and all subdirectories,
+       recursively".  In other words, it enables recursive globbing::
 
-      >>> sorted(S3Path('.').glob('**/*.py'))
-      [S3Path('build/lib/pathlib.py'),
-       S3Path('docs/conf.py'),
-       S3Path('pathlib.py'),
-       S3Path('setup.py'),
-       S3Path('test_pathlib.py')]
+          >>> sorted(S3Path('.').glob('**/*.py'))
+          [S3Path('build/lib/pathlib.py'),
+           S3Path('docs/conf.py'),
+           S3Path('pathlib.py'),
+           S3Path('setup.py'),
+           S3Path('test_pathlib.py')]
 
        .. note::
           Using the "``**``" pattern in large directory trees may consume
@@ -605,54 +638,54 @@ call fails (for example because the path doesn't exist).
        other errors (such as permission errors) are propagated.
 
 
-  **Path.iterdir()
+    **Path.iterdir()
 
-     When the path points to a directory, yield path objects of the directory
-     contents::
+       When the path points to a directory, yield path objects of the directory
+       contents::
 
-        >>> p = Path('docs')
-        >>> for child in p.iterdir(): child
-        ...
-        PosixPath('docs/conf.py')
-        PosixPath('docs/_templates')
-        PosixPath('docs/make.bat')
-        PosixPath('docs/index.rst')
-        PosixPath('docs/_build')
-        PosixPath('docs/_static')
-        PosixPath('docs/Makefile')
+          >>> p = Path('docs')
+          >>> for child in p.iterdir(): child
+          ...
+          PosixPath('docs/conf.py')
+          PosixPath('docs/_templates')
+          PosixPath('docs/make.bat')
+          PosixPath('docs/index.rst')
+          PosixPath('docs/_build')
+          PosixPath('docs/_static')
+          PosixPath('docs/Makefile')
 
-  **Path.lchmod(mode)
+    **Path.lchmod(mode)
 
-     Like :meth:`Path.chmod` but, if the path points to a symbolic link, the
-     symbolic link's mode is changed rather than its target's.
-
-
-  **Path.lstat()
-
-   Like :meth:`Path.stat` but, if the path points to a symbolic link, return
-   the symbolic link's information rather than its target's.
+       Like :meth:`Path.chmod` but, if the path points to a symbolic link, the
+       symbolic link's mode is changed rather than its target's.
 
 
-  **Path.mkdir(mode=0o777, parents=False, exist_ok=False)
+    **Path.lstat()
 
-     Create a new directory at this given path.  If *mode* is given, it is
-     combined with the process' ``umask`` value to determine the file mode
-     and access flags.  If the path already exists, :exc:`FileExistsError`
-     is raised.
+       Like :meth:`Path.stat` but, if the path points to a symbolic link, return
+       the symbolic link's information rather than its target's.
 
-     If *parents* is true, any missing parents of this path are created
-     as needed; they are created with the default permissions without taking
-     *mode* into account (mimicking the POSIX ``mkdir -p`` command).
 
-     If *parents* is false (the default), a missing parent raises
-     :exc:`FileNotFoundError`.
+    **Path.mkdir(mode=0o777, parents=False, exist_ok=False)
 
-     If *exist_ok* is false (the default), :exc:`FileExistsError` is
-     raised if the target directory already exists.
+       Create a new directory at this given path.  If *mode* is given, it is
+       combined with the process' ``umask`` value to determine the file mode
+       and access flags.  If the path already exists, :exc:`FileExistsError`
+       is raised.
 
-     If *exist_ok* is true, :exc:`FileExistsError` exceptions will be
-     ignored (same behavior as the POSIX ``mkdir -p`` command), but only if the
-     last path component is not an existing non-directory file.
+       If *parents* is true, any missing parents of this path are created
+       as needed; they are created with the default permissions without taking
+       *mode* into account (mimicking the POSIX ``mkdir -p`` command).
+
+       If *parents* is false (the default), a missing parent raises
+       :exc:`FileNotFoundError`.
+
+       If *exist_ok* is false (the default), :exc:`FileExistsError` is
+       raised if the target directory already exists.
+
+       If *exist_ok* is true, :exc:`FileExistsError` exceptions will be
+       ignored (same behavior as the POSIX ``mkdir -p`` command), but only if the
+       last path component is not an existing non-directory file.
 
        .. versionchanged:: 3.5
           The *exist_ok* parameter was added.
@@ -670,21 +703,21 @@ call fails (for example because the path doesn't exist).
           '#!/usr/bin/env python3\n'
 
 
-  **Path.owner()
+    **Path.owner()
 
-     Return the name of the user owning the file.  :exc:`KeyError` is raised
-     if the file's uid isn't found in the system database.
+       Return the name of the user owning the file.  :exc:`KeyError` is raised
+       if the file's uid isn't found in the system database.
 
 
-  **Path.read_bytes()
+    **Path.read_bytes()
 
-     Return the binary contents of the pointed-to file as a bytes object::
+       Return the binary contents of the pointed-to file as a bytes object::
 
-        >>> p = Path('my_binary_file')
-        >>> p.write_bytes(b'Binary file contents')
-        20
-        >>> p.read_bytes()
-        b'Binary file contents'
+          >>> p = Path('my_binary_file')
+          >>> p.write_bytes(b'Binary file contents')
+          20
+          >>> p.read_bytes()
+          b'Binary file contents'
 
        .. versionadded:: 3.5
 
@@ -705,19 +738,19 @@ call fails (for example because the path doesn't exist).
        .. versionadded:: 3.5
 
 
-  **Path.rename(target)
+    **Path.rename(target)
 
-     Rename this file or directory to the given *target*.  On Unix, if
-     *target* exists and is a file, it will be replaced silently if the user
-     has permission.  *target* can be either a string or another path object::
+       Rename this file or directory to the given *target*.  On Unix, if
+       *target* exists and is a file, it will be replaced silently if the user
+       has permission.  *target* can be either a string or another path object::
 
-        >>> p = Path('foo')
-        >>> p.open('w').write('some text')
-        9
-        >>> target = Path('bar')
-        >>> p.rename(target)
-        >>> target.open().read()
-        'some text'
+          >>> p = Path('foo')
+          >>> p.open('w').write('some text')
+          9
+          >>> target = Path('bar')
+          >>> p.rename(target)
+          >>> target.open().read()
+          'some text'
 
 
     **S3Path('/test-bucket/docs/').replace(target)
