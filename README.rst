@@ -455,68 +455,44 @@ methods.  Many of these methods can raise an :exc:'OSError' if a system
 call fails (for example because the path doesn't exist).
 
 
-**Path.cwd()**
-
-   Return a new path object representing the current directory (as returned
-   by :func:'os.getcwd')::
-
-      >>> Path.cwd()
-      PosixPath('/home/antoine/pathlib')
 
 
-**Path.home()**
 
-   Return a new path object representing the user's home directory (as
-   returned by :func:'os.path.expanduser' with ``~`` construct)::
-
-      >>> Path.home()
-      PosixPath('/home/antoine')
 
 ..    .. versionadded:: 3.5
 
-    **S3Path.stat()**
+**S3Path.stat()**
 
-       TODO nees clarification
+   TODO nees clarification
 
-       ::
+   ::
 
-          >>> p = Path('setup.py')
-          >>> p.stat().st_size
-          956
-          >>> p.stat().st_mtime
-          1327883547.852554
-
-
-    **Path.chmod(mode)
-
-       Change the file mode and permissions, like :func:`os.chmod`::
-
-          >>> p = Path('setup.py')
-          >>> p.stat().st_mode
-          33277
-          >>> p.chmod(0o444)
-          >>> p.stat().st_mode
-          33060
+      >>> p = Path('setup.py')
+      >>> p.stat().st_size
+      956
+      >>> p.stat().st_mtime
+      1327883547.852554
 
 
-    **S3Path.exists()
 
-       Whether the path points to an existing file or bucket::
+**S3Path.exists()**
 
-          >> S3Path('./fake-key').exists()
-          Will raise a ValueError
-          >>> S3Path('.').exists()
-          True
-          >>> Path('setup.py').exists()
-          True
-          >>> Path('/etc').exists()
-          True
-          >>> Path('nonexistentfile').exists()
-          False
+   Whether the path points to an existing file or bucket::
 
-       .. note::
-          If the path points to a symlink, :meth:`exists` returns whether the
-          symlink *points to* an existing file or directory.
+      >> S3Path('./fake-key').exists()
+      Will raise a ValueError
+      >>> S3Path('.').exists()
+      True
+      >>> S3Path('setup.py').exists()
+      True
+      >>> S3Path('/etc').exists()
+      True
+      >>> S3Path('nonexistentfile').exists()
+      False
+
+   .. note::
+      If the path points to a symlink, :meth:`exists` returns whether the
+      symlink *points to* an existing file or directory.
 
 
     **Path.expanduser()
@@ -531,27 +507,27 @@ call fails (for example because the path doesn't exist).
        .. versionadded:: 3.5
 
 
-    **Path.
+**Path**.
 
-    (pattern)
+(pattern)
 
-       Glob the given *pattern* in the directory represented by this path,
-       yielding all matching files (of any kind)::
+   Glob the given *pattern* in the directory represented by this path,
+   yielding all matching files (of any kind)::
 
-          >>> sorted(Path('.').glob('*.py'))
-          [S3Path('pathlib.py'), S3Path('setup.py'), S3Path('test_pathlib.py')]
-          >>> sorted(S3Path('.').glob('*/*.py'))
-          [S3Path('docs/conf.py')]
+      >>> sorted(Path('.').glob('*.py'))
+      [S3Path('pathlib.py'), S3Path('setup.py'), S3Path('test_pathlib.py')]
+      >>> sorted(S3Path('.').glob('*/*.py'))
+      [S3Path('docs/conf.py')]
 
-       The "``**``" pattern means "this directory and all subdirectories,
-       recursively".  In other words, it enables recursive globbing::
+   The "``**``" pattern means "this directory and all subdirectories,
+   recursively".  In other words, it enables recursive globbing::
 
-          >>> sorted(S3Path('.').glob('**/*.py'))
-          [S3Path('build/lib/pathlib.py'),
-           S3Path('docs/conf.py'),
-           S3Path('pathlib.py'),
-           S3Path('setup.py'),
-           S3Path('test_pathlib.py')]
+      >>> sorted(S3Path('.').glob('**/*.py'))
+      [S3Path('build/lib/pathlib.py'),
+       S3Path('docs/conf.py'),
+       S3Path('pathlib.py'),
+       S3Path('setup.py'),
+       S3Path('test_pathlib.py')]
 
        .. note::
           Using the "``**``" pattern in large directory trees may consume
