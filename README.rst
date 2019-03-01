@@ -1,6 +1,12 @@
 S3Path 
 ======
-________________________________
+
+S3Path is a pathlib extention with AWS S3 Service flavour.
+
+
+S3Path provide a Python convenient File-System/Path like interface for AWS S3 Service using boto3 S3 resource as a driver.
+
+
 Like pathlib, but for S3 Buckets
 ________________________________
 
@@ -8,67 +14,93 @@ AWS S3 is among the most popular cloud storage solutions. It's object storage, i
 
 Currently, Python developers use Boto3 as the default API to connect / put / get / list / delete files from S3.
 
-S3Path blends Boto3's ease of use and the farmiliarity or pathlib's api.
+S3Path blends Boto3's ease of use and the familiarity of pathlib api.
 
 Basic use:
 ==========
 
-The following example assumes an s3 bucket setup as specified bellow:
+The following example assumes an s3 bucket setup as specified bellow::
 
-* Bucket name = bucket
-* Keys:
-   * directory/Test.test
-   * pathlib.py
-   * setup.py
-   * test_pathlib.py
-   * build/lib/pathlib.py
-   * docs/conf.py
-   * docs/make.bat
-   * docs/index.rst
-   * docs/Makefile
-   * docs/_templates/somefile.txt
-   * docs/_build/conf.py
-   * docs/_static/conf.py
+    $ aws s3 ls s3://pypi-proxy/
+
+    2018-04-24 22:59:59        186 requests/index.html
+    2018-04-24 22:59:57     485015 requests/requests-2.9.1.tar.gz
+    2018-04-24 22:35:01      89112 boto3/boto3-1.4.1.tar.gz
+    2018-04-24 22:35:02        180 boto3/index.html
+    2018-04-24 22:35:19    3308919 botocore/botocore-1.4.93.tar.gz
+    2018-04-24 22:35:36        188 botocore/index.html
 
 Importing the main class::
 
    >>> from s3path import S3Path
 
-Listing "subdirectories" - s3 keys can be splited like file-system with a `/` in s3path we ::
+Listing "subdirectories" - s3 keys can be split like file-system with a `/` in s3path we::
 
-   >>> p = S3Path('/bucket/docs/')
-   >>> [x for x in p.iterdir() if x.is_dir()]
-   [S3Path('/bucket/docs/_templates'),
-    S3Path('/bucket/docs/_build'),
-    S3Path('/bucket/docs/_static')]
+   >>> bucket_path = S3Path('/pypi-proxy/')
+   >>> [path for path in bucket_path.iterdir() if path.is_dir()]
+   [S3Path('/pypi-proxy/requests/'),
+    S3Path('/pypi-proxy/boto3/'),
+    S3Path('/pypi-proxy/botocore/')]
 
-Listing Python source files in this "directory" tree::
+Listing html source files in this "directory" tree::
 
-   >>> list(p.glob('**/*.py'))
-   [S3Path('/bucket/docs/conf.py'),
-    S3Path('/bucket/docs/_build/conf.py'),
-    S3Path('/bucket/docs/'),
-    S3Path('/bucket/docs/docs/_static/conf.py')]
+   >>> bucket_path = S3Path('/pypi-proxy/')
+   >>> list(bucket_path.glob('**/*.html'))
+   [S3Path('/pypi-proxy/requests/index.html'),
+    S3Path('/pypi-proxy/index.html'),
+    S3Path('/pypi-proxy/botocore/index.html')]
 
 Navigating inside a "directory" tree::
 
-   >>> p = S3Path('/bucket')
-   >>> q = bucket_path / 'build' / 'lib' / 'pathlib.py'
-   >>> q
-   S3Path('/bucket/build/lib/pathlib.py')
+   >>> bucket_path = S3Path('/pypi-proxy/')
+   >>> boto3_package_path = bucket_path / 'boto3' / 'boto3-1.4.1.tar.gz'
+   >>> boto3_package_path
+   S3Path('/pypi-proxy/boto3/boto3-1.4.1.tar.gz')
 
 Querying path properties::
 
-   >>> q.exists()
+   >>> boto3_package_path = S3Path('/pypi-proxy/boto3/boto3-1.4.1.tar.gz')
+   >>> boto3_package_path.exists()
    True
-   >>> q.is_dir()
+   >>> boto3_package_path.is_dir()
    False
+   >>> boto3_package_path.is_file()
+   True
 
 Opening a "file" (s3 key)::
 
-   >>> with q.open() as f: f.readline()
-   ...
-   '#!/bin/bash\n'
+   >>> botocore_index_path = S3Path('/pypi-proxy/botocore/index.html')
+   >>> with botocore_index_path.open() as f:
+   >>>     print(f.read())
+   <!DOCTYPE html>
+   <html>
+   <head>
+       <meta charset="UTF-8">
+       <title>Package Index</title>
+   </head>
+   <body>
+       <a href="botocore-1.4.93.tar.gz">botocore-1.4.93.tar.gz</a><br>
+   </body>
+   </html>
+
+
+Or Simply reading::
+
+   >>> botocore_index_path = S3Path('/pypi-proxy/botocore/index.html')
+   >>> botocore_index_path.read_text()
+   <!DOCTYPE html>
+   <html>
+   <head>
+       <meta charset="UTF-8">
+       <title>Package Index</title>
+   </head>
+   <body>
+       <a href="botocore-1.4.93.tar.gz">botocore-1.4.93.tar.gz</a><br>
+   </body>
+   </html>
+
+THIS IS FOR ANOTHER PLACE
+=========================
 
 PureS3Path paths:
 =================
