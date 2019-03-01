@@ -153,248 +153,235 @@ PureS3Path objects modify following methods and properties:
 
 **PureS3Path.drive**
 
-   The drive property will simply return an empty string::
+The drive property will simply return an empty string::
 
-      >>> PureS3Path('foo//bar').drive
-      ''
+  >>> PureS3Path('foo//bar').drive
+  ''
 
 
 **PurePath.root**
 
-   A string representing the (local or global) root. This method will return an empty string or '/'::
+A string representing the (local or global) root. This method will return an empty string or '/'::
 
-      >>> PureS3Path('foo//bar').root
-      ''
-      >>> PureS3Path('../bar').root
-      ''
-      >>> PureS3Path('/foo/bar').root
-      '/'
+  >>> PureS3Path('foo//bar').root
+  ''
+  >>> PureS3Path('../bar').root
+  ''
+  >>> PureS3Path('/foo/bar').root
+  '/'
 
-   UNC shares always have a root::
+UNC shares always have a root::
 
-      >>> PureWindowsPath('//host/share').root
-      '\\'
+  >>> PureWindowsPath('//host/share').root
+  '\\'
 
 **PurePath.anchor**
 
-   Modified to return an empty string or '/'::
+Modified to return an empty string or '/'::
 
-      >>> PureS3Path('foo//bar').anchor
-      ''
-      >>> PureS3Path('/foo/bar').anchor
-      '/'
+  >>> PureS3Path('foo//bar').anchor
+  ''
+  >>> PureS3Path('/foo/bar').anchor
+  '/'
 
 
 
-**PurePath.parent**
+**PureS3Path.parent**
 
-   The logical parent of the path::
+The logical parent of the path::
 
-      >>> p = PurePosixPath('/a/b/c/d')
-      >>> p.parent
-      PurePosixPath('/a/b/c')
+  >>> p = PureS3Path('/a/b/c/d')
+  >>> p.parent
+  PureS3Path('/a/b/c')
 
-   You cannot go past an anchor, or empty path::
+You cannot go past an anchor, or empty path::
 
-      >>> p = PureS3Path('foo//bar').parent 
-      >>> p.parent
-      PureS3Path('foo')
-      >>> p = PureS3Path('foo/../bar')
-      >>> p.parent
-      PureS3Path('.')
+  >>> p = PureS3Path('foo//bar').parent 
+  >>> p.parent
+  PureS3Path('foo')
+  >>> p = PureS3Path('foo/../bar')
+  >>> p.parent
+  PureS3Path('.')
 
-   .. note::
-      This is a purely lexical operation, hence the following behaviour::
+ .. note::
+    This is a purely lexical operation, hence the following behaviour::
 
-         >>> p = PureS3Path('../bar')
-         >>> p.parent
-         PureS3Path('foo', '../bar')
+       >>> p = PureS3Path('../bar')
+       >>> p.parent
+       PureS3Path('foo', '../bar')
 
-      If you want to walk an arbitrary filesystem path upwards, it is
-      recommended to first call 'Path.resolve' so as to resolve
-      symlinks and eliminate '".."' components.
+    If you want to walk an arbitrary filesystem path upwards, it is
+    recommended to first call 'Path.resolve' so as to resolve
+    symlinks and eliminate '".."' components.
 
 
 **PureS3Path.name**
 
-   A string representing the final path component, excluding the drive and
-   root, if any::
+A string representing the final path component, excluding the drive and
+root, if any::
 
-      >>> PureS3Path('my/library/setup.py').name
-      'setup.py'
+  >>> PureS3Path('my/library/setup.py').name
+  'setup.py'
 
 
 
 **PureS3Path.suffix**
 
-   The file extension of the final component, if any::
+The file extension of the final component, if any::
 
-      >>> PureS3Path('my/library/setup.py').suffix
-      '.py'
-      >>> PureS3Path('my/library.tar.gz').suffix
-      '.gz'
-      >>> PureS3Path('my/library').suffix
-      ''
+  >>> PureS3Path('my/library/setup.py').suffix
+  '.py'
+  >>> PureS3Path('my/library.tar.gz').suffix
+  '.gz'
+  >>> PureS3Path('my/library').suffix
+  ''
 
 
 **PureS3Path.suffixes**
 
-   A list of the path's file extensions::
+A list of the path's file extensions::
 
-      >>> PureS3Path('my/library.tar.gar').suffixes
-      ['.tar', '.gar']
-      >>> PureS3Path('my/library.tar.gz').suffixes
-      ['.tar', '.gz']
-      >>> PureS3Path('my/library').suffixes
-      []
+  >>> PureS3Path('my/library.tar.gar').suffixes
+  ['.tar', '.gar']
+  >>> PureS3Path('my/library.tar.gz').suffixes
+  ['.tar', '.gz']
+  >>> PureS3Path('my/library').suffixes
+  []
 
 
 **PureS3Path.stem**
 
-   The final path component, without its suffix::
+The final path component, without its suffix::
 
-      >>> PureS3Path('my/library.tar.gz').stem
-      'library.tar'
-      >>> PureS3Path('my/library.tar').stem
-      'library'
-      >>> PureS3Path('my/library').stem
-      'library'
+  >>> PureS3Path('my/library.tar.gz').stem
+  'library.tar'
+  >>> PureS3Path('my/library.tar').stem
+  'library'
+  >>> PureS3Path('my/library').stem
+  'library'
 
 
 **PureS3Path.as_posix()**
 
-   Return a string representation of the path with forward slashes (``/``)::
+Return a string representation of the path with forward slashes (``/``)::
 
-      >>> p = PureS3Path('/usr/bin')
-      >>> str(p)
-      '/usr/bin'
-      >>> p.as_posix()
-      '/usr/bin'
+  >>> p = PureS3Path('/usr/bin')
+  >>> str(p)
+  '/usr/bin'
+  >>> p.as_posix()
+  '/usr/bin'
 
 
 **PureS3Path.as_uri()**
 
-   Represent the path as a ``file`` URI.  :exc:'ValueError' is raised if
-   the path isn't absolute.
+Represent the path as a ``file`` URI.  :exc:'ValueError' is raised if
+the path isn't absolute.
 
-      >>> p = PureS3Path('/etc/passwd')
-      >>> p.as_uri()
-      's3://etc/passwd'
-      >>> p = PureS3Path('/bucket/key')
-      >>> p.as_uri()
-      's3://bucket/key'
+  >>> p = PureS3Path('/etc/passwd')
+  >>> p.as_uri()
+  's3://etc/passwd'
+  >>> p = PureS3Path('/bucket/key')
+  >>> p.as_uri()
+  's3://bucket/key'
 
 
 **PureS3Path('/a/b').is_absolute()**
 
-   Return whether the path is absolute or not.  A path is considered absolute
-   if it has both a root and (if the flavour allows) a drive::
+Return whether the path is absolute or not.  A path is considered absolute
+if it has both a root and (if the flavour allows) a drive::
 
-      >>> PureS3Path('/a/b').is_absolute()
-      True
-      >>> PureS3Path('a/b').is_absolute()
-      False
+  >>> PureS3Path('/a/b').is_absolute()
+  True
+  >>> PureS3Path('a/b').is_absolute()
+  False
 
-
-**PureS3Path.is_reserved()**
-
-   With :class:'PureS3Path',
-   ``False`` is always returned.
-
-      >>> PureS3Path('a/b').is_reserved()
-      False
-      >>> PureS3Path('/a/b').is_reserved()
-      False
-
-   File system calls on reserved paths can fail mysteriously or have
-   unintended effects.
 
 
 **PurePath.joinpath(*other)**
 
-   Calling this method is equivalent to combining the path with each of
-   the *other* arguments in turn::
+Calling this method is equivalent to combining the path with each of
+the *other* arguments in turn::
 
-      >>> PureS3Path('/etc').joinpath('passwd')
-      PureS3Path('/etc/passwd')
-      >>> PureS3Path('/etc').joinpath(PureS3Path('passwd'))
-      PureS3Path('/etc/passwd')
-      >>> PureS3Path('/etc').joinpath('init.d', 'apache2') 
-      PureS3Path('/etc/init.d/apache2')
+  >>> PureS3Path('/etc').joinpath('passwd')
+  PureS3Path('/etc/passwd')
+  >>> PureS3Path('/etc').joinpath(PureS3Path('passwd'))
+  PureS3Path('/etc/passwd')
+  >>> PureS3Path('/etc').joinpath('init.d', 'apache2') 
+  PureS3Path('/etc/init.d/apache2')
 
 **PureS3Path.match(pattern)**
 
-   Match this path against the provided glob-style pattern.  Return ``True``
-   if matching is successful, ``False`` otherwise.
+Match this path against the provided glob-style pattern.  Return ``True``
+if matching is successful, ``False`` otherwise.
 
-   If *pattern* is relative, the path can be either relative or absolute,
-   and matching is done from the right::
+If *pattern* is relative, the path can be either relative or absolute,
+and matching is done from the right::
 
-      >>> PureS3Path('a/b.py').match('*.py')
-      True
-      >>> PureS3Path('/a/b/c.py').match('b/*.py')
-      True
-      >>> PureS3Path('/a/b/c.py').match('a/*.py')
-      False
+  >>> PureS3Path('a/b.py').match('*.py')
+  True
+  >>> PureS3Path('/a/b/c.py').match('b/*.py')
+  True
+  >>> PureS3Path('/a/b/c.py').match('a/*.py')
+  False
 
-   If *pattern* is absolute, the path must be absolute, and the whole path
-   must match::
+If *pattern* is absolute, the path must be absolute, and the whole path
+must match::
 
-      >>> PureS3Path('/a.py').match('/*.py')
-      True
-      >>> PureS3Path('a/b.py').match('/*.py')
-      False
+  >>> PureS3Path('/a.py').match('/*.py')
+  True
+  >>> PureS3Path('a/b.py').match('/*.py')
+  False
 
 
 **PurePath.relative_to(*other)**
 
-   Compute a version of this path relative to the path represented by
-   *other*.  If it's impossible, ValueError is raised::
+Compute a version of this path relative to the path represented by
+*other*.  If it's impossible, ValueError is raised::
 
-      >>> p = PurePosixPath('/etc/passwd')
-      >>> p.relative_to('/')
-      PurePosixPath('etc/passwd')
-      >>> p.relative_to('/etc')
-      PurePosixPath('passwd')
-      >>> p.relative_to('/usr')
-      Traceback (most recent call last):
-        File "<stdin>", line 1, in <module>
-        File "pathlib.py", line 694, in relative_to
-          .format(str(self), str(formatted)))
-      ValueError: '/etc/passwd' does not start with '/usr'
+  >>> p = PurePosixPath('/etc/passwd')
+  >>> p.relative_to('/')
+  PurePosixPath('etc/passwd')
+  >>> p.relative_to('/etc')
+  PurePosixPath('passwd')
+  >>> p.relative_to('/usr')
+  Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    File "pathlib.py", line 694, in relative_to
+      .format(str(self), str(formatted)))
+  ValueError: '/etc/passwd' does not start with '/usr'
 
 
 **PurePath.with_name(name)**
 
-   Return a new path with the :attr:'name' changed.  If the original path
-   doesn't have a name, ValueError is raised::
+Return a new path with the :attr:'name' changed.  If the original path
+doesn't have a name, ValueError is raised::
 
-      >>> p = PureS3Path('/Downloads/pathlib.tar.gz')
-      >>> p.with_name('setup.py')  
-      PureS3Path('/Downloads/setup.py')
-      >>> p = PureS3Path('/')
-      >>> p.with_name('setup.py')
-      Traceback (most recent call last):
-        File "<stdin>", line 1, in <module>
-        ...
-      ValueError: PureS3Path('/') has an empty name
+  >>> p = PureS3Path('/Downloads/pathlib.tar.gz')
+  >>> p.with_name('setup.py')  
+  PureS3Path('/Downloads/setup.py')
+  >>> p = PureS3Path('/')
+  >>> p.with_name('setup.py')
+  Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    ...
+  ValueError: PureS3Path('/') has an empty name
 
 
 **PurePath.with_suffix(suffix)**
 
-   Return a new path with the :attr:'suffix' changed.  If the original path
-   doesn't have a suffix, the new *suffix* is appended instead.  If the
-   *suffix* is an empty string, the original suffix is removed::
+Return a new path with the :attr:'suffix' changed.  If the original path
+doesn't have a suffix, the new *suffix* is appended instead.  If the
+*suffix* is an empty string, the original suffix is removed::
 
-      >>> p = PureS3Path('/Downloads/pathlib.tar.gz')
-      >>> p.with_suffix('.bz2')
-      PureS3Path('/Downloads/pathlib.tar.bz2')
-      >>> p = PureWindowsPath('README')
-      >>> p.with_suffix('.txt')
-      PureWindowsPath('README.txt')
-      >>> p = PureS3Path('README')
-      >>> p.with_suffix('')
-      PureS3Path('README')
+  >>> p = PureS3Path('/Downloads/pathlib.tar.gz')
+  >>> p.with_suffix('.bz2')
+  PureS3Path('/Downloads/pathlib.tar.bz2')
+  >>> p = PureWindowsPath('README')
+  >>> p.with_suffix('.txt')
+  PureWindowsPath('README.txt')
+  >>> p = PureS3Path('README')
+  >>> p.with_suffix('')
+  PureS3Path('README')
 
 
 .. _concrete-paths:
@@ -408,43 +395,15 @@ calls on path objects.  There are three ways to instantiate concrete paths:
 
 **S3Path(*pathsegments)**
 
-   A subclass of :class:'PureS3Path', this class represents concrete paths of
-   the system's path flavour (instantiating it creates either a
-   :class:'S3Path')::
+A subclass of :class:'PureS3Path', this class represents concrete paths of
+the system's path flavour (instantiating it creates either a
+:class:'S3Path')::
 
-      >>> Path('setup.py')
-      PosixPath('setup.py')
-
-   *pathsegments* is specified similarly to :class:'PurePath'.
-
-**PosixPath(*pathsegments)**
-
-   A subclass of :class:'Path' and :class:'PurePosixPath', this class
-   represents concrete non-Windows filesystem paths::
-
-      >>> PosixPath('/etc')
-      PosixPath('/etc')
-
-   *pathsegments* is specified similarly to :class:'PurePath'.
+  >>> S3Path('setup.py')
+  S3Path('setup.py')
 
 
-You can only instantiate the class flavour that corresponds to your system
-(allowing system calls on non-compatible path flavours could lead to
-bugs or failures in your application)::
 
-   >>> import os
-   >>> os.name
-   'posix'
-   >>> Path('setup.py')
-   PosixPath('setup.py')
-   >>> PosixPath('setup.py')
-   PosixPath('setup.py')
-   >>> WindowsPath('setup.py')
-   Traceback (most recent call last):
-     File "<stdin>", line 1, in <module>
-     File "pathlib.py", line 798, in __new__
-       % (cls.__name__,))
-   NotImplementedError: cannot instantiate 'WindowsPath' on your system
 
 
 Methods:
@@ -455,10 +414,6 @@ methods.  Many of these methods can raise an :exc:'OSError' if a system
 call fails (for example because the path doesn't exist).
 
 
-
-
-
-
 ..    .. versionadded:: 3.5
 
 **S3Path.stat()**
@@ -467,42 +422,42 @@ call fails (for example because the path doesn't exist).
 
    ::
 
-      >>> p = Path('setup.py')
-      >>> p.stat().st_size
-      956
-      >>> p.stat().st_mtime
-      1327883547.852554
+  >>> p = S3Path('setup.py')
+  >>> p.stat().st_size
+  956
+  >>> p.stat().st_mtime
+  1327883547.852554
 
 
 
 **S3Path.exists()**
 
-   Whether the path points to an existing file or bucket::
+Whether the path points to an existing file or bucket::
 
-      >> S3Path('./fake-key').exists()
-      Will raise a ValueError
-      >>> S3Path('.').exists()
-      True
-      >>> S3Path('setup.py').exists()
-      True
-      >>> S3Path('/etc').exists()
-      True
-      >>> S3Path('nonexistentfile').exists()
-      False
+  >> S3Path('./fake-key').exists()
+  Will raise a ValueError
+  >>> S3Path('.').exists()
+  True
+  >>> S3Path('setup.py').exists()
+  True
+  >>> S3Path('/etc').exists()
+  True
+  >>> S3Path('nonexistentfile').exists()
+  False
 
    .. note::
       If the path points to a symlink, :meth:`exists` returns whether the
       symlink *points to* an existing file or directory.
 
 
-    **Path.expanduser()
+**Path.expanduser()
 
-       Return a new path with expanded ``~`` and ``~user`` constructs,
-       as returned by :meth:`os.path.expanduser`::
+Return a new path with expanded ``~`` and ``~user`` constructs,
+as returned by :meth:`os.path.expanduser`::
 
-          >>> p = PosixPath('~/films/Monty Python')
-          >>> p.expanduser()
-          PosixPath('/home/eric/films/Monty Python')
+  >>> p = PosixPath('~/films/Monty Python')
+  >>> p.expanduser()
+  PosixPath('/home/eric/films/Monty Python')
 
        .. versionadded:: 3.5
 
@@ -511,61 +466,56 @@ call fails (for example because the path doesn't exist).
 
 (pattern)
 
-   Glob the given *pattern* in the directory represented by this path,
-   yielding all matching files (of any kind)::
+Glob the given *pattern* in the directory represented by this path,
+yielding all matching files (of any kind)::
 
-      >>> sorted(Path('.').glob('*.py'))
-      [S3Path('pathlib.py'), S3Path('setup.py'), S3Path('test_pathlib.py')]
-      >>> sorted(S3Path('.').glob('*/*.py'))
-      [S3Path('docs/conf.py')]
+  >>> sorted(Path('.').glob('*.py'))
+  [S3Path('pathlib.py'), S3Path('setup.py'), S3Path('test_pathlib.py')]
+  >>> sorted(S3Path('.').glob('*/*.py'))
+  [S3Path('docs/conf.py')]
 
-  The "``**``" pattern means "this directory and all subdirectories,
-  recursively".  In other words, it enables recursive globbing::
+The "``**``" pattern means "this directory and all subdirectories,
+recursively".  In other words, it enables recursive globbing::
 
-    >>> sorted(S3Path('.').glob('**/*.py'))
-    [S3Path('build/lib/pathlib.py'),
-     S3Path('docs/conf.py'),
-     S3Path('pathlib.py'),
-     S3Path('setup.py'),
-     S3Path('test_pathlib.py')]
+  >>> sorted(S3Path('.').glob('**/*.py'))
+  [S3Path('build/lib/pathlib.py'),
+   S3Path('docs/conf.py'),
+   S3Path('pathlib.py'),
+   S3Path('setup.py'),
+   S3Path('test_pathlib.py')]
 
        .. note::
           Using the "``**``" pattern in large directory trees may consume
           an inordinate amount of time.
 
 
-**Path.group()
+**S3Path.group()
 
-   Return the name of the group owning the file.  :exc:`KeyError` is raised
-   if the file's gid isn't found in the system database.
+Return the name of the group owning the file.  :exc:`KeyError` is raised
+if the file's gid isn't found in the system database.
 
 
 **S3Path.is_dir()
 
-   Return ``True`` if the path points to a directory (or a symbolic link
-   pointing to a directory), ``False`` if it points to another kind of file.
+Return ``True`` if the path points to a directory (or a symbolic link
+pointing to a directory), ``False`` if it points to another kind of file.
 
-   ``False`` is also returned if the path doesn't exist or is a broken symlink;
-   other errors (such as permission errors) are propagated.
+``False`` is also returned if the path doesn't exist or is a broken symlink;
+other errors (such as permission errors) are propagated.
 
 
 **S3Path.is_file()
 
-   Return ``True`` if the path points to a regular file (or a symbolic link
-   pointing to a regular file), ``False`` if it points to another kind of file.
+Return ``True`` if the path points to a regular file (or a symbolic link
+pointing to a regular file), ``False`` if it points to another kind of file.
 
-   ``False`` is also returned if the path doesn't exist or is a broken symlink;
-   other errors (such as permission errors) are propagated.
+``False`` is also returned if the path doesn't exist or is a broken symlink;
+other errors (such as permission errors) are propagated.
 
 
-**Path.is_mount()
+**S3Path.is_mount()
 
-   Return ``True`` if the path is a :dfn:`mount point`: a point in a
-   file system where a different file system has been mounted.  On POSIX, the
-   function checks whether *path*'s parent, :file:`path/..`, is on a different
-   device than *path*, or whether :file:`path/..` and *path* point to the same
-   i-node on the same device --- this should detect mount points for all Unix
-   and POSIX variants.  Not implemented on Windows.
+   Returns ``False`` in S3Path.
 
        .. versionadded:: 3.7
 
@@ -573,23 +523,19 @@ call fails (for example because the path doesn't exist).
 
 **S3Path.iterdir()
 
-   When the path points to a directory, yield path objects of the directory
-   contents::
+When the path points to a directory, yield path objects of the directory
+contents::
 
-      >>> p = S3Path('docs')
-      >>> for child in p.iterdir(): child
-      ...
-      S3Path('docs/conf.py')
-      S3Path('docs/_templates')
-      S3Path('docs/make.bat')
-      S3Path('docs/index.rst')
-      S3Path('docs/_build')
-      S3Path('docs/_static')
-      S3Path('docs/Makefile')
-
-
-
-
+  >>> p = S3Path('docs')
+  >>> for child in p.iterdir(): child
+  ...
+  S3Path('docs/conf.py')
+  S3Path('docs/_templates')
+  S3Path('docs/make.bat')
+  S3Path('docs/index.rst')
+  S3Path('docs/_build')
+  S3Path('docs/_static')
+  S3Path('docs/Makefile')
 
        .. versionchanged:: 3.5
           The *exist_ok* parameter was added.
@@ -597,91 +543,91 @@ call fails (for example because the path doesn't exist).
 
 **S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
 
-   Open the file pointed to by the path, like the built-in :func:`open`
-   function does::
+Open the file pointed to by the path, like the built-in :func:`open`
+function does::
 
-      >>> p = S3Path('setup.py')
-      >>> with p.open() as f:
-      ...     f.readline()
-      ...
-      '#!/usr/bin/env python3\n'
+  >>> p = S3Path('setup.py')
+  >>> with p.open() as f:
+  ...     f.readline()
+  ...
+  '#!/usr/bin/env python3\n'
 
 
 **S3Path.owner()
 
-   Return the name of the owner's DisplayName.:: 
+Return the name of the owner's DisplayName.:: 
 
 **S3Path.read_bytes()
 
-   Return the binary contents of the pointed-to file as a bytes object::
+Return the binary contents of the pointed-to file as a bytes object::
 
-      >>> p = S3Path('my_binary_file')
-      >>> p.write_bytes(b'Binary file contents')
-      20
-      >>> p.read_bytes()
-      b'Binary file contents'
+  >>> p = S3Path('my_binary_file')
+  >>> p.write_bytes(b'Binary file contents')
+  20
+  >>> p.read_bytes()
+  b'Binary file contents'
 
        .. versionadded:: 3.5
 
 
 **Path.read_text(encoding=None, errors=None)
 
-   Return the decoded contents of the pointed-to file as a string::
+Return the decoded contents of the pointed-to file as a string::
 
-      >>> p = S3Path('my_text_file')
-      >>> p.write_text('Text file contents')
-      18
-      >>> p.read_text()
-      'Text file contents'
+  >>> p = S3Path('my_text_file')
+  >>> p.write_text('Text file contents')
+  18
+  >>> p.read_text()
+  'Text file contents'
 
-   The file is opened and then closed. The optional parameters have the same
-   meaning as in :func:`open`.
+The file is opened and then closed. The optional parameters have the same
+meaning as in :func:`open`.
 
        .. versionadded:: 3.5
 
 
 **S3Path.rename(target)
 
-   Rename this file or directory to the given *target*.::
+Rename this file or directory to the given *target*.::
 
-      >>> p = S3Path('foo')
-      >>> p.open('w').write('some text')
-      9
-      >>> target = Path('bar')
-      >>> p.rename(target)
-      >>> target.open().read()
-      'some text'
+  >>> p = S3Path('foo')
+  >>> p.open('w').write('some text')
+  9
+  >>> target = Path('bar')
+  >>> p.rename(target)
+  >>> target.open().read()
+  'some text'
 
 
 **S3Path('/test-bucket/docs/').replace(target)
 
-   Rename this file or directory to the given *target*.  If *target* points
-   to an existing file or directory, it will be unconditionally replaced.
+Rename this file or directory to the given *target*.  If *target* points
+to an existing file or directory, it will be unconditionally replaced.
 
 
 
 **S3Path.rmdir()
 
-   Remove this directory.  The directory must be empty.
+ Remove this directory.  The directory must be empty.
 
 
 **S3Path.samefile(other_path)
 
-   Return whether this path points to the same file as *other_path*, which
-   can be either a S3Path object, or a string.  The semantics are similar
-   to :func:`os.path.samefile` and :func:`os.path.samestat`.
+Return whether this path points to the same file as *other_path*, which
+can be either a S3Path object, or a string.  The semantics are similar
+to :func:`os.path.samefile` and :func:`os.path.samestat`.
 
-   An :exc:`OSError` can be raised if either file cannot be accessed for some
-   reason.
+An :exc:`OSError` can be raised if either file cannot be accessed for some
+reason.
 
-   ::
+::
 
-      >>> p = S3Path('bucket/file')
-      >>> q = S3Path('other/file')
-      >>> p.samefile(q)
-      False
-      >>> p.samefile('bucket/file')
-      True
+  >>> p = S3Path('bucket/file')
+  >>> q = S3Path('other/file')
+  >>> p.samefile(q)
+  False
+  >>> p.samefile('bucket/file')
+  True
 
 
 **S3Path.touch(mode=0o666, exist_ok=True)
@@ -695,30 +641,30 @@ call fails (for example because the path doesn't exist).
 
 **S3Path.write_bytes(data)
 
-   Open the file pointed to in bytes mode, write *data* to it, and close the
-   file::
+Open the file pointed to in bytes mode, write *data* to it, and close the
+file::
 
-      >>> p = Path('my_binary_file')
-      >>> p.write_bytes(b'Binary file contents')
-      20
-      >>> p.read_bytes()
-      b'Binary file contents'
+  >>> p = Path('my_binary_file')
+  >>> p.write_bytes(b'Binary file contents')
+  20
+  >>> p.read_bytes()
+  b'Binary file contents'
 
-   An existing file of the same name is overwritten.
+An existing file of the same name is overwritten.
 
        .. versionadded:: 3.5
 
 
 **S3Path.write_text(data, encoding=None, errors=None)
 
-   Open the file pointed to in text mode, write *data* to it, and close the
-   file::
+Open the file pointed to in text mode, write *data* to it, and close the
+file::
 
-      >>> p = Path('my_text_file')
-      >>> p.write_text('Text file contents')
-      18
-      >>> p.read_text()
-      'Text file contents'
+  >>> p = Path('my_text_file')
+  >>> p.write_text('Text file contents')
+  18
+  >>> p.read_text()
+  'Text file contents'
 
        .. versionadded:: 3.5
 
