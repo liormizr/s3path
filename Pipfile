@@ -4,17 +4,16 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-"boto3" = "*"
-"s3path" = {editable = true, path = "."}
-
-[dev-packages]
+s3path = {editable = true,path = "."}
+moto = "==1.3.6"
 pytest = "*"
-ipython = "*"
-ipdb = "*"
-moto = ">=1.3.6"
 sphinx = "*"
 tox = "*"
 tox-travis = "*"
+
+[dev-packages]
+ipython = "*"
+ipdb = "*"
 
 [requires]
 python_version = "3.6"
