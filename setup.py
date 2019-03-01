@@ -15,6 +15,9 @@ setup(
     install_requires=[
         'boto3',
     ],
+    extras_require={
+        'test': ['moto==1.3.6'],
+    },
     long_description=long_description,
     long_description_content_type="text/markdown",
 )
