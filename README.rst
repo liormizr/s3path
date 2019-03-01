@@ -80,7 +80,7 @@ access a filesystem.::
    PureS3Path('setup.py')
 
 Each element of *pathsegments* can be either a string representing a
-path segment, an object implementing the :class:'os.PathLike' interface
+path segment, an object implementing the ':class:'os.PathLike' interface
 which returns a string, or another path object::
 
    >>> PureS3Path('foo', 'some/path', 'bar')
@@ -410,7 +410,7 @@ calls on path objects.  There are three ways to instantiate concrete paths:
 
    A subclass of :class:'PureS3Path', this class represents concrete paths of
    the system's path flavour (instantiating it creates either a
-   :class:'S3Path' or a :class:'WindowsPath')::
+   :class:'S3Path')::
 
       >>> Path('setup.py')
       PosixPath('setup.py')
