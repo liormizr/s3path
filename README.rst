@@ -99,6 +99,8 @@ Or Simply reading::
    </body>
    </html>
 
+For pathlib style decomentation of all interfaces `interface_docs`_.
+
 THIS IS FOR ANOTHER PLACE
 =========================
 
@@ -745,3 +747,6 @@ file::
       Added support for the :class:'os.PathLike' interface.
 
 ..
+
+.. _interface_docs: s3path_interface.rst
+.. _advanced_examples: advanced.rst
