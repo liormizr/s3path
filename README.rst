@@ -101,5 +101,5 @@ Or Simply reading::
 
 For pathlib style documentation of all interfaces `interface_docs`_.
 
-.. _interface_docs: s3path_interface.rst
+.. _interface_docs: docs/interface.rst
 .. _advanced_examples: advanced.rst

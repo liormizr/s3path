@@ -1,3 +1,5 @@
+.. image:: docs/s3path_graph.jpg
+
 Pure paths:
 ===========
 
@@ -26,18 +28,24 @@ This is different then PurePath since AWS S3 Service don't support symbolic link
    >>> PureS3Path('foo/../bar')
    PureS3Path('bar')
 
-**PureS3Path.as_uri()**
+.. _PureS3Path.as_uri:
 
-Represent the path as a AWS S3 URI. `ValueError`_ is raised if the path isn't absolute::
+PureS3Path.as_uri()
+^^^^^^^^^^^^^^^^^^^
 
-  >>> p = PureS3Path('/pypi-proxy/boto3/')
-  >>> p.as_uri()
-  's3://pypi-proxy/boto3/'
-  >>> p = PureS3Path('/pypi-proxy/boto3/index.html')
-  >>> p.as_uri()
-  's3://pypi-proxy/boto3/index.html'
+Represent the path as a AWS S3 URI::
 
-**PureS3Path.from_uri(uri)**
+   >>> p = PureS3Path('/pypi-proxy/boto3/')
+   >>> p.as_uri()
+   's3://pypi-proxy/boto3/'
+   >>> p = PureS3Path('/pypi-proxy/boto3/index.html')
+   >>> p.as_uri()
+   's3://pypi-proxy/boto3/index.html'
+
+.. _PureS3Path.from_uri:
+
+PureS3Path.from_uri(uri)
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Represent a AWS S3 URI as a PureS3Path::
 
@@ -46,10 +54,10 @@ Represent a AWS S3 URI as a PureS3Path::
 
 This is a new class method.
 
-**PureS3Path.bucket**
+PureS3Path.bucket
+^^^^^^^^^^^^^^^^^
 
-The Bucket path.  If a path don't have a key return `None`.
-`ValueError`_ is raised if the path isn't absolute::
+The Bucket path.  If a path don't have a key return `None`::
 
    >>> p = PureS3Path.from_uri('s3://pypi-proxy/boto3/').bucket
    PureS3Path('/pypi-proxy/')
@@ -58,7 +66,8 @@ The Bucket path.  If a path don't have a key return `None`.
 
 This is a new property.
 
-**PureS3Path.key**
+PureS3Path.key
+^^^^^^^^^^^^^^
 
 The Key path. If a path don't have a key return `None`.
 `ValueError`_ is raised if the path isn't absolute::
@@ -72,6 +81,10 @@ The Key path. If a path don't have a key return `None`.
 
 This is a new property.
 
+   | NOTE:
+   | methods PureS3Path.as_uri_, PureS3Path.from_uri_, and properties PureS3Path.bucket_,
+   | PureS3Path.key_ will raise `ValueError`_ if the path isn't absolute.
+
 Concrete paths:
 ===============
 
@@ -79,7 +92,8 @@ Full basic Path documentation linked here: `PathDocs`_.
 
 .. _S3Path:
 
-**S3Path(*pathsegments)**
+S3Path(\*pathsegments)
+^^^^^^^^^^^^^^^^^^^^^^
 
 A subclass of `Path`_ and PureS3Path_, this class represents concrete paths of AWS S3 Service.
 All actions are using `boto3`_ as the SKD for AWS S3 Service::
@@ -103,28 +117,27 @@ You can't use S3Path if you don't have boto3 installed in your environment::
      % (cls.__name__,))
    NotImplementedError: cannot instantiate 'S3Path' on your system
 
-
 Methods:
 ========
 
 S3Path provide the following methods in addition to pure paths methods.
-This method will raise `ValueError`_ if the path isn't absolute.
-Many of these methods can raise an `botocore.exceptions.ClientError` if boto3 call fails
+All The methods below will raise `ValueError`_ if the path isn't absolute.
+Many of these methods can raise an `botocore.exceptions.ClientError` if `boto3`_ call fails
 (for example because the path doesn't exist).
 
-**S3Path.stat()**
+S3Path.stat()
+^^^^^^^^^^^^^
 
-Return information about this path (similarly to boto3's `ObjectSummary`).
-This method will raise `ValueError`_ if the path isn't absolute.
+Return information about this path (similarly to boto3's `ObjectSummary`_).
 The result is looked up at each call to this method::
 
    >>> S3Path('/pypi-proxy/boto3/index.html').stat()
    StatResult(size=188, last_modified=datetime.datetime(2018, 4, 4, 12, 26, 3, tzinfo=tzutc()))
 
-**S3Path.exists()**
+S3Path.exists()
+^^^^^^^^^^^^^^^
 
-Whether the path points to an existing Bucket, key or key prefix.
-This method will raise `ValueError`_ if the path isn't absolute::
+Whether the path points to an existing Bucket, key or key prefix::
 
    >>> S3Path('/pypi-proxy/boto3/index.html').exists()
    True
@@ -135,11 +148,11 @@ This method will raise `ValueError`_ if the path isn't absolute::
 
 .. _S3Path.glob:
 
-**S3Path.glob(pattern)**
+S3Path.glob(pattern)
+^^^^^^^^^^^^^^^^^^^^
 
 Glob the given relative pattern in the Bucket / key prefix represented by this path,
-yielding all matching files (of any kind).
-This method will raise `ValueError`_ if the path isn't absolute::
+yielding all matching files (of any kind)::
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> [path for path in bucket_path.glob('boto*')]
@@ -154,55 +167,57 @@ In other words, it enables recursive globbing::
    >>> list(bucket_path.glob('**/*.html'))
    [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]
 
-``NOTE: Using the "**" pattern in large Buckets may consume an inordinate amount of time.``
+::
 
-**S3Path.is_dir()**
+   NOTE: Using the "**" pattern in large Buckets may consume an inordinate amount of time.
 
-This method will raise `ValueError`_ if the path isn't absolute.
+S3Path.is_dir()
+^^^^^^^^^^^^^^^
+
 Return ``True`` if the path points to a Bucket or a key prefix,
 ``False`` if it points to a full key path.
 
 ``False`` is also returned if the path doesn’t exist.
 Other errors (such as permission errors) are propagated.
 
-**S3Path.is_file()**
+S3Path.is_file()
+^^^^^^^^^^^^^^^^
 
-This method will raise `ValueError`_ if the path isn't absolute.
 Return ``True`` if the path points to a Bucket key,
 ``False`` if it points to Bucket or a key prefix.
 
 ``False`` is also returned if the path doesn’t exist.
 Other errors (such as permission errors) are propagated.
 
-**S3Path.is_mount()**
+S3Path.is_mount()
+^^^^^^^^^^^^^^^^^
 
 AWS S3 Service don't have mounting feature,
 There for this method will always return ``False``
-This method will raise `ValueError`_ if the path isn't absolute.
 
-**S3Path.is_symlink()**
+S3Path.is_symlink()
+^^^^^^^^^^^^^^^^^^^
 
 AWS S3 Service don't have symlink feature,
 There for this method will always return ``False``
-This method will raise `ValueError`_ if the path isn't absolute.
 
-**S3Path.is_socket()**
+S3Path.is_socket()
+^^^^^^^^^^^^^^^^^^
 
 AWS S3 Service don't have sockets feature,
 There for this method will always return ``False``
-This method will raise `ValueError`_ if the path isn't absolute.
 
-**S3Path.is_fifo()**
+S3Path.is_fifo()
+^^^^^^^^^^^^^^^^
 
 AWS S3 Service don't have fifo feature,
 There for this method will always return ``False``
-This method will raise `ValueError`_ if the path isn't absolute.
 
-**Path.iterdir()**
+Path.iterdir()
+^^^^^^^^^^^^^^
 
-When the path points to a Bucket or a key prefix.
-This method will raise `ValueError`_ if the path isn't absolute.
-Yield path objects of the directory contents::
+When the path points to a Bucket or a key prefix,
+yield path objects of the directory contents::
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> [path for path in bucket_path.iterdir() if path.is_dir()]
@@ -211,11 +226,11 @@ Yield path objects of the directory contents::
    >>> [path for path in bucket_path.boto3_path()]
    [S3Path('/pypi-proxy/boto3/boto3-1.4.1.tar.gz'), S3Path('/pypi-proxy/boto3/index.html')]
 
-**S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)**
+S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Open the Bucket key pointed to by the path,
-This method will raise `ValueError`_ if the path isn't absolute.
-Return a Key file object that you can read/write with::
+return a Key file object that you can read/write with::
 
    >>> with S3Path('/pypi-proxy/botocore/index.html').open() as f:
    >>>     print(f.read())
@@ -230,36 +245,36 @@ Return a Key file object that you can read/write with::
    </body>
    </html>
 
-**S3Path.owner()**
+S3Path.owner()
+^^^^^^^^^^^^^^
 
-This method will raise `ValueError`_ if the path isn't absolute.
 Return the name of the user owning the Bucket or key.
 Similarly to boto3's `ObjectSummary`_ owner attribute
 
-**S3Path.read_bytes()**
+S3Path.read_bytes()
+^^^^^^^^^^^^^^^^^^^
 
-This method will raise `ValueError`_ if the path isn't absolute.
 Return the binary contents of the Bucket key as a bytes object::
 
    >>> S3Path('/test_bucket/test.txt').write_bytes(b'Binary file contents')
    >>> S3Path('/test_bucket/test.txt').read_bytes()
    b'Binary file contents'
 
-**S3Path.read_text(encoding=None, errors=None)**
+S3Path.read_text(encoding=None, errors=None)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This method will raise `ValueError`_ if the path isn't absolute.
 Return the decoded contents of the Bucket key as a string::
 
    >>> S3Path('/test_bucket/test.txt').write_text('Text file contents')
    >>> S3Path('/test_bucket/test.txt').read_text()
    'Text file contents'
 
-**S3Path.rename(target)**
+S3Path.rename(target)
+^^^^^^^^^^^^^^^^^^^^^
 
 Rename this file or Bucket / key prefix / key to the given target.
 If target exists and is a file, it will be replaced silently if the user has permission.
 If path is a key prefix, it will replace all the keys with the same prefix to the new target prefix.
-This method will raise `ValueError`_ if the path isn't absolute.
 target can be either a string or another S3Path_ object::
 
    >>> path = S3Path('/test_bucket/test.txt').write_text('Text file contents')
@@ -268,13 +283,14 @@ target can be either a string or another S3Path_ object::
    >>> target.read_text()
    'Text file contents'
 
-**S3Path.replace(target)**
+S3Path.replace(target)
+^^^^^^^^^^^^^^^^^^^^^^
 
 Rename this Bucket / key prefix / key to the given target.
 If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
-This method will raise `ValueError`_ if the path isn't absolute.
 
-**S3Path.rglob(pattern)**
+S3Path.rglob(pattern)
+^^^^^^^^^^^^^^^^^^^^^
 
 This is like calling S3Path.glob_ with ``"**/"`` added in front of the given relative pattern::
 
@@ -282,14 +298,14 @@ This is like calling S3Path.glob_ with ``"**/"`` added in front of the given rel
    >>> list(bucket_path.rglob('*.html'))
    [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]
 
-**S3Path.rmdir()**
+S3Path.rmdir()
+^^^^^^^^^^^^^^
 
 Remove this Bucket / key prefix. The Bucket / key prefix must be empty.
-This method will raise `ValueError`_ if the path isn't absolute.
 
-**S3Path.samefile(other_path)**
+S3Path.samefile(other_path)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This method will raise `ValueError`_ if the path isn't absolute.
 Return whether this path points to the same Bucket key as other_path,
 which can be either a Path object, or a string::
 
@@ -299,14 +315,15 @@ which can be either a Path object, or a string::
    >>> path.samefile('/test_bucket/fake')
    False
 
-**S3Path.touch(exist_ok=True, **kwargs)**
+S3Path.touch(exist_ok=True, \**kwargs)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Create a key at this given path.
-This method will raise `ValueError`_ if the path isn't absolute.
 If the key already exists, the function succeeds if exist_ok is true
 (and its modification time is updated to the current time), otherwise `FileExistsError`_ is raised.
 
-**S3Path.write_bytes(data)**
+S3Path.write_bytes(data)
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Open the key pointed to in bytes mode, write data to it, and close / save the key::
 
@@ -314,7 +331,8 @@ Open the key pointed to in bytes mode, write data to it, and close / save the ke
    >>> S3Path('/test_bucket/test.txt').read_bytes()
    b'Binary file contents'
 
-**S3Path.write_text(data, encoding=None, errors=None)**
+S3Path.write_text(data, encoding=None, errors=None)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Open the key pointed to in text mode, write data to it, and close / save the key::
 
