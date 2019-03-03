@@ -10,6 +10,8 @@ PureS3Path(*pathsegments)
 
 A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics.
 
+::
+
    >>> PureS3Path('/<bucket>/<key>')
    PureS3Path('/<bucket>/<key>')
 
