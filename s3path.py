@@ -43,12 +43,6 @@ class _S3Flavour(_PosixFlavour):
         uri = super().make_uri(path)
         return uri.replace('file:///', 's3://')
 
-    def casefold(self, s):
-        return s
-
-    def casefold_parts(self, parts):
-        return parts
-
 
 class _S3ConfigurationMap(dict):
     def __missing__(self, path):
@@ -73,36 +67,39 @@ class _S3Accessor(_Accessor):
         self.configuration_map = _S3ConfigurationMap()
 
     def stat(self, path):
-        object_summery = self.s3.ObjectSummary(path.bucket, path.key)
+        object_summery = self.s3.ObjectSummary(self._bucket_name(path.bucket), str(path.key))
         return StatResult(
             size=object_summery.size,
             last_modified=object_summery.last_modified,
         )
 
     def is_dir(self, path):
-        bucket = self.s3.Bucket(path.bucket)
+        bucket = self.s3.Bucket(self._bucket_name(path.bucket))
         return any(bucket.objects.filter(Prefix=self._generate_prefix(path)))
 
     def exists(self, path):
-        if not path.bucket:
+        bucket_name = self._bucket_name(path.bucket)
+        if not bucket_name:
             return any(self.s3.buckets.all())
         if not path.key:
-            bucket = self.s3.Bucket(path.bucket)
+            bucket = self.s3.Bucket(bucket_name)
             return any(bucket.objects.all())
-        bucket = self.s3.Bucket(path.bucket)
-        for object in bucket.objects.filter(Prefix=path.key):
-            if object.key == path.key:
+        bucket = self.s3.Bucket(bucket_name)
+        key_name = str(path.key)
+        for object in bucket.objects.filter(Prefix=key_name):
+            if object.key == key_name:
                 return True
-            if object.key.startswith(path.key + path._flavour.sep):
+            if object.key.startswith(key_name + path._flavour.sep):
                 return True
         return False
 
     def scandir(self, path):
-        if not path.bucket:
+        bucket_name = self._bucket_name(path.bucket)
+        if not bucket_name:
             for bucket in self.s3.buckets.all():
                 yield S3DirEntry(bucket.name, is_dir=True)
             return
-        bucket = self.s3.Bucket(path.bucket)
+        bucket = self.s3.Bucket(bucket_name)
         sep = path._flavour.sep
 
         response = bucket.meta.client.list_objects(
@@ -118,13 +115,12 @@ class _S3Accessor(_Accessor):
             yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
 
     def listdir(self, path):
-        return [
-            entry.name
-            for entry in self.scandir(path)
-        ]
+        return [entry.name for entry in self.scandir(path)]
 
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
-        object_summery = self.s3.ObjectSummary(path.bucket, path.key)
+        bucket_name = self._bucket_name(path.bucket)
+        key_name = str(path.key)
+        object_summery = self.s3.ObjectSummary(bucket_name, key_name)
         file_object = S3KeyReadableFileObject if 'r' in mode else S3KeyWritableFileObject
         return file_object(
             object_summery,
@@ -136,28 +132,35 @@ class _S3Accessor(_Accessor):
             newline=newline)
 
     def owner(self, path):
-        object_summery = self.s3.ObjectSummary(path.bucket, path.key)
+        bucket_name = self._bucket_name(path.bucket)
+        key_name = str(path.key)
+        object_summery = self.s3.ObjectSummary(bucket_name, key_name)
         return object_summery.owner['DisplayName']
 
     def rename(self, path, target):
+        source_bucket_name = self._bucket_name(path.bucket)
+        source_key_name = str(path.key)
+        target_bucket_name = self._bucket_name(target.bucket)
+        target_key_name = str(target.key)
+
         if not self.is_dir(path):
-            target_bucket = self.s3.Bucket(target.bucket)
-            object_summery = self.s3.ObjectSummary(path.bucket, path.key)
+            target_bucket = self.s3.Bucket(target_bucket_name)
+            object_summery = self.s3.ObjectSummary(source_bucket_name, source_key_name)
             old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
             self.boto3_method_with_parameters(
                 target_bucket.copy,
                 path=target,
-                args=(old_source, target.key))
+                args=(old_source, target_key_name))
             self.boto3_method_with_parameters(object_summery.delete)
             return
-        bucket = self.s3.Bucket(path.bucket)
-        target_bucket = self.s3.Bucket(target.bucket)
-        for object_summery in bucket.objects.filter(Prefix=path.key):
+        bucket = self.s3.Bucket(source_bucket_name)
+        target_bucket = self.s3.Bucket(target_bucket_name)
+        for object_summery in bucket.objects.filter(Prefix=source_key_name):
             old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
-            new_key = object_summery.key.replace(path.key, target.key)
+            new_key = object_summery.key.replace(source_key_name, target_key_name)
             self.boto3_method_with_parameters(
                 target_bucket.copy,
-                path=S3Path(target.bucket, new_key),
+                path=S3Path(target_bucket_name, new_key),
                 args=(old_source, new_key))
             self.boto3_method_with_parameters(object_summery.delete)
 
@@ -165,9 +168,14 @@ class _S3Accessor(_Accessor):
         return self.rename(path, target)
 
     def rmdir(self, path):
-        bucket = self.s3.Bucket(path.bucket)
-        for object_summery in bucket.objects.filter(Prefix=path.key):
+        bucket_name = self._bucket_name(path.bucket)
+        key_name = str(path.key)
+        bucket = self.s3.Bucket(bucket_name)
+        for object_summery in bucket.objects.filter(Prefix=key_name):
             object_summery.delete()
+
+    def _bucket_name(self, path):
+        return str(path.bucket)[1:]
 
     def boto3_method_with_parameters(self, boto3_method, path=None, args=(), kwargs=None):
         kwargs = kwargs or {}
@@ -176,12 +184,13 @@ class _S3Accessor(_Accessor):
         return boto3_method(*args, **kwargs)
 
     def _generate_prefix(self, path):
+        sep = path._flavour.sep
         if not path.key:
             return ''
-        sep = path._flavour.sep
-        if not path.key.endswith(sep):
-            return path.key + sep
-        return path.key
+        key_name = str(path.key)
+        if not key_name.endswith(sep):
+            return key_name + sep
+        return key_name
 
 
 def _string_parser(text, *, mode, encoding):
@@ -213,7 +222,7 @@ class PureS3Path(PurePath):
 
     @classmethod
     def from_uri(cls, uri):
-        if not uri.startswith('s3:/'):
+        if not uri.startswith('s3://'):
             raise ValueError('...')
         return cls(uri[4:])
 
@@ -223,21 +232,26 @@ class PureS3Path(PurePath):
         Returns a Path
         :return:
         """
-        if not self.root:
-            return ''
-        with suppress(ValueError):
+        self._absolute_path_validation()
+        if not self.is_absolute():
+            raise ValueError("relative path don't have bucket")
+        try:
             _, bucket, *_ = self.parts
-            return bucket
-        return ''
+        except ValueError:
+            return None
+        return type(self)(self._flavour.sep, bucket)
 
     @property
     def key(self):
-        if not self.root:
-            return ''
-        if not self.bucket:
-            return ''
-        key_starts_index = self.parts.index(self.bucket) + 1
-        return self._flavour.sep.join(self.parts[key_starts_index:])
+        self._absolute_path_validation()
+        key = self._flavour.sep.join(self.parts[2:])
+        if not key:
+            return None
+        return type(self)(key)
+
+    def _absolute_path_validation(self):
+        if not self.is_absolute():
+            raise ValueError('relative path have no bucket, key specification')
 
 
 class _PathNotSupportedMixin:
@@ -257,6 +271,10 @@ class _PathNotSupportedMixin:
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.chmod.__qualname__)
         raise NotImplementedError(message)
 
+    def expanduser(self):
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.expanduser.__qualname__)
+        raise NotImplementedError(message)
+
     def lchmod(self, mode):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lchmod.__qualname__)
         raise NotImplementedError(message)
@@ -264,18 +282,6 @@ class _PathNotSupportedMixin:
     def group(self):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.group.__qualname__)
         raise NotImplementedError(message)
-
-    def is_mount(self):
-        return False
-
-    def is_symlink(self):
-        return False
-
-    def is_socket(self):
-        return False
-
-    def is_fifo(self):
-        return False
 
     def is_block_device(self):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.is_block_device.__qualname__)
@@ -318,12 +324,14 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def stat(self):
         self._absolute_path_validation()
-        if not self.bucket or not self.key:
+        if not self.key:
             return None
         return super().stat()
 
     def exists(self):
         self._absolute_path_validation()
+        if not self.bucket:
+            return True
         return self._accessor.exists(self)
 
     def is_dir(self):
@@ -397,19 +405,29 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         self._absolute_path_validation()
         if not isinstance(other_path, Path):
             other_path = type(self)(other_path)
-        return self.bucket == other_path.bucket and self.key == self.key
+        return self.bucket == other_path.bucket and self.key == self.key and self.is_file()
 
     def touch(self, mode=0o666, exist_ok=True):
+        if self.exists() and not exist_ok:
+            raise FileExistsError()
         self.write_text('')
+
+    def is_mount(self):
+        return False
+
+    def is_symlink(self):
+        return False
+
+    def is_socket(self):
+        return False
+
+    def is_fifo(self):
+        return False
 
     def _init(self, template=None):
         super()._init(template)
         if template is None:
             self._accessor = _s3_accessor
-
-    def _absolute_path_validation(self):
-        if not self.is_absolute():
-            raise ValueError('relative path have no bucket, key specification')
 
 
 class S3KeyWritableFileObject(RawIOBase):
