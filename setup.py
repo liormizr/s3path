@@ -12,6 +12,10 @@ setup(
     author='Lior Mizrahi',
     author_email='li.mizr@gmail.com',
     packages=find_packages(),
+    install_requires=[
+        'boto3',
+    ],
     long_description=long_description,
     long_description_content_type="text/markdown",
+    python_requires='>= 3.4',
 )

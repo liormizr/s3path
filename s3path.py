@@ -2,9 +2,9 @@
 This library wrap's the boto3 api to provide a more Pythonice API to S3
 """
 from contextlib import suppress
-from collections import namedtuple
 from functools import wraps, partial
 from tempfile import NamedTemporaryFile
+from collections import namedtuple, defaultdict
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
 from io import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
 
@@ -20,6 +20,10 @@ except ImportError:
 __all__ = (
     'S3Path',
     'PureS3Path',
+    'StatResult',
+    'S3DirEntry',
+    'S3KeyWritableFileObject',
+    'S3KeyReadableFileObject',
 )
 
 
@@ -40,6 +44,15 @@ class _S3Flavour(_PosixFlavour):
         return uri.replace('file:///', 's3://')
 
 
+class _S3ConfigurationMap(dict):
+    def __missing__(self, path):
+        assert isinstance(path, Path), path
+        for parent in path.parents:
+            if parent in self:
+                return self[parent]
+        return self.setdefault(Path('/'), defaultdict(dict))
+
+
 class _S3Accessor(_Accessor):
     """
     An accessor implements a particular (system-specific or not)
@@ -47,9 +60,11 @@ class _S3Accessor(_Accessor):
 
     In this case this will access AWS S3 service
     """
+
     def __init__(self):
         if boto3 is not None:
             self.s3 = boto3.resource('s3')
+        self.configuration_map = _S3ConfigurationMap()
 
     def stat(self, path):
         object_summery = self.s3.ObjectSummary(self._bucket_name(path.bucket), str(path.key))
@@ -109,6 +124,7 @@ class _S3Accessor(_Accessor):
         file_object = S3KeyReadableFileObject if 'r' in mode else S3KeyWritableFileObject
         return file_object(
             object_summery,
+            path=path,
             mode=mode,
             buffering=buffering,
             encoding=encoding,
@@ -131,16 +147,22 @@ class _S3Accessor(_Accessor):
             target_bucket = self.s3.Bucket(target_bucket_name)
             object_summery = self.s3.ObjectSummary(source_bucket_name, source_key_name)
             old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
-            target_bucket.copy(old_source, target_key_name)  # todo: boto3 args: ExtraArgs=None, Callback=None, SourceClient=None, Config=None
-            object_summery.delete()
+            self.boto3_method_with_parameters(
+                target_bucket.copy,
+                path=target,
+                args=(old_source, target_key_name))
+            self.boto3_method_with_parameters(object_summery.delete)
             return
         bucket = self.s3.Bucket(source_bucket_name)
         target_bucket = self.s3.Bucket(target_bucket_name)
         for object_summery in bucket.objects.filter(Prefix=source_key_name):
             old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
             new_key = object_summery.key.replace(source_key_name, target_key_name)
-            target_bucket.copy(old_source, new_key)  # todo: boto3 args: ExtraArgs=None, Callback=None, SourceClient=None, Config=None
-            object_summery.delete()
+            self.boto3_method_with_parameters(
+                target_bucket.copy,
+                path=S3Path(target_bucket_name, new_key),
+                args=(old_source, new_key))
+            self.boto3_method_with_parameters(object_summery.delete)
 
     def replace(self, path, target):
         return self.rename(path, target)
@@ -154,6 +176,12 @@ class _S3Accessor(_Accessor):
 
     def _bucket_name(self, path):
         return str(path.bucket)[1:]
+
+    def boto3_method_with_parameters(self, boto3_method, path=None, args=(), kwargs=None):
+        kwargs = kwargs or {}
+        if path:
+            kwargs.update(self.configuration_map[path][boto3_method.__name__])
+        return boto3_method(*args, **kwargs)
 
     def _generate_prefix(self, path):
         sep = path._flavour.sep
@@ -226,8 +254,8 @@ class PureS3Path(PurePath):
             raise ValueError('relative path have no bucket, key specification')
 
 
-class PathNotSupportedMixin:
-    _NOT_SUPPORTED_MESSAGE = '{method} is unsupported on AWS S3 service'
+class _PathNotSupportedMixin:
+    _NOT_SUPPORTED_MESSAGE = '{method} is unsupported on S3 service'
 
     @classmethod
     def cwd(cls):
@@ -284,7 +312,7 @@ class PathNotSupportedMixin:
         raise NotImplementedError(message)
 
 
-class S3Path(PathNotSupportedMixin, Path, PureS3Path):
+class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     """Path subclass for AWS S3 service.
 
     S3 is not a file-system but we can look at it like a POSIX system.
@@ -405,6 +433,7 @@ class S3Path(PathNotSupportedMixin, Path, PureS3Path):
 class S3KeyWritableFileObject(RawIOBase):
     def __init__(
             self, object_summery, *,
+            path,
             mode='w',
             buffering=DEFAULT_BUFFER_SIZE,
             encoding=None,
@@ -412,6 +441,7 @@ class S3KeyWritableFileObject(RawIOBase):
             newline=None):
         super().__init__()
         self.object_summery = object_summery
+        self.path = path
         self.mode = mode
         self.buffering = buffering
         self.encoding = encoding
@@ -445,7 +475,11 @@ class S3KeyWritableFileObject(RawIOBase):
     def write(self, text):
         self._cache.write(self._string_parser(text))
         self._cache.seek(0)
-        self.object_summery.put(Body=self._cache)  # todo: boto3 args: a lot of options
+        _s3_accessor.boto3_method_with_parameters(
+            self.object_summery.put,
+            path=self.path,
+            kwargs={'Body': self._cache}
+        )
 
     def writelines(self, lines):
         self.write(self._string_parser('\n').join(self._string_parser(line) for line in lines))
@@ -463,6 +497,7 @@ class S3KeyWritableFileObject(RawIOBase):
 class S3KeyReadableFileObject(RawIOBase):
     def __init__(
             self, object_summery, *,
+            path,
             mode='b',
             buffering=DEFAULT_BUFFER_SIZE,
             encoding=None,
@@ -470,6 +505,7 @@ class S3KeyReadableFileObject(RawIOBase):
             newline=None):
         super().__init__()
         self.object_summery = object_summery
+        self.path = path
         self.mode = mode
         self.buffering = buffering
         self.encoding = encoding
@@ -509,7 +545,9 @@ class S3KeyReadableFileObject(RawIOBase):
             return False
         with suppress(ClientError):
             if self._streaming_body is None:
-                self._streaming_body = self.object_summery.get()['Body']  # todo: boto3 args: a lot of options
+                self._streaming_body = _s3_accessor.boto3_method_with_parameters(
+                    self.object_summery.get,
+                    path=self.path)['Body']
             return True
         return False
 

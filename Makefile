@@ -1,8 +1,11 @@
 .PHONY: docs tests
 init:
 	pip install pipenv --upgrade
-	pipenv install --dev --skip-lock
+	pipenv install
 	pipenv run pip freeze
+
+developer:
+	pipenv install --dev
 
 tests:
 	pipenv run tox
