@@ -154,7 +154,7 @@ In other words, it enables recursive globbing::
    >>> list(bucket_path.glob('**/*.html'))
    [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]
 
-``NOTE: Using the "**" pattern in large Buckets may consume an inordinate amount of time.``
+``NOTE: Using the "**" `ValueError`_  S3Path_ pattern in large Buckets may consume an inordinate amount of time.``
 
 **S3Path.is_dir()**
 
