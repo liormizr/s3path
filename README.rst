@@ -99,7 +99,7 @@ Or Simply reading::
    </body>
    </html>
 
-For pathlib style decomentation of all interfaces `interface_docs`_.
+For pathlib style documentation of all interfaces `interface_docs`_.
 
 .. _interface_docs: s3path_interface.rst
 .. _advanced_examples: advanced.rst
