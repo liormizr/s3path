@@ -1,4 +1,4 @@
-.. image:: docs/s3path_graph.jpg
+.. image:: s3path_graph.jpg
 
 Pure paths:
 ===========
