@@ -3,11 +3,14 @@ Pure paths:
 
 Full basic PurePath documentation linked here: `PurePathDocs`_.
 
+.. _PureS3Path:
+
 **PureS3Path(*pathsegments):**
 
 A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics.
 
    >>> PureS3Path('/<bucket>/<key>')
+   PureS3Path('/<bucket>/<key>')
 
 pathsegments is specified similarly to `PurePath`_.
 
@@ -66,339 +69,278 @@ The Key path. If a path don't have a key return `None`.
 
 This is a new property.
 
-
-**I'm HERE:!!!!!!!!!!!!!!!!!!!!**
-
-
-.. _PurePathDocs : https://docs.python.org/3/library/pathlib.html#pure-paths
-.. _PurePath: https://docs.python.org/3/library/pathlib.html#pathlib.PurePath
-.. _PurePosixPath: https://docs.python.org/3/library/pathlib.html#pathlib.PurePosixPath
-.. _ValueError: https://docs.python.org/3/library/exceptions.html#ValueError
-
-
-
 Concrete paths:
 ===============
 
-Concrete paths are subclasses of the pure path classes.  In addition to
-operations provided by the latter, they also provide methods to do system
-calls on path objects.  There are three ways to instantiate concrete paths:
+Full basic Path documentation linked here: `PathDocs`_.
+
+.. _S3Path:
 
 **S3Path(*pathsegments)**
 
-A subclass of :class:'PureS3Path', this class represents concrete paths of
-the system's path flavour (instantiating it creates either a
-:class:'S3Path')::
+A subclass of `Path`_ and PureS3Path_, this class represents concrete paths of AWS S3 Service.
+All actions are using `boto3`_ as the SKD for AWS S3 Service::
 
-  >>> S3Path('setup.py')
-  S3Path('setup.py')
+   >>> S3Path('/<bucket>/<key>')
+   S3Path('/<bucket>/<key>')
 
+pathsegments is specified similarly to `Path`_.
 
+You can't use S3Path if you don't have boto3 installed in your environment::
 
+   >>> import boto3
+   Traceback (most recent call last):
+     File "<stdin>", line 1, in <module>
+   ModuleNotFoundError: No module named 'boto3'
+   >>> from s3path import S3Path
+   >>> S3Path('/<bucket>/<key>')
+   Traceback (most recent call last):
+   File "<stdin>", line 1, in <module>
+   File "pathlib.py", line 798, in __new__
+     % (cls.__name__,))
+   NotImplementedError: cannot instantiate 'S3Path' on your system
 
 
 Methods:
 ========
 
-Concrete paths provide the following methods in addition to pure paths
-methods.  Many of these methods can raise an :exc:'OSError' if a system
-call fails (for example because the path doesn't exist).
-
-
-..    .. versionadded:: 3.5
+S3Path provide the following methods in addition to pure paths methods.
+Many of these methods can raise an `botocore.exceptions.ClientError` if boto3 call fails
+(for example because the path doesn't exist).
 
 **S3Path.stat()**
 
-   TODO nees clarification
+Return information about this path (similarly to boto3's `ObjectSummary`).
+This method will raise `ValueError`_ if the path isn't absolute.
+The result is looked up at each call to this method::
 
-   ::
-
-  >>> p = S3Path('setup.py')
-  >>> p.stat().st_size
-  956
-  >>> p.stat().st_mtime
-  1327883547.852554
-
-
+   >>> S3Path('/pypi-proxy/boto3/index.html').stat()
+   StatResult(size=188, last_modified=datetime.datetime(2018, 4, 4, 12, 26, 3, tzinfo=tzutc()))
 
 **S3Path.exists()**
 
-Whether the path points to an existing file or bucket::
+Whether the path points to an existing Bucket, key or key prefix.
+This method will raise `ValueError`_ if the path isn't absolute::
 
-  >> S3Path('./fake-key').exists()
-  Will raise a ValueError
-  >>> S3Path('.').exists()
-  True
-  >>> S3Path('setup.py').exists()
-  True
-  >>> S3Path('/etc').exists()
-  True
-  >>> S3Path('nonexistentfile').exists()
-  False
+   >>> S3Path('/pypi-proxy/boto3/index.html').exists()
+   True
+   >>> S3Path('/pypi-proxy/boto3/').exists()
+   True
+   >>> S3Path('/fake-bucket/').exists()
+   False
 
-   .. note::
-      If the path points to a symlink, :meth:`exists` returns whether the
-      symlink *points to* an existing file or directory.
+.. _S3Path.glob:
 
+**S3Path.glob(pattern)**
 
-**Path.expanduser()
+Glob the given relative pattern in the Bucket / key prefix represented by this path,
+yielding all matching files (of any kind).
+This method will raise `ValueError`_ if the path isn't absolute::
 
-Return a new path with expanded ``~`` and ``~user`` constructs,
-as returned by :meth:`os.path.expanduser`::
+   >>> bucket_path = S3Path('/pypi-proxy/')
+   >>> [path for path in bucket_path.glob('boto*')]
+   [S3Path('/pypi-proxy/boto3/'), S3Path('/pypi-proxy/botocore/')]
+   >>> [path for path in bucket_path.glob('*/*.html')]
+   [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]]
 
-  >>> p = PosixPath('~/films/Monty Python')
-  >>> p.expanduser()
-  PosixPath('/home/eric/films/Monty Python')
+The "**" pattern means "this Bucket / key prefix and all sub key prefixes, recursively".
+In other words, it enables recursive globbing::
 
-       .. versionadded:: 3.5
+   >>> bucket_path = S3Path('/pypi-proxy/')
+   >>> list(bucket_path.glob('**/*.html'))
+   [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]
 
+``NOTE: Using the "**" pattern in large Buckets may consume an inordinate amount of time.``
 
-**Path**.
+**S3Path.is_dir()**
 
-(pattern)
+Return ``True`` if the path points to a Bucket or a key prefix,
+``False`` if it points to a full key path.
 
-Glob the given *pattern* in the directory represented by this path,
-yielding all matching files (of any kind)::
+``False`` is also returned if the path doesn’t exist.
+Other errors (such as permission errors) are propagated.
 
-  >>> sorted(Path('.').glob('*.py'))
-  [S3Path('pathlib.py'), S3Path('setup.py'), S3Path('test_pathlib.py')]
-  >>> sorted(S3Path('.').glob('*/*.py'))
-  [S3Path('docs/conf.py')]
+**S3Path.is_file()**
 
-The "``**``" pattern means "this directory and all subdirectories,
-recursively".  In other words, it enables recursive globbing::
+Return ``True`` if the path points to a Bucket key,
+``False`` if it points to Bucket or a key prefix.
 
-  >>> sorted(S3Path('.').glob('**/*.py'))
-  [S3Path('build/lib/pathlib.py'),
-   S3Path('docs/conf.py'),
-   S3Path('pathlib.py'),
-   S3Path('setup.py'),
-   S3Path('test_pathlib.py')]
+``False`` is also returned if the path doesn’t exist.
+Other errors (such as permission errors) are propagated.
 
-       .. note::
-          Using the "``**``" pattern in large directory trees may consume
-          an inordinate amount of time.
+**S3Path.is_mount()**
 
+AWS S3 Service don't have mounting feature,
+There for this method will always return ``False``
 
-**S3Path.group()
+**S3Path.is_symlink()**
 
-Return the name of the group owning the file.  :exc:`KeyError` is raised
-if the file's gid isn't found in the system database.
+AWS S3 Service don't have symlink feature,
+There for this method will always return ``False``
 
+**S3Path.is_socket()**
 
-**S3Path.is_dir()
+AWS S3 Service don't have sockets feature,
+There for this method will always return ``False``
 
-Return ``True`` if the path points to a directory (or a symbolic link
-pointing to a directory), ``False`` if it points to another kind of file.
+**S3Path.is_fifo()**
 
-``False`` is also returned if the path doesn't exist or is a broken symlink;
-other errors (such as permission errors) are propagated.
+AWS S3 Service don't have fifo feature,
+There for this method will always return ``False``
 
+**Path.iterdir()**
 
-**S3Path.is_file()
+When the path points to a Bucket or a key prefix,
+yield path objects of the directory contents::
 
-Return ``True`` if the path points to a regular file (or a symbolic link
-pointing to a regular file), ``False`` if it points to another kind of file.
+   >>> bucket_path = S3Path('/pypi-proxy/')
+   >>> [path for path in bucket_path.iterdir() if path.is_dir()]
+   [S3Path('/pypi-proxy/requests/'), S3Path('/pypi-proxy/boto3/'), S3Path('/pypi-proxy/botocore/')]
+   >>> boto3_path = bucket_path.joinpath('boto3')
+   >>> [path for path in bucket_path.boto3_path()]
+   [S3Path('/pypi-proxy/boto3/boto3-1.4.1.tar.gz'), S3Path('/pypi-proxy/boto3/index.html')]
 
-``False`` is also returned if the path doesn't exist or is a broken symlink;
-other errors (such as permission errors) are propagated.
+**S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)**
 
+Open the Bucket key pointed to by the path,
+Return a Key file object that you can read/write with::
 
-**S3Path.is_mount()
+   >>> with S3Path('/pypi-proxy/botocore/index.html').open() as f:
+   >>>     print(f.read())
+   <!DOCTYPE html>
+   <html>
+   <head>
+       <meta charset="UTF-8">
+       <title>Package Index</title>
+   </head>
+   <body>
+       <a href="botocore-1.4.93.tar.gz">botocore-1.4.93.tar.gz</a><br>
+   </body>
+   </html>
 
-   Returns ``False`` in S3Path.
+**S3Path.owner()**
 
-       .. versionadded:: 3.7
+Return the name of the user owning the Bucket or key.
+Similarly to boto3's `ObjectSummary`_ owner attribute
 
+**S3Path.read_bytes()**
 
+Return the binary contents of the Bucket key as a bytes object::
 
-**S3Path.iterdir()
+   >>> S3Path('/test_bucket/test.txt').write_bytes(b'Binary file contents')
+   >>> S3Path('/test_bucket/test.txt').read_bytes()
+   b'Binary file contents'
 
-When the path points to a directory, yield path objects of the directory
-contents::
+**S3Path.read_text(encoding=None, errors=None)**
 
-  >>> p = S3Path('docs')
-  >>> for child in p.iterdir(): child
-  ...
-  S3Path('docs/conf.py')
-  S3Path('docs/_templates')
-  S3Path('docs/make.bat')
-  S3Path('docs/index.rst')
-  S3Path('docs/_build')
-  S3Path('docs/_static')
-  S3Path('docs/Makefile')
+Return the decoded contents of the Bucket key as a string::
 
-       .. versionchanged:: 3.5
-          The *exist_ok* parameter was added.
+   >>> S3Path('/test_bucket/test.txt').write_text('Text file contents')
+   >>> S3Path('/test_bucket/test.txt').read_text()
+   'Text file contents'
 
+**S3Path.rename(target)**
 
-**S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
+Rename this file or Bucket / key prefix / key to the given target.
+If target exists and is a file, it will be replaced silently if the user has permission.
+If path is a key prefix, it will replace all the keys with the same prefix to the new target prefix.
+target can be either a string or another S3Path_ object::
 
-Open the file pointed to by the path, like the built-in :func:`open`
-function does::
+   >>> path = S3Path('/test_bucket/test.txt').write_text('Text file contents')
+   >>> target = S3Path('/test_bucket/new_test.txt')
+   >>> path.rename(target)
+   >>> target.read_text()
+   'Text file contents'
 
-  >>> p = S3Path('setup.py')
-  >>> with p.open() as f:
-  ...     f.readline()
-  ...
-  '#!/usr/bin/env python3\n'
+**S3Path.replace(target)**
 
+Rename this Bucket / key prefix / key to the given target.
+If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
 
-**S3Path.owner()
+**S3Path.rglob(pattern)**
 
-Return the name of the owner's DisplayName.::
+This is like calling S3Path.glob_ with ``"**/"`` added in front of the given relative pattern::
 
-**S3Path.read_bytes()
+   >>> bucket_path = S3Path('/pypi-proxy/')
+   >>> list(bucket_path.rglob('*.html'))
+   [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]
 
-Return the binary contents of the pointed-to file as a bytes object::
+**S3Path.rmdir()**
 
-  >>> p = S3Path('my_binary_file')
-  >>> p.write_bytes(b'Binary file contents')
-  20
-  >>> p.read_bytes()
-  b'Binary file contents'
+Remove this Bucket / key prefix. The Bucket / key prefix must be empty.
 
-       .. versionadded:: 3.5
+**S3Path.samefile(other_path)**
 
+Return whether this path points to the same Bucket key as other_path,
+which can be either a Path object, or a string::
 
-**Path.read_text(encoding=None, errors=None)
+   >>> path = S3Path('/test_bucket/test.txt')
+   >>> path.samefile(S3Path('/test_bucket/test.txt'))
+   True
+   >>> path.samefile('/test_bucket/fake')
+   False
 
-Return the decoded contents of the pointed-to file as a string::
+**S3Path.touch(exist_ok=True, **kwargs)**
 
-  >>> p = S3Path('my_text_file')
-  >>> p.write_text('Text file contents')
-  18
-  >>> p.read_text()
-  'Text file contents'
+Create a key at this given path.
+If the key already exists, the function succeeds if exist_ok is true
+(and its modification time is updated to the current time), otherwise `FileExistsError`_ is raised.
 
-The file is opened and then closed. The optional parameters have the same
-meaning as in :func:`open`.
+**S3Path.write_bytes(data)**
 
-       .. versionadded:: 3.5
+Open the key pointed to in bytes mode, write data to it, and close / save the key::
 
+   >>> S3Path('/test_bucket/test.txt').write_bytes(b'Binary file contents')
+   >>> S3Path('/test_bucket/test.txt').read_bytes()
+   b'Binary file contents'
 
-**S3Path.rename(target)
+**S3Path.write_text(data, encoding=None, errors=None)**
 
-Rename this file or directory to the given *target*.::
+Open the key pointed to in text mode, write data to it, and close / save the key::
 
-  >>> p = S3Path('foo')
-  >>> p.open('w').write('some text')
-  9
-  >>> target = Path('bar')
-  >>> p.rename(target)
-  >>> target.open().read()
-  'some text'
+   >>> S3Path('/test_bucket/test.txt').write_text('Text file contents')
+   >>> S3Path('/test_bucket/test.txt').read_text()
+   'Text file contents'
 
+Unsupported Methods:
+====================
 
-**S3Path('/test-bucket/docs/').replace(target)
+There are several methods that are not supported in S3Path.
+All of them will raise `NotImplementedError`_.
 
-Rename this file or directory to the given *target*.  If *target* points
-to an existing file or directory, it will be unconditionally replaced.
+For example AWS S3 Service doesn't have a current directory::
 
+   >>> S3Path('/test_bucket/test.txt').cwd()
+   Traceback (most recent call last):
+     File "<stdin>", line 1, in <module>
+     File "/home/lior/lior_env/s3path/s3path.py", line 235, in cwd
+   raise NotImplementedError(message)
+   NotImplementedError: PathNotSupportedMixin.cwd is unsupported on AWS S3 service
 
+Here is a list of all unsupported methods:
 
-**S3Path.rmdir()
+- classmethod S3Path.cwd()
+- classmethod S3Path.home()
+- S3Path.chmod(mode)
+- S3Path.expanduser()
+- S3Path.lchmod(mode)
+- S3Path.group()
+- S3Path.is_block_device()
+- S3Path.is_char_device()
+- S3Path.lstat()
+- S3Path.mkdir(mode=0o777, parents=False, exist_ok=False)
+- S3Path.resolve()
+- S3Path.symlink_to(target, target_is_directory=False)
+- S3Path.unlink()
 
- Remove this directory.  The directory must be empty.
 
-
-**S3Path.samefile(other_path)
-
-Return whether this path points to the same file as *other_path*, which
-can be either a S3Path object, or a string.  The semantics are similar
-to :func:`os.path.samefile` and :func:`os.path.samestat`.
-
-An :exc:`OSError` can be raised if either file cannot be accessed for some
-reason.
-
-::
-
-  >>> p = S3Path('bucket/file')
-  >>> q = S3Path('other/file')
-  >>> p.samefile(q)
-  False
-  >>> p.samefile('bucket/file')
-  True
-
-
-**S3Path.touch(mode=0o666, exist_ok=True)
-
-   Create a file at this given path.  If *mode* is given, it is combined
-   with the process' ``umask`` value to determine the file mode and access
-   flags.  If the file already exists, the function succeeds if *exist_ok*
-   is true (and its modification time is updated to the current time),
-   otherwise :exc:`FileExistsError` is raised.
-
-
-**S3Path.write_bytes(data)
-
-Open the file pointed to in bytes mode, write *data* to it, and close the
-file::
-
-  >>> p = Path('my_binary_file')
-  >>> p.write_bytes(b'Binary file contents')
-  20
-  >>> p.read_bytes()
-  b'Binary file contents'
-
-An existing file of the same name is overwritten.
-
-       .. versionadded:: 3.5
-
-
-**S3Path.write_text(data, encoding=None, errors=None)
-
-Open the file pointed to in text mode, write *data* to it, and close the
-file::
-
-  >>> p = Path('my_text_file')
-  >>> p.write_text('Text file contents')
-  18
-  >>> p.read_text()
-  'Text file contents'
-
-       .. versionadded:: 3.5
-
-    Correspondence to tools in the :mod:`os` module
-    -----------------------------------------------
-
-    Below is a table mapping various :mod:`os` functions to their corresponding
-    :class:`PurePath`/:class:`Path` equivalent.
-
-    .. note::
-
-       Although :func:`os.path.relpath` and :meth:`PurePath.relative_to` have some
-       overlapping use-cases, their semantics differ enough to warrant not
-       considering them equivalent.
-
-    ====================================   ==============================
-    os and os.path                         pathlib
-    ====================================   ==============================
-    :func:`os.path.abspath`                :meth:`Path.resolve`
-    :func:`os.chmod`                       :meth:`Path.chmod`
-    :func:`os.mkdir`                       :meth:`Path.mkdir`
-    :func:`os.rename`                      :meth:`Path.rename`
-    :func:`os.replace`                     :meth:`Path.replace`
-    :func:`os.rmdir`                       :meth:`Path.rmdir`
-    :func:`os.remove`, :func:`os.unlink`   :meth:`Path.unlink`
-    :func:`os.getcwd`                      :func:`Path.cwd`
-    :func:`os.path.exists`                 :meth:`Path.exists`
-    :func:`os.path.expanduser`             :meth:`Path.expanduser` and
-                                           :meth:`Path.home`
-    :func:`os.path.isdir`                  :meth:`Path.is_dir`
-    :func:`os.path.isfile`                 :meth:`Path.is_file`
-    :func:`os.path.islink`                 :meth:`Path.is_symlink`
-    :func:`os.stat`                        :meth:`Path.stat`,
-                                           :meth:`Path.owner`,
-                                           :meth:`Path.group`
-    :func:`os.path.isabs`                  :meth:`PurePath.is_absolute`
-    :func:`os.path.join`                   :func:`PurePath.joinpath`
-    :func:`os.path.basename`               :data:`PurePath.name`
-    :func:`os.path.dirname`                :data:`PurePath.parent`
-    :func:`os.path.samefile`               :meth:`Path.samefile`
-    :func:`os.path.splitext`               :data:`PurePath.suffix`
-    ====================================   ==============================
-
-
-    .. versionchanged:: 3.6
-      Added support for the :class:'os.PathLike' interface.
+.. _PurePathDocs : https://docs.python.org/3/library/pathlib.html#pure-paths
+.. _PurePath : https://docs.python.org/3/library/pathlib.html#pathlib.PurePath
+.. _PurePosixPath : https://docs.python.org/3/library/pathlib.html#pathlib.PurePosixPath
+.. _PathDocs : https://docs.python.org/3/library/pathlib.html#concrete-paths
+.. _Path : https://docs.python.org/3/library/pathlib.html#pathlib.Path
+.. _boto3 : https://github.com/boto/boto3
+.. _ValueError : https://docs.python.org/3/library/exceptions.html#ValueError
+.. _FileExistsError : https://docs.python.org/3/library/exceptions.html#FileExistsError
+.. _NotImplementedError : https://docs.python.org/3/library/exceptions.html#NotImplementedError
+.. _ObjectSummary : https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#objectsummary

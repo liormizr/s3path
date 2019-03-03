@@ -17,6 +17,11 @@ except ImportError:
     ClientError = Exception
     StreamingBody = object
 
+__all__ = (
+    'S3Path',
+    'PureS3Path',
+)
+
 
 class _S3Flavour(_PosixFlavour):
     is_supported = bool(boto3)
@@ -238,6 +243,10 @@ class PathNotSupportedMixin:
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.chmod.__qualname__)
         raise NotImplementedError(message)
 
+    def expanduser(self):
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.expanduser.__qualname__)
+        raise NotImplementedError(message)
+
     def lchmod(self, mode):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lchmod.__qualname__)
         raise NotImplementedError(message)
@@ -368,9 +377,11 @@ class S3Path(PathNotSupportedMixin, Path, PureS3Path):
         self._absolute_path_validation()
         if not isinstance(other_path, Path):
             other_path = type(self)(other_path)
-        return self.bucket == other_path.bucket and self.key == self.key
+        return self.bucket == other_path.bucket and self.key == self.key and self.is_file()
 
     def touch(self, mode=0o666, exist_ok=True):
+        if self.exists() and not exist_ok:
+            raise FileExistsError()
         self.write_text('')
 
     def is_mount(self):

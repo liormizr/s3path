@@ -104,6 +104,9 @@ def test_glob(s3_mock):
         S3Path('/test-bucket/pathlib.py'),
         S3Path('/test-bucket/setup.py'),
         S3Path('/test-bucket/test_pathlib.py')]
+    assert sorted(S3Path.from_uri('s3://test-bucket/').glob('*cs')) == [
+        S3Path('/test-bucket/docs/'),
+    ]
 
 
 def test_rglob(s3_mock):
