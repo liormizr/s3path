@@ -80,10 +80,11 @@ The Key path. If a path don't have a key return `None`.
    None
 
 This is a new property.
+::
 
-   | NOTE:
-   | methods PureS3Path.as_uri_, PureS3Path.from_uri_, and properties PureS3Path.bucket_,
-   | PureS3Path.key_ will raise `ValueError`_ if the path isn't absolute.
+   NOTE:
+   Methods PureS3Path.as_uri_, PureS3Path.from_uri_, and properties PureS3Path.bucket_,
+   PureS3Path.key_ will raise `ValueError`_ if the path isn't absolute.
 
 Concrete paths:
 ===============
