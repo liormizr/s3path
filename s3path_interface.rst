@@ -5,8 +5,8 @@ Full basic PurePath documentation linked here: `PurePathDocs`_.
 
 .. _PureS3Path:
 
-PureS3Path(*pathsegments)
-^^^^^^^^^^^^^^^^^^^^^^^^^
+PureS3Path(\*pathsegments)
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics.
 
