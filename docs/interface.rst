@@ -61,7 +61,7 @@ This is a new class method.
 PureS3Path.bucket
 ^^^^^^^^^^^^^^^^^
 
-The Bucket path.  If a path don't have a key return `None`:
+The Bucket path.  If a path doesn't have a key returns ``None``:
 
 .. code:: python
 
@@ -75,7 +75,7 @@ This is a new property.
 PureS3Path.key
 ^^^^^^^^^^^^^^
 
-The Key path. If a path don't have a key return `None`:
+The Key path. If a path doesn't have a key returns ``None``:
 
 .. code:: python
 
