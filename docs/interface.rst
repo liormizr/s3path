@@ -35,7 +35,7 @@ This is different then PurePath since AWS S3 Service don't support symbolic link
 PureS3Path.as_uri()
 ^^^^^^^^^^^^^^^^^^^
 
-Represent the path as a AWS S3 URI:
+Represents the path as a AWS S3 URI:
 
 .. code:: python
 
@@ -49,7 +49,7 @@ Represent the path as a AWS S3 URI:
 PureS3Path.from_uri(uri)
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Represent a AWS S3 URI as a PureS3Path:
+Represents a AWS S3 URI as a PureS3Path:
 
 .. code:: python
 
