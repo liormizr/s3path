@@ -17,7 +17,7 @@ A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics
    >>> PureS3Path('/<bucket>/<key>')
    PureS3Path('/<bucket>/<key>')
 
-pathsegments is specified similarly to `PurePath`_.
+pathsegments are specified similarly to `PurePath`_.
 
 PureS3Path has a similar behavior to `PurePosixPath`_, except for the below changes:
 ------------------------------------------------------------------------------------
@@ -106,7 +106,7 @@ All actions are use `boto3`_ as the SKD for AWS S3 Service:
    >>> S3Path('/<bucket>/<key>')
    S3Path('/<bucket>/<key>')
 
-pathsegments is specified similarly to `Path`_.
+pathsegments are specified similarly to `Path`_.
 
 You can't use S3Path if you don't have boto3 installed in your environment:
 
