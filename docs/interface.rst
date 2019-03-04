@@ -98,8 +98,8 @@ Full basic Path documentation linked here: `PathDocs`_.
 S3Path(\*pathsegments)
 ^^^^^^^^^^^^^^^^^^^^^^
 
-A subclass of `Path`_ and PureS3Path_, this class represents concrete paths of AWS S3 Service.
-All actions are using `boto3`_ as the SKD for AWS S3 Service:
+A subclass of `Path`_ and PureS3Path_, this class represents a concrete paths of AWS S3 Service.
+All actions are use `boto3`_ as the SKD for AWS S3 Service:
 
 .. code:: python
 
