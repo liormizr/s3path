@@ -106,6 +106,7 @@ Or Simply reading:
 
    >>> botocore_index_path = S3Path('/pypi-proxy/botocore/index.html')
    >>> botocore_index_path.read_text()
+   """
    <!DOCTYPE html>
    <html>
    <head>
@@ -116,6 +117,7 @@ Or Simply reading:
        <a href="botocore-1.4.93.tar.gz">botocore-1.4.93.tar.gz</a><br>
    </body>
    </html>
+   """
 
 For pathlib style documentation of all interfaces `interface_docs`_.
 
