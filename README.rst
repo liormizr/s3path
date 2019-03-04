@@ -19,7 +19,9 @@ S3Path blends Boto3's ease of use and the familiarity of pathlib api.
 Basic use:
 ==========
 
-The following example assumes an s3 bucket setup as specified bellow::
+The following example assumes an s3 bucket setup as specified bellow:
+
+.. code:: bash
 
     $ aws s3 ls s3://pypi-proxy/
 
@@ -30,11 +32,15 @@ The following example assumes an s3 bucket setup as specified bellow::
     2018-04-24 22:35:19    3308919 botocore/botocore-1.4.93.tar.gz
     2018-04-24 22:35:36        188 botocore/index.html
 
-Importing the main class::
+Importing the main class:
+
+.. code:: python
 
    >>> from s3path import S3Path
 
-Listing "subdirectories" - s3 keys can be split like file-system with a `/` in s3path we::
+Listing "subdirectories" - s3 keys can be split like file-system with a `/` in s3path we:
+
+.. code:: python
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> [path for path in bucket_path.iterdir() if path.is_dir()]
@@ -42,7 +48,9 @@ Listing "subdirectories" - s3 keys can be split like file-system with a `/` in s
     S3Path('/pypi-proxy/boto3/'),
     S3Path('/pypi-proxy/botocore/')]
 
-Listing html source files in this "directory" tree::
+Listing html source files in this "directory" tree:
+
+.. code:: python
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> list(bucket_path.glob('**/*.html'))
@@ -50,14 +58,18 @@ Listing html source files in this "directory" tree::
     S3Path('/pypi-proxy/index.html'),
     S3Path('/pypi-proxy/botocore/index.html')]
 
-Navigating inside a "directory" tree::
+Navigating inside a "directory" tree:
+
+.. code:: python
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> boto3_package_path = bucket_path / 'boto3' / 'boto3-1.4.1.tar.gz'
    >>> boto3_package_path
    S3Path('/pypi-proxy/boto3/boto3-1.4.1.tar.gz')
 
-Querying path properties::
+Querying path properties:
+
+.. code:: python
 
    >>> boto3_package_path = S3Path('/pypi-proxy/boto3/boto3-1.4.1.tar.gz')
    >>> boto3_package_path.exists()
@@ -67,11 +79,14 @@ Querying path properties::
    >>> boto3_package_path.is_file()
    True
 
-Opening a "file" (s3 key)::
+Opening a "file" (s3 key):
+
+.. code:: python
 
    >>> botocore_index_path = S3Path('/pypi-proxy/botocore/index.html')
    >>> with botocore_index_path.open() as f:
    >>>     print(f.read())
+   """
    <!DOCTYPE html>
    <html>
    <head>
@@ -82,9 +97,12 @@ Opening a "file" (s3 key)::
        <a href="botocore-1.4.93.tar.gz">botocore-1.4.93.tar.gz</a><br>
    </body>
    </html>
+   """
 
 
-Or Simply reading::
+Or Simply reading:
+
+.. code:: python
 
    >>> botocore_index_path = S3Path('/pypi-proxy/botocore/index.html')
    >>> botocore_index_path.read_text()
