@@ -19,8 +19,8 @@ A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics
 
 pathsegments is specified similarly to `PurePath`_.
 
-PureS3Path have a similar behavior like `PurePosixPath`_ except for the below changes:
---------------------------------------------------------------------------------------
+PureS3Path has a similar behavior to `PurePosixPath`_, except for the below changes:
+------------------------------------------------------------------------------------
 
 Double dots (``'..'``) are treated as follows.
 This is different then PurePath since AWS S3 Service don't support symbolic links:
