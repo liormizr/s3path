@@ -12,7 +12,7 @@ PureS3Path(\*pathsegments)
 
 A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics.
 
-::
+.. code:: python
 
    >>> PureS3Path('/<bucket>/<key>')
    PureS3Path('/<bucket>/<key>')
@@ -23,7 +23,9 @@ PureS3Path have a similar behavior like `PurePosixPath`_ except for the below ch
 --------------------------------------------------------------------------------------
 
 Double dots (``'..'``) are treated as follows.
-This is different then PurePath since AWS S3 Service don't support symbolic links::
+This is different then PurePath since AWS S3 Service don't support symbolic links:
+
+.. code:: python
 
    >>> PureS3Path('foo/../bar')
    PureS3Path('bar')
@@ -33,7 +35,9 @@ This is different then PurePath since AWS S3 Service don't support symbolic link
 PureS3Path.as_uri()
 ^^^^^^^^^^^^^^^^^^^
 
-Represent the path as a AWS S3 URI::
+Represent the path as a AWS S3 URI:
+
+.. code:: python
 
    >>> p = PureS3Path('/pypi-proxy/boto3/')
    >>> p.as_uri()
@@ -45,7 +49,9 @@ Represent the path as a AWS S3 URI::
 PureS3Path.from_uri(uri)
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Represent a AWS S3 URI as a PureS3Path::
+Represent a AWS S3 URI as a PureS3Path:
+
+.. code:: python
 
    >>> PureS3Path.from_uri('s3://pypi-proxy/boto3/')
    PureS3Path('/pypi-proxy/boto3/')
@@ -55,7 +61,9 @@ This is a new class method.
 PureS3Path.bucket
 ^^^^^^^^^^^^^^^^^
 
-The Bucket path.  If a path don't have a key return `None`::
+The Bucket path.  If a path don't have a key return `None`:
+
+.. code:: python
 
    >>> p = PureS3Path.from_uri('s3://pypi-proxy/boto3/').bucket
    PureS3Path('/pypi-proxy/')
@@ -67,7 +75,9 @@ This is a new property.
 PureS3Path.key
 ^^^^^^^^^^^^^^
 
-The Key path. If a path don't have a key return `None`::
+The Key path. If a path don't have a key return `None`:
+
+.. code:: python
 
    >>> p = PureS3Path('/pypi-proxy/boto3/').key
    PureS3Path('boto3')
@@ -89,14 +99,18 @@ S3Path(\*pathsegments)
 ^^^^^^^^^^^^^^^^^^^^^^
 
 A subclass of `Path`_ and PureS3Path_, this class represents concrete paths of AWS S3 Service.
-All actions are using `boto3`_ as the SKD for AWS S3 Service::
+All actions are using `boto3`_ as the SKD for AWS S3 Service:
+
+.. code:: python
 
    >>> S3Path('/<bucket>/<key>')
    S3Path('/<bucket>/<key>')
 
 pathsegments is specified similarly to `Path`_.
 
-You can't use S3Path if you don't have boto3 installed in your environment::
+You can't use S3Path if you don't have boto3 installed in your environment:
+
+.. code:: python
 
    >>> import boto3
    Traceback (most recent call last):
@@ -122,7 +136,9 @@ S3Path.stat()
 ^^^^^^^^^^^^^
 
 Return information about this path (similarly to boto3's `ObjectSummary`_).
-The result is looked up at each call to this method::
+The result is looked up at each call to this method:
+
+.. code:: python
 
    >>> S3Path('/pypi-proxy/boto3/index.html').stat()
    StatResult(size=188, last_modified=datetime.datetime(2018, 4, 4, 12, 26, 3, tzinfo=tzutc()))
@@ -130,7 +146,9 @@ The result is looked up at each call to this method::
 S3Path.exists()
 ^^^^^^^^^^^^^^^
 
-Whether the path points to an existing Bucket, key or key prefix::
+Whether the path points to an existing Bucket, key or key prefix:
+
+.. code:: python
 
    >>> S3Path('/pypi-proxy/boto3/index.html').exists()
    True
@@ -145,7 +163,9 @@ S3Path.glob(pattern)
 ^^^^^^^^^^^^^^^^^^^^
 
 Glob the given relative pattern in the Bucket / key prefix represented by this path,
-yielding all matching files (of any kind)::
+yielding all matching files (of any kind):
+
+.. code:: python
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> [path for path in bucket_path.glob('boto*')]
@@ -154,7 +174,9 @@ yielding all matching files (of any kind)::
    [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]]
 
 The "**" pattern means "this Bucket / key prefix and all sub key prefixes, recursively".
-In other words, it enables recursive globbing::
+In other words, it enables recursive globbing:
+
+.. code:: python
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> list(bucket_path.glob('**/*.html'))
@@ -208,7 +230,9 @@ Path.iterdir()
 ^^^^^^^^^^^^^^
 
 When the path points to a Bucket or a key prefix,
-yield path objects of the directory contents::
+yield path objects of the directory contents:
+
+.. code:: python
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> [path for path in bucket_path.iterdir() if path.is_dir()]
@@ -221,7 +245,9 @@ S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Open the Bucket key pointed to by the path,
-return a Key file object that you can read/write with::
+return a Key file object that you can read/write with:
+
+.. code:: python
 
    >>> with S3Path('/pypi-proxy/botocore/index.html').open() as f:
    >>>     print(f.read())
@@ -245,7 +271,9 @@ Similarly to boto3's `ObjectSummary`_ owner attribute
 S3Path.read_bytes()
 ^^^^^^^^^^^^^^^^^^^
 
-Return the binary contents of the Bucket key as a bytes object::
+Return the binary contents of the Bucket key as a bytes object:
+
+.. code:: python
 
    >>> S3Path('/test_bucket/test.txt').write_bytes(b'Binary file contents')
    >>> S3Path('/test_bucket/test.txt').read_bytes()
@@ -254,7 +282,9 @@ Return the binary contents of the Bucket key as a bytes object::
 S3Path.read_text(encoding=None, errors=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Return the decoded contents of the Bucket key as a string::
+Return the decoded contents of the Bucket key as a string:
+
+.. code:: python
 
    >>> S3Path('/test_bucket/test.txt').write_text('Text file contents')
    >>> S3Path('/test_bucket/test.txt').read_text()
@@ -266,7 +296,9 @@ S3Path.rename(target)
 Rename this file or Bucket / key prefix / key to the given target.
 If target exists and is a file, it will be replaced silently if the user has permission.
 If path is a key prefix, it will replace all the keys with the same prefix to the new target prefix.
-target can be either a string or another S3Path_ object::
+target can be either a string or another S3Path_ object:
+
+.. code:: python
 
    >>> path = S3Path('/test_bucket/test.txt').write_text('Text file contents')
    >>> target = S3Path('/test_bucket/new_test.txt')
@@ -283,7 +315,9 @@ If target points to an existing Bucket / key prefix / key, it will be unconditio
 S3Path.rglob(pattern)
 ^^^^^^^^^^^^^^^^^^^^^
 
-This is like calling S3Path.glob_ with ``"**/"`` added in front of the given relative pattern::
+This is like calling S3Path.glob_ with ``"**/"`` added in front of the given relative pattern:
+
+.. code:: python
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> list(bucket_path.rglob('*.html'))
@@ -298,7 +332,9 @@ S3Path.samefile(other_path)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Return whether this path points to the same Bucket key as other_path,
-which can be either a Path object, or a string::
+which can be either a Path object, or a string:
+
+.. code:: python
 
    >>> path = S3Path('/test_bucket/test.txt')
    >>> path.samefile(S3Path('/test_bucket/test.txt'))
@@ -316,7 +352,9 @@ If the key already exists, the function succeeds if exist_ok is true
 S3Path.write_bytes(data)
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Open the key pointed to in bytes mode, write data to it, and close / save the key::
+Open the key pointed to in bytes mode, write data to it, and close / save the key:
+
+.. code:: python
 
    >>> S3Path('/test_bucket/test.txt').write_bytes(b'Binary file contents')
    >>> S3Path('/test_bucket/test.txt').read_bytes()
@@ -325,7 +363,9 @@ Open the key pointed to in bytes mode, write data to it, and close / save the ke
 S3Path.write_text(data, encoding=None, errors=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Open the key pointed to in text mode, write data to it, and close / save the key::
+Open the key pointed to in text mode, write data to it, and close / save the key:
+
+.. code:: python
 
    >>> S3Path('/test_bucket/test.txt').write_text('Text file contents')
    >>> S3Path('/test_bucket/test.txt').read_text()
@@ -337,7 +377,9 @@ Unsupported Methods:
 There are several methods that are not supported in S3Path.
 All of them will raise `NotImplementedError`_.
 
-For example AWS S3 Service doesn't have a current directory::
+For example AWS S3 Service doesn't have a current directory:
+
+.. code:: python
 
    >>> S3Path('/test_bucket/test.txt').cwd()
    Traceback (most recent call last):
