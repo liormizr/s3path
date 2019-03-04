@@ -171,7 +171,9 @@ yielding all matching files (of any kind):
    >>> [path for path in bucket_path.glob('boto*')]
    [S3Path('/pypi-proxy/boto3/'), S3Path('/pypi-proxy/botocore/')]
    >>> [path for path in bucket_path.glob('*/*.html')]
-   [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]]
+   [S3Path('/pypi-proxy/requests/index.html'),
+    S3Path('/pypi-proxy/index.html'),
+    S3Path('/pypi-proxy/botocore/index.html')]]
 
 The "**" pattern means "this Bucket / key prefix and all sub key prefixes, recursively".
 In other words, it enables recursive globbing:
@@ -180,7 +182,9 @@ In other words, it enables recursive globbing:
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> list(bucket_path.glob('**/*.html'))
-   [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]
+   [S3Path('/pypi-proxy/requests/index.html'),
+    S3Path('/pypi-proxy/index.html'),
+    S3Path('/pypi-proxy/botocore/index.html')]
 
 **NOTE:** Using the "**" pattern in large Buckets may consume an inordinate amount of time.
 
@@ -236,7 +240,9 @@ yield path objects of the directory contents:
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> [path for path in bucket_path.iterdir() if path.is_dir()]
-   [S3Path('/pypi-proxy/requests/'), S3Path('/pypi-proxy/boto3/'), S3Path('/pypi-proxy/botocore/')]
+   [S3Path('/pypi-proxy/requests/'),
+    S3Path('/pypi-proxy/boto3/'),
+    S3Path('/pypi-proxy/botocore/')]
    >>> boto3_path = bucket_path.joinpath('boto3')
    >>> [path for path in bucket_path.boto3_path()]
    [S3Path('/pypi-proxy/boto3/boto3-1.4.1.tar.gz'), S3Path('/pypi-proxy/boto3/index.html')]
@@ -321,7 +327,9 @@ This is like calling S3Path.glob_ with ``"**/"`` added in front of the given rel
 
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> list(bucket_path.rglob('*.html'))
-   [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]
+   [S3Path('/pypi-proxy/requests/index.html'),
+    S3Path('/pypi-proxy/index.html'),
+    S3Path('/pypi-proxy/botocore/index.html')]
 
 S3Path.rmdir()
 ^^^^^^^^^^^^^^
