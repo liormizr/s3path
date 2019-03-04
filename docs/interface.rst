@@ -23,7 +23,7 @@ PureS3Path has a similar behavior to `PurePosixPath`_, except for the below chan
 ------------------------------------------------------------------------------------
 
 Double dots (``'..'``) are treated as follows.
-This is different then PurePath since AWS S3 Service don't support symbolic links:
+This is different then PurePath since AWS S3 Service doesn't support symbolic links:
 
 .. code:: python
 
@@ -108,7 +108,7 @@ All actions are use `boto3`_ as the SKD for AWS S3 Service:
 
 pathsegments are specified similarly to `Path`_.
 
-You can't use S3Path if you don't have boto3 installed in your environment:
+You can't use S3Path if you doesn't have boto3 installed in your environment:
 
 .. code:: python
 
@@ -209,25 +209,25 @@ Other errors (such as permission errors) are propagated.
 S3Path.is_mount()
 ^^^^^^^^^^^^^^^^^
 
-AWS S3 Service don't have mounting feature,
+AWS S3 Service doesn't have mounting feature,
 There for this method will always return ``False``
 
 S3Path.is_symlink()
 ^^^^^^^^^^^^^^^^^^^
 
-AWS S3 Service don't have symlink feature,
+AWS S3 Service doesn't have symlink feature,
 There for this method will always return ``False``
 
 S3Path.is_socket()
 ^^^^^^^^^^^^^^^^^^
 
-AWS S3 Service don't have sockets feature,
+AWS S3 Service doesn't have sockets feature,
 There for this method will always return ``False``
 
 S3Path.is_fifo()
 ^^^^^^^^^^^^^^^^
 
-AWS S3 Service don't have fifo feature,
+AWS S3 Service doesn't have fifo feature,
 There for this method will always return ``False``
 
 Path.iterdir()
