@@ -251,7 +251,7 @@ return a Key file object that you can read/write with:
 
    >>> with S3Path('/pypi-proxy/botocore/index.html').open() as f:
    >>>     print(f.read())
-   <!DOCTYPE html>
+   '<!DOCTYPE html>
    <html>
    <head>
        <meta charset="UTF-8">
@@ -260,7 +260,7 @@ return a Key file object that you can read/write with:
    <body>
        <a href="botocore-1.4.93.tar.gz">botocore-1.4.93.tar.gz</a><br>
    </body>
-   </html>
+   </html>'
 
 S3Path.owner()
 ^^^^^^^^^^^^^^
