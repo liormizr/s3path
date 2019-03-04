@@ -135,7 +135,7 @@ Many of these methods can raise a `botocore.exceptions.ClientError` if `boto3`_ 
 S3Path.stat()
 ^^^^^^^^^^^^^
 
-Return information about this path (similarly to boto3's `ObjectSummary`_).
+Returns information about this path (similarly to boto3's `ObjectSummary`_).
 The result is looked up at each call to this method:
 
 .. code:: python
@@ -191,7 +191,7 @@ In other words, it enables recursive globbing:
 S3Path.is_dir()
 ^^^^^^^^^^^^^^^
 
-Return ``True`` if the path points to a Bucket or a key prefix,
+Returns ``True`` if the path points to a Bucket or a key prefix,
 ``False`` if it points to a full key path.
 
 ``False`` is also returned if the path doesn’t exist.
@@ -200,7 +200,7 @@ Other errors (such as permission errors) are propagated.
 S3Path.is_file()
 ^^^^^^^^^^^^^^^^
 
-Return ``True`` if the path points to a Bucket key,
+Returns ``True`` if the path points to a Bucket key,
 ``False`` if it points to Bucket or a key prefix.
 
 ``False`` is also returned if the path doesn’t exist.
@@ -250,8 +250,8 @@ yield path objects of the directory contents:
 S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Open the Bucket key pointed to by the path,
-return a Key file object that you can read/write with:
+Opens the Bucket key pointed to by the path,
+returns a Key file object that you can read/write with:
 
 .. code:: python
 
@@ -271,7 +271,7 @@ return a Key file object that you can read/write with:
 S3Path.owner()
 ^^^^^^^^^^^^^^
 
-Return the name of the user owning the Bucket or key.
+Returns the name of the user owning the Bucket or key.
 Similarly to boto3's `ObjectSummary`_ owner attribute
 
 S3Path.read_bytes()
@@ -288,7 +288,7 @@ Return the binary contents of the Bucket key as a bytes object:
 S3Path.read_text(encoding=None, errors=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Return the decoded contents of the Bucket key as a string:
+Returns the decoded contents of the Bucket key as a string:
 
 .. code:: python
 
@@ -299,7 +299,7 @@ Return the decoded contents of the Bucket key as a string:
 S3Path.rename(target)
 ^^^^^^^^^^^^^^^^^^^^^
 
-Rename this file or Bucket / key prefix / key to the given target.
+Renames this file or Bucket / key prefix / key to the given target.
 If target exists and is a file, it will be replaced silently if the user has permission.
 If path is a key prefix, it will replace all the keys with the same prefix to the new target prefix.
 target can be either a string or another S3Path_ object:
@@ -315,7 +315,7 @@ target can be either a string or another S3Path_ object:
 S3Path.replace(target)
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Rename this Bucket / key prefix / key to the given target.
+Renames this Bucket / key prefix / key to the given target.
 If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
 
 S3Path.rglob(pattern)
@@ -334,12 +334,12 @@ This is like calling S3Path.glob_ with ``"**/"`` added in front of the given rel
 S3Path.rmdir()
 ^^^^^^^^^^^^^^
 
-Remove this Bucket / key prefix. The Bucket / key prefix must be empty.
+Removes this Bucket / key prefix. The Bucket / key prefix must be empty.
 
 S3Path.samefile(other_path)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Return whether this path points to the same Bucket key as other_path,
+Returns whether this path points to the same Bucket key as other_path,
 which can be either a Path object, or a string:
 
 .. code:: python
@@ -353,14 +353,14 @@ which can be either a Path object, or a string:
 S3Path.touch(exist_ok=True, \**kwargs)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Create a key at this given path.
+Creates a key at this given path.
 If the key already exists, the function succeeds if exist_ok is true
 (and its modification time is updated to the current time), otherwise `FileExistsError`_ is raised.
 
 S3Path.write_bytes(data)
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Open the key pointed to in bytes mode, write data to it, and close / save the key:
+Opens the key pointed to in bytes mode, write data to it, and close / save the key:
 
 .. code:: python
 
@@ -371,7 +371,7 @@ Open the key pointed to in bytes mode, write data to it, and close / save the ke
 S3Path.write_text(data, encoding=None, errors=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Open the key pointed to in text mode, write data to it, and close / save the key:
+Opens the key pointed to in text mode, writes data to it, and close / save the key:
 
 .. code:: python
 
