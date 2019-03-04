@@ -55,7 +55,7 @@ Listing html source files in this "directory" tree:
    >>> bucket_path = S3Path('/pypi-proxy/')
    >>> list(bucket_path.glob('**/*.html'))
    [S3Path('/pypi-proxy/requests/index.html'),
-    S3Path('/pypi-proxy/index.html'),
+    S3Path('/pypi-proxy/boto3/index.html'),
     S3Path('/pypi-proxy/botocore/index.html')]
 
 Navigating inside a "directory" tree:
