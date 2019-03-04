@@ -28,7 +28,7 @@ This is different then PurePath since AWS S3 Service don't support symbolic link
    >>> PureS3Path('foo/../bar')
    PureS3Path('bar')
 
-.. _PureS3Path.as_uri:
+**NOTE:** All The methods below will raise `ValueError`_ if the path isn't absolute.
 
 PureS3Path.as_uri()
 ^^^^^^^^^^^^^^^^^^^
@@ -41,8 +41,6 @@ Represent the path as a AWS S3 URI::
    >>> p = PureS3Path('/pypi-proxy/boto3/index.html')
    >>> p.as_uri()
    's3://pypi-proxy/boto3/index.html'
-
-.. _PureS3Path.from_uri:
 
 PureS3Path.from_uri(uri)
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -69,8 +67,7 @@ This is a new property.
 PureS3Path.key
 ^^^^^^^^^^^^^^
 
-The Key path. If a path don't have a key return `None`.
-`ValueError`_ is raised if the path isn't absolute::
+The Key path. If a path don't have a key return `None`::
 
    >>> p = PureS3Path('/pypi-proxy/boto3/').key
    PureS3Path('boto3')
@@ -80,11 +77,6 @@ The Key path. If a path don't have a key return `None`.
    None
 
 This is a new property.
-::
-
-   NOTE:
-   Methods PureS3Path.as_uri_, PureS3Path.from_uri_, and properties PureS3Path.bucket_,
-   PureS3Path.key_ will raise `ValueError`_ if the path isn't absolute.
 
 Concrete paths:
 ===============
@@ -168,9 +160,7 @@ In other words, it enables recursive globbing::
    >>> list(bucket_path.glob('**/*.html'))
    [S3Path('/pypi-proxy/requests/index.html'), S3Path('/pypi-proxy/index.html'), S3Path('/pypi-proxy/botocore/index.html')]
 
-::
-
-   NOTE: Using the "**" pattern in large Buckets may consume an inordinate amount of time.
+**NOTE:** Using the "**" pattern in large Buckets may consume an inordinate amount of time.
 
 S3Path.is_dir()
 ^^^^^^^^^^^^^^^
