@@ -127,10 +127,10 @@ You can't use S3Path if you don't have boto3 installed in your environment:
 Methods:
 ========
 
-S3Path provide the following methods in addition to pure paths methods.
-All The methods below will raise `ValueError`_ if the path isn't absolute.
-Many of these methods can raise an `botocore.exceptions.ClientError` if `boto3`_ call fails
-(for example because the path doesn't exist).
+| S3Path provides the following methods in addition to pure paths methods.
+| All the methods below will raise a `ValueError`_ if the path isn't absolute.
+| Many of these methods can raise a `botocore.exceptions.ClientError` if `boto3`_ call fails
+| (for example because the path doesn't exist).
 
 S3Path.stat()
 ^^^^^^^^^^^^^
