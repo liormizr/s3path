@@ -84,8 +84,7 @@ class _S3Accessor(_Accessor):
         if not bucket_name:
             return any(self.s3.buckets.all())
         if not path.key:
-            bucket = self.s3.Bucket(bucket_name)
-            return any(bucket.objects.all())
+            return self.s3.Bucket(bucket_name) in self.s3.buckets.all()
         bucket = self.s3.Bucket(bucket_name)
         key_name = str(path.key)
         for object in bucket.objects.filter(Prefix=key_name):
@@ -174,7 +173,14 @@ class _S3Accessor(_Accessor):
         key_name = str(path.key)
         bucket = self.s3.Bucket(bucket_name)
         for object_summery in bucket.objects.filter(Prefix=key_name):
-            object_summery.delete()
+            self.boto3_method_with_parameters(object_summery.delete, path=path)
+
+    def mkdir(self, path, mode):
+        self.boto3_method_with_parameters(
+            self.s3.create_bucket,
+            path=path,
+            kwargs={'Bucket': self._bucket_name(path.bucket)},
+        )
 
     def _bucket_name(self, path):
         return str(path.bucket)[1:]
@@ -259,10 +265,6 @@ class _PathNotSupportedMixin:
 
     def lstat(self):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lstat.__qualname__)
-        raise NotImplementedError(message)
-
-    def mkdir(self, *args, **kwargs):
-        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.mkdir.__qualname__)
         raise NotImplementedError(message)
 
     def resolve(self):
@@ -436,6 +438,19 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         if self.exists() and not exist_ok:
             raise FileExistsError()
         self.write_text('')
+
+    def mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        try:
+            if self.bucket is None:
+                raise FileNotFoundError('No bucket in {} {}'.format(type(self), self))
+            if self.key is not None and not parents:
+                raise FileNotFoundError('Only bucket path can be created, got {}'.format(self))
+            if self.bucket.exists():
+                raise FileExistsError('Bucket already exists')
+            return super().mkdir(mode, parents=parents, exist_ok=exist_ok)
+        except OSError:
+            if not exist_ok:
+                raise
 
     def is_mount(self):
         return False
