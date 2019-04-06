@@ -379,6 +379,24 @@ Opens the key pointed to in text mode, writes data to it, and close / save the k
    >>> S3Path('/test_bucket/test.txt').read_text()
    'Text file contents'
 
+S3Path.mkdir(mode=0o777, parents=False, exist_ok=False)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Create path bucket.
+
+AWS S3 Service doesn't support folders there for mkdir method will only create the current bucket.
+If the bucket path already exists, FileExistsError is raised.
+
+If exist_ok is false (the default), FileExistsError is raised if the target Bucket already exists.
+
+If exist_ok is true, OSError exceptions will be ignored.
+
+if parents is false (the default), mkdir will create the bucket only if this is a Bucket path.
+
+if parents is true, mkdir will create the bucket even if the path have a Key path.
+
+mode argument is ignored.
+
 Unsupported Methods:
 ====================
 
@@ -407,7 +425,6 @@ Here is a list of all unsupported methods:
 - S3Path.is_block_device()
 - S3Path.is_char_device()
 - S3Path.lstat()
-- S3Path.mkdir(mode=0o777, parents=False, exist_ok=False)
 - S3Path.resolve()
 - S3Path.symlink_to(target, target_is_directory=False)
 - S3Path.unlink()

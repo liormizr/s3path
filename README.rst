@@ -121,5 +121,7 @@ Or Simply reading:
 
 For pathlib style documentation of all interfaces `interface_docs`_.
 
+For s3path vs boto3 comparison `boto3_comparison`_.
+
 .. _interface_docs: docs/interface.rst
-.. _advanced_examples: advanced.rst
+.. _boto3_comparison: docs/comparison.rst
