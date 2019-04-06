@@ -431,3 +431,23 @@ def test_rmdir(s3_mock):
     path = S3Path('/test-bucket/docs/')
     path.rmdir()
     assert not path.exists()
+
+
+def test_mkdir(s3_mock):
+    s3 = boto3.resource('s3')
+
+    S3Path('/test-bucket/').mkdir()
+
+    assert s3.Bucket('test-bucket') in s3.buckets.all()
+
+    S3Path('/test-bucket/').mkdir(exist_ok=True)
+
+    with pytest.raises(FileExistsError):
+        S3Path('/test-bucket/').mkdir(exist_ok=False)
+
+    with pytest.raises(FileNotFoundError):
+        S3Path('/test-second-bucket/test-directory/file.name').mkdir()
+
+    S3Path('/test-second-bucket/test-directory/file.name').mkdir(parents=True)
+
+    assert s3.Bucket('test-second-bucket') in s3.buckets.all()
