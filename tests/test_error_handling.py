@@ -5,8 +5,8 @@ from s3path import PureS3Path
 
 
 def test_paths_of_a_different_flavour():
-    with pytest.raises(TypeError, message="'<' not supported between instances of 'PureS3Path' and 'PurePosixPath'"):
+    with pytest.raises(TypeError):
         PureS3Path('/bucket/key') < PurePosixPath('/bucket/key')
 
-    with pytest.raises(TypeError, message="'>' not supported between instances of 'PureWindowsPath' and 'PureS3Path'"):
+    with pytest.raises(TypeError):
         PureWindowsPath('/bucket/key')> PureS3Path('/bucket/key')
