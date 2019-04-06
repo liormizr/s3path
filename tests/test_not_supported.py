@@ -79,13 +79,6 @@ def test_lstat():
         path.lstat()
 
 
-def test_mkdir():
-    error_message = '{}.mkdir() is unsupported on S3 service'.format(S3Path.__name__)
-    path = S3Path('/fake-bucket/fake-key')
-    with pytest.raises(NotImplementedError, message=error_message):
-        path.mkdir()
-
-
 def test_resolve():
     error_message = '{}.resolve() is unsupported on S3 service'.format(S3Path.__name__)
     path = S3Path('/fake-bucket/fake-key')
