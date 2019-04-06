@@ -1,10 +1,10 @@
 """
-This library wrap's the boto3 api to provide a more Pythonice API to S3
+This library wrap's the boto3 interface to provide a more Pythonice API to S3
 """
 from contextlib import suppress
-from functools import wraps, partial
+from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from collections import namedtuple, defaultdict
+from functools import wraps, partial, lru_cache
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
 from io import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
 
@@ -12,12 +12,15 @@ try:
     import boto3
     from botocore.exceptions import ClientError
     from botocore.response import StreamingBody
+    from botocore.docs.docstring import LazyLoadedDocstring
 except ImportError:
     boto3 = None
     ClientError = Exception
     StreamingBody = object
+    LazyLoadedDocstring = type(None)
 
 __all__ = (
+    'register_configuration_parameter',
     'S3Path',
     'PureS3Path',
     'StatResult',
@@ -46,11 +49,10 @@ class _S3Flavour(_PosixFlavour):
 
 class _S3ConfigurationMap(dict):
     def __missing__(self, path):
-        assert isinstance(path, Path), path
         for parent in path.parents:
             if parent in self:
                 return self[parent]
-        return self.setdefault(Path('/'), defaultdict(dict))
+        return self.setdefault(Path('/'), {})
 
 
 class _S3Accessor(_Accessor):
@@ -183,10 +185,13 @@ class _S3Accessor(_Accessor):
     def _bucket_name(self, path):
         return str(path.bucket)[1:]
 
-    def boto3_method_with_parameters(self, boto3_method, path=None, args=(), kwargs=None):
+    def boto3_method_with_parameters(self, boto3_method, path=Path('/'), args=(), kwargs=None):
         kwargs = kwargs or {}
-        if path:
-            kwargs.update(self.configuration_map[path][boto3_method.__name__])
+        kwargs.update({
+            key: value
+            for key, value in self.configuration_map[path]
+            if key in self._get_action_arguments(boto3_method)
+        })
         return boto3_method(*args, **kwargs)
 
     def _generate_prefix(self, path):
@@ -198,6 +203,18 @@ class _S3Accessor(_Accessor):
             return key_name + sep
         return key_name
 
+    @lru_cache()
+    def _get_action_arguments(self, action):
+        if isinstance(action.__doc__, LazyLoadedDocstring):
+            docs = action.__doc__._generate()
+        else:
+            docs = action.__doc__
+        return set(
+            line.replace(':param ', '').strip().strip(':')
+            for line in docs.splitlines()
+            if line.startswith(':param ')
+        )
+
 
 def _string_parser(text, *, mode, encoding):
     if isinstance(text, bytes):
@@ -207,57 +224,6 @@ def _string_parser(text, *, mode, encoding):
     if 't' in mode or 'r' == mode:
         return text
     return text.encode(encoding or 'utf-8')
-
-
-_s3_flavour = _S3Flavour()
-_s3_accessor = _S3Accessor()
-
-
-class PureS3Path(PurePath):
-    """
-    PurePath subclass for AWS S3 service.
-
-    S3 is not a file-system but we can look at it like a POSIX system.
-
-    # todo: finish the doc's
-    # instantiating a PurePath should return this object.
-    # However, you can also instantiate it directly on any system.
-    """
-    _flavour = _s3_flavour
-    __slots__ = ()
-
-    @classmethod
-    def from_uri(cls, uri):
-        if not uri.startswith('s3://'):
-            raise ValueError('...')
-        return cls(uri[4:])
-
-    @property
-    def bucket(self):
-        """
-        Returns a Path
-        :return:
-        """
-        self._absolute_path_validation()
-        if not self.is_absolute():
-            raise ValueError("relative path don't have bucket")
-        try:
-            _, bucket, *_ = self.parts
-        except ValueError:
-            return None
-        return type(self)(self._flavour.sep, bucket)
-
-    @property
-    def key(self):
-        self._absolute_path_validation()
-        key = self._flavour.sep.join(self.parts[2:])
-        if not key:
-            return None
-        return type(self)(key)
-
-    def _absolute_path_validation(self):
-        if not self.is_absolute():
-            raise ValueError('relative path have no bucket, key specification')
 
 
 class _PathNotSupportedMixin:
@@ -312,6 +278,65 @@ class _PathNotSupportedMixin:
     def unlink(self):
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.unlink.__qualname__)
         raise NotImplementedError(message)
+
+
+_s3_flavour = _S3Flavour()
+_s3_accessor = _S3Accessor()
+
+
+def register_configuration_parameter(path, *, parameters):
+    if not isinstance(path, PureS3Path):
+        raise TypeError('path argument have to be a {} type. got {}'.format(PureS3Path, type(path)))
+    if not isinstance(parameters, dict):
+        raise TypeError('parameters argument have to be a dict type. got {}'.format(type(path)))
+    _s3_accessor.configuration_map[path].update(**parameters)
+
+
+class PureS3Path(PurePath):
+    """
+    PurePath subclass for AWS S3 service.
+
+    S3 is not a file-system but we can look at it like a POSIX system.
+
+    # todo: finish the doc's
+    # instantiating a PurePath should return this object.
+    # However, you can also instantiate it directly on any system.
+    """
+    _flavour = _s3_flavour
+    __slots__ = ()
+
+    @classmethod
+    def from_uri(cls, uri):
+        if not uri.startswith('s3://'):
+            raise ValueError('...')
+        return cls(uri[4:])
+
+    @property
+    def bucket(self):
+        """
+        Returns a Path
+        :return:
+        """
+        self._absolute_path_validation()
+        if not self.is_absolute():
+            raise ValueError("relative path don't have bucket")
+        try:
+            _, bucket, *_ = self.parts
+        except ValueError:
+            return None
+        return type(self)(self._flavour.sep, bucket)
+
+    @property
+    def key(self):
+        self._absolute_path_validation()
+        key = self._flavour.sep.join(self.parts[2:])
+        if not key:
+            return None
+        return type(self)(key)
+
+    def _absolute_path_validation(self):
+        if not self.is_absolute():
+            raise ValueError('relative path have no bucket, key specification')
 
 
 class S3Path(_PathNotSupportedMixin, Path, PureS3Path):

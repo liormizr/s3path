@@ -159,7 +159,7 @@ def test_relative_to():
     s3_path = PureS3Path('/etc/passwd')
     assert s3_path.relative_to('/') == PureS3Path('etc/passwd')
     assert s3_path.relative_to('/etc') == PureS3Path('passwd')
-    with pytest.raises(ValueError, message="'/etc/passwd' does not start with '/usr'"):
+    with pytest.raises(ValueError):
         s3_path.relative_to('/usr')
 
 
@@ -167,7 +167,7 @@ def test_with_name():
     s3_path = PureS3Path('/Downloads/pathlib.tar.gz')
     assert s3_path.with_name('setup.py') == PureS3Path('/Downloads/setup.py')
     s3_path = PureS3Path('/')
-    with pytest.raises(ValueError, message="PureS3Path('/') has an empty name"):
+    with pytest.raises(ValueError):
         s3_path.with_name('setup.py')
 
 

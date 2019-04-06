@@ -1,7 +1,7 @@
-S3Path 
+S3Path
 ======
 
-S3Path is a pathlib extention with AWS S3 Service flavour.
+S3Path is a pathlib extension with AWS S3 Service flavour.
 
 
 S3Path provide a Python convenient File-System/Path like interface for AWS S3 Service using boto3 S3 resource as a driver.
@@ -123,5 +123,8 @@ For pathlib style documentation of all interfaces `interface_docs`_.
 
 For s3path vs boto3 comparison `boto3_comparison`_.
 
+For advance features (configurations/s3 parameters) `boto3_advance`_.
+
 .. _interface_docs: docs/interface.rst
 .. _boto3_comparison: docs/comparison.rst
+.. _boto3_advance: docs/advance.rst
