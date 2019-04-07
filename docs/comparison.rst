@@ -1,7 +1,7 @@
 S3Path VS Boto3 S3 SDK
 ======================
 
-Most of the boto3 examples we took from here: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-examples.html
+Most of the boto3 examples are taken from here: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-examples.html
 
 Buckets List:
 -------------
