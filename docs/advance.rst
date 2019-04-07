@@ -11,11 +11,11 @@ Only then s3path provides a Python-convenient File-System/Path like interface fo
 Configurations:
 ---------------
 
-s3path is using `boto3`_ as the SDK for AWS S3 Service.
+s3path uses `boto3`_ as the SDK for AWS S3 service.
 
-To use `boto3`_ you need first to configure it, For full documentation see here: `configuration`_.
+To use `boto3`_ you first need to configure it. For the full documentation see `configuration`_.
 
-`boto3`_ have multiple was to input configurations, s3path support only those:
+`boto3`_ has multiple ways to input configurations, s3path only supportes the following:
 
 1. Environment variables
 #. Shared credential file (~/.aws/credentials)
@@ -23,7 +23,7 @@ To use `boto3`_ you need first to configure it, For full documentation see here:
 #. Assume Role provider
 #. Instance metadata service on an Amazon EC2 instance that has an IAM role configured.
 
-In s3path you can't specify configurations, The only way to specify configurations in code is with setup_default_session.
+With s3path, you can't specify configurations. The only way to specify configurations in code, is with `setup_default_session`_.
 
 For Example:
 
