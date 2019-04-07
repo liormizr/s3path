@@ -3,9 +3,9 @@ Advance features (configurations/s3 parameters):
 
 Basically s3path is trying to be as pure as possible from any non `pathlib`_ features.
 
-The goal is to take AWS S3 Service and to integrate it to `pathlib`_ without interface changes.
+The goal is to take the AWS S3 service and integrate it into `pathlib`_'s interface without changes.
 
-Only then s3path provide a Python convenient File-System/Path like interface for AWS S3 Service using `boto3`_ S3 resource as a driver.
+Only then s3path provides a Python-convenient File-System/Path like interface for AWS's S3 service using `boto3`_ S3 resource as a driver.
 
 
 Configurations:
