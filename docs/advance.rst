@@ -45,8 +45,7 @@ For Example:
 Parameters:
 -----------
 
-For any kind of parameters that `boto3`_ `s3-resource`_ methods support.
-We can map them per path.
+We can map any kind of parameters that `boto3`_ `s3-resource`_ methods supports per path.
 
 For Example:
 
