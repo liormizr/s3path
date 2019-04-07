@@ -60,7 +60,9 @@ if you want to add Server-side encryption for your Bucket, you can do it per pat
 This will work for every s3path.
 
 S3Path('/') - parameters that will be used as default
+
 S3Path('/bucket/') - parameters that will be used per bucket
+
 S3Path('/bucket/key-prefix-directory/') - parameters that will be used per bucket, key prefix
 
 **NOTE:** We recommend configuring everything only in one place and not in the code.
