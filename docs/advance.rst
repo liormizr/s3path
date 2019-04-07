@@ -49,7 +49,7 @@ We can map any kind of parameters that `boto3`_ `s3-resource`_ methods supports 
 
 For Example:
 
-if you want to add Server-side encryption for your Bucket, you can do it per path like this:
+If you want to add Server-side encryption to your Bucket, you may do it per path like this:
 
 .. code:: python
 
