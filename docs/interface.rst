@@ -382,9 +382,9 @@ Opens the key pointed to in text mode, writes data to it, and close / save the k
 S3Path.mkdir(mode=0o777, parents=False, exist_ok=False)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Create path bucket.
+Create a path bucket.
 
-AWS S3 Service doesn't support folders there for mkdir method will only create the current bucket.
+AWS S3 Service doesn't support folders, therefore the mkdir method will only create the current bucket.
 If the bucket path already exists, FileExistsError is raised.
 
 If exist_ok is false (the default), FileExistsError is raised if the target Bucket already exists.
