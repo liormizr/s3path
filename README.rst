@@ -1,11 +1,7 @@
 S3Path
 ======
 
-S3Path is a pathlib extension with AWS S3 Service flavour.
-
-
 S3Path provide a Python convenient File-System/Path like interface for AWS S3 Service using boto3 S3 resource as a driver.
-
 
 Like pathlib, but for S3 Buckets
 ________________________________

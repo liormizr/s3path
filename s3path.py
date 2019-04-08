@@ -1,5 +1,5 @@
 """
-This library wrap's the boto3 interface to provide a more Pythonice API to S3
+s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
 from contextlib import suppress
 from collections import namedtuple
@@ -28,6 +28,8 @@ __all__ = (
     'S3KeyWritableFileObject',
     'S3KeyReadableFileObject',
 )
+
+_SUPPORTED_OPEN_MODES = {'r', 'br', 'rb', 'tr', 'rt', 'w', 'wb', 'bw', 'wt', 'tw'}
 
 
 class _S3Flavour(_PosixFlavour):
@@ -382,9 +384,8 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def open(self, mode='r', buffering=DEFAULT_BUFFER_SIZE, encoding=None, errors=None, newline=None):
         self._absolute_path_validation()
-        supported_open_modes = ('r', 'br', 'rb', 'tr', 'rt', 'w', 'wb', 'bw', 'wt', 'tw')
-        if mode not in supported_open_modes:
-            raise ValueError('supported modes are {} got {}'.format(supported_open_modes, mode))
+        if mode not in _SUPPORTED_OPEN_MODES:
+            raise ValueError('supported modes are {} got {}'.format(_SUPPORTED_OPEN_MODES, mode))
         if buffering == 0 or buffering == 1:
             raise ValueError('supported buffering values are only block sizes, no 0 or 1')
         if 'b' in mode and encoding:
@@ -446,7 +447,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             if self.key is not None and not parents:
                 raise FileNotFoundError('Only bucket path can be created, got {}'.format(self))
             if self.bucket.exists():
-                raise FileExistsError('Bucket already exists')
+                raise FileExistsError('Bucket {} already exists'.format(self.bucket))
             return super().mkdir(mode, parents=parents, exist_ok=exist_ok)
         except OSError:
             if not exist_ok:
