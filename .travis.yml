@@ -5,10 +5,16 @@ python:
   - '3.7'
   - '3.6'
   - '3.5'
-#  - '3.4'
-
 before_install: sudo rm -f /etc/boto.cfg
 install: make init
 script:
   - export BOTO_CONFIG=/dev/null
   - make tests
+deploy:
+  provider: pypi
+  user: lior.miz
+  password:
+    secure: u7AdEcCFB/tfNVPeQ0sXmJN4HwL+PCytJxEOfjcMREFIHjfVqZtZhaw1Sz7WR/W7sDhY3ZUv1BHU1dy2wdrJC8qwMtCujmkZaFNzJiVPZUnsJBKCXfh0NfA1yAGgjbxQRvQDwSAyZG8S2CiQAvZtw0qrw+XV25oCyPHEXRyns9dt1ynTpl1/ZvjZgx3b1B7qn7E0U7FhZj7ZMdtSvY8wNl77SHFVt9DSGHUN5GaKJrf/obm2PhltdUVRv0C7dr59L3+ZipOv5P8HX9u+Ad1zXrygKYt8XVHH5N9M0sL4w0nlW62fyOZuLmUFYGt8wqqpI4XiK4j7skBUb6exZEIPHkt+HQJNHfWzrbBeFVWzyAJwCv+57bYXSTH8VUeNmAU5Dy76qaNwbWWHru0Op3Fj36fyyQ/8HSGrGT7t/i6x0a9v9VKEvA1FaDy089Zl4Hw7PVy366/cnDDNG006pvdUPyCobg1gosuD9izkLPeK6NzqeZpxzp61RqOoH9UnQiE5m+e5Qz627EnkMfD6jODTlo+mD+yksgUdaSMUHAavAY/H51VMFNIfcJbSUk7evgWYDi5X+wZWTJN9hJDVtVwoEbXBxNbUFsIk5s3z1DQnNuM4Dq2odvblRl5j0BRQZb/oYzgus2qj/5/0oqXrPlYwsIrXsrFCPYWX4Q5NTqKbHDM=
+  distributions: sdist bdist_wheel
+  on:
+    branch: master
