@@ -15,7 +15,19 @@ setup(
     install_requires=[
         'boto3',
     ],
+    licence='Apache 2.0',
     long_description=long_description,
     long_description_content_type="text/markdown",
     python_requires='>= 3.4',
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Developers',
+        'Natural Language :: English',
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+    ],
 )
