@@ -6,6 +6,14 @@ Most of the boto3 examples are taken from here: https://boto3.amazonaws.com/v1/d
 Buckets List:
 -------------
 
+S3Path Example:
+
+.. code:: python
+
+   >>> from s3path import S3Path
+   >>> for bucket in S3Path('/').iterdir():
+   ...     print(bucket)
+
 boto3 Example:
 
 .. code:: python
@@ -21,16 +29,15 @@ boto3 Example:
    >>> for bucket in buckets:
    ...     print(bucket)
 
+Create an Amazon S3 Bucket
+--------------------------
+
 S3Path Example:
 
 .. code:: python
 
    >>> from s3path import S3Path
-   >>> for bucket in S3Path('/').iterdir():
-   ...     print(bucket)
-
-Create an Amazon S3 Bucket
---------------------------
+   >>> S3Path('/my-bucket/').mkdir()
 
 boro3 Example:
 
@@ -40,15 +47,16 @@ boro3 Example:
    >>> s3 = boto3.resource('s3')
    >>> s3.create_bucket(Bucket='my-bucket')
 
+Upload a File to an Amazon S3 Bucket
+------------------------------------
+
 S3Path Example:
 
 .. code:: python
 
-   >>> from s3path import S3Path
-   >>> S3Path('/my-bucket/').mkdir()
-
-Upload a File to an Amazon S3 Bucket
-------------------------------------
+   >>> from s3path import S3Path, Path
+   >>> local_path = Path('/tmp/hello.txt')
+   >>> S3Path('/my-bucket/hello.txt').write_text(local_path.read_text())
 
 boto3 Example:
 
@@ -59,16 +67,16 @@ boto3 Example:
    >>> bucket = s3.Bucket('my-bucket')
    >>> bucket.upload_file(Fileobj='/tmp/hello.txt', Key='hello.txt')
 
+Downloading a File
+------------------
+
 S3Path Example:
 
 .. code:: python
 
    >>> from s3path import S3Path, Path
-   >>> local_path = Path('/tmp/hello.txt')
-   >>> S3Path('/my-bucket/hello.txt').write_text(local_path.read_text())
-
-Downloading a File
-------------------
+   >>> local_path = Path('./my_local_image.jpg')
+   >>> local_path.write_text(S3Path('/my-bucket/my_image_in_s3.jpg').read_text())
 
 boto3 Example:
 
@@ -87,16 +95,17 @@ boto3 Example:
    >>>     else:
    >>>         raise
 
+Retrieving subfolders names in S3 bucket
+----------------------------------------
+
 S3Path Example:
 
 .. code:: python
 
-   >>> from s3path import S3Path, Path
-   >>> local_path = Path('./my_local_image.jpg')
-   >>> local_path.write_text(S3Path('/my-bucket/my_image_in_s3.jpg').read_text())
-
-Retrieving subfolders names in S3 bucket
-----------------------------------------
+   >>> from s3path import S3Path
+   >>> for path in S3Path('/my-bucket/prefix-name-with-slash/').iterdir():
+   >>>     if path.is_dir():
+   >>>         print('sub folder : ', path)
 
 boto3 Example:
 
@@ -107,12 +116,3 @@ boto3 Example:
    >>> result = client.list_objects(Bucket='my-bucket', Prefix='prefix-name-with-slash/', Delimiter='/')
    >>> for o in result.get('CommonPrefixes'):
    >>>     print('sub folder : ', o.get('Prefix'))
-
-S3Path Example:
-
-.. code:: python
-
-   >>> from s3path import S3Path
-   >>> for path in S3Path('/my-bucket/prefix-name-with-slash/').iterdir():
-   >>>     if path.is_dir():
-   >>>         print('sub folder : ', path)

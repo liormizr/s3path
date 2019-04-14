@@ -1,93 +1,5 @@
 .. image:: s3path_graph.jpg
 
-Pure paths:
-===========
-
-Full basic PurePath documentation linked here: `PurePathDocs`_.
-
-.. _PureS3Path:
-
-PureS3Path(\*pathsegments)
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics.
-
-.. code:: python
-
-   >>> PureS3Path('/<bucket>/<key>')
-   PureS3Path('/<bucket>/<key>')
-
-pathsegments are specified similarly to `PurePath`_.
-
-PureS3Path has a similar behavior to `PurePosixPath`_, except for the below changes:
-------------------------------------------------------------------------------------
-
-Double dots (``'..'``) are treated as follows.
-This is different then PurePath since AWS S3 Service doesn't support symbolic links:
-
-.. code:: python
-
-   >>> PureS3Path('foo/../bar')
-   PureS3Path('bar')
-
-**NOTE:** All The methods below will raise `ValueError`_ if the path isn't absolute.
-
-PureS3Path.as_uri()
-^^^^^^^^^^^^^^^^^^^
-
-Represents the path as a AWS S3 URI:
-
-.. code:: python
-
-   >>> p = PureS3Path('/pypi-proxy/boto3/')
-   >>> p.as_uri()
-   's3://pypi-proxy/boto3/'
-   >>> p = PureS3Path('/pypi-proxy/boto3/index.html')
-   >>> p.as_uri()
-   's3://pypi-proxy/boto3/index.html'
-
-PureS3Path.from_uri(uri)
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-Represents a AWS S3 URI as a PureS3Path:
-
-.. code:: python
-
-   >>> PureS3Path.from_uri('s3://pypi-proxy/boto3/')
-   PureS3Path('/pypi-proxy/boto3/')
-
-This is a new class method.
-
-PureS3Path.bucket
-^^^^^^^^^^^^^^^^^
-
-The Bucket path.  If a path doesn't have a bucket, it returns ``None``:
-
-.. code:: python
-
-   >>> p = PureS3Path.from_uri('s3://pypi-proxy/boto3/').bucket
-   PureS3Path('/pypi-proxy/')
-   >>> p = PureS3Path('/').bucket
-   None
-
-This is a new property.
-
-PureS3Path.key
-^^^^^^^^^^^^^^
-
-The Key path. If a path doesn't have a key, it returns ``None``:
-
-.. code:: python
-
-   >>> p = PureS3Path('/pypi-proxy/boto3/').key
-   PureS3Path('boto3')
-   >>> PureS3Path('/pypi-proxy/boto3/index.html').key
-   PureS3Path('boto3/index.html')
-   >>> p = PureS3Path.from_uri('s3://pypi-proxy/').key
-   None
-
-This is a new property.
-
 Concrete paths:
 ===============
 
@@ -396,6 +308,94 @@ if parents is false (the default), mkdir will create the bucket only if this is 
 if parents is true, mkdir will create the bucket even if the path have a Key path.
 
 mode argument is ignored.
+
+Pure paths:
+===========
+
+Full basic PurePath documentation linked here: `PurePathDocs`_.
+
+.. _PureS3Path:
+
+PureS3Path(\*pathsegments)
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics.
+
+.. code:: python
+
+   >>> PureS3Path('/<bucket>/<key>')
+   PureS3Path('/<bucket>/<key>')
+
+pathsegments are specified similarly to `PurePath`_.
+
+PureS3Path has a similar behavior to `PurePosixPath`_, except for the below changes:
+------------------------------------------------------------------------------------
+
+Double dots (``'..'``) are treated as follows.
+This is different then PurePath since AWS S3 Service doesn't support symbolic links:
+
+.. code:: python
+
+   >>> PureS3Path('foo/../bar')
+   PureS3Path('bar')
+
+**NOTE:** All The methods below will raise `ValueError`_ if the path isn't absolute.
+
+PureS3Path.as_uri()
+^^^^^^^^^^^^^^^^^^^
+
+Represents the path as a AWS S3 URI:
+
+.. code:: python
+
+   >>> p = PureS3Path('/pypi-proxy/boto3/')
+   >>> p.as_uri()
+   's3://pypi-proxy/boto3/'
+   >>> p = PureS3Path('/pypi-proxy/boto3/index.html')
+   >>> p.as_uri()
+   's3://pypi-proxy/boto3/index.html'
+
+PureS3Path.from_uri(uri)
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Represents a AWS S3 URI as a PureS3Path:
+
+.. code:: python
+
+   >>> PureS3Path.from_uri('s3://pypi-proxy/boto3/')
+   PureS3Path('/pypi-proxy/boto3/')
+
+This is a new class method.
+
+PureS3Path.bucket
+^^^^^^^^^^^^^^^^^
+
+The Bucket path.  If a path doesn't have a bucket, it returns ``None``:
+
+.. code:: python
+
+   >>> p = PureS3Path.from_uri('s3://pypi-proxy/boto3/').bucket
+   PureS3Path('/pypi-proxy/')
+   >>> p = PureS3Path('/').bucket
+   None
+
+This is a new property.
+
+PureS3Path.key
+^^^^^^^^^^^^^^
+
+The Key path. If a path doesn't have a key, it returns ``None``:
+
+.. code:: python
+
+   >>> p = PureS3Path('/pypi-proxy/boto3/').key
+   PureS3Path('boto3')
+   >>> PureS3Path('/pypi-proxy/boto3/index.html').key
+   PureS3Path('boto3/index.html')
+   >>> p = PureS3Path.from_uri('s3://pypi-proxy/').key
+   None
+
+This is a new property.
 
 Unsupported Methods:
 ====================

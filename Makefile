@@ -10,7 +10,4 @@ developer:
 tests:
 	pipenv run tox
 
-docs:
-	pipenv run $(MAKE) -C docs html
-
 check: tests
