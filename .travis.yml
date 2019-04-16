@@ -10,13 +10,13 @@ install: make init
 script:
 - export BOTO_CONFIG=/dev/null
 - make tests
-deploy:
-  provider: pypi
-  user: lior.miz
-  password:
-    secure: lLdarC9B1QlJuLI89a+88nCTgqNVpm3OtA84/864B9pU7h+lddXWu2RnnKUfMI6U1ALLg4SzDRNoIaANTWx0l60zSA78lrudGCiGr5zaJCVfuG9sxgLT4zcCLM7jUE/RpVwCkpeQzqkmTZYlwnzoXEau76tpvApAvxEgA17K6MMVwKk0IQ69E5hkiMvW32wqVuxccatu1r1yZIC9WMmM+jiNW9QrrDWO/SvDKWPWsIsYUzZNOADZoP3HlUZZVhIcDgalc/a0tCp20sEW8A6g5bHXuNKLkxSpBazSrGMuVu5wpuOJB55Uyh7sCo5QNE3oafyCr0ciTS7QkT9PH4kikOh+iDGQ0MHw2UOcU5gXCRJXvI2qBrLZv2dvS6TZUA+NEVSDjZMSvLU7pnZcni7Ue+KMEmzGUBs3TmsDgAi/EmenjQI2d5xm8ekmyAethmDt5t75ypuilY9SpDc7GSBNepqBvHYuCA/SI322EDshgsAMCr083ppOeDGo+VW6WDV+kHCly9cFursnW7VrM+dkNqdS1EqHHOqYSWQM5rhryG5s5hGS7iBGL1CQ9tLVN7qpPhgJZGvlNialRybo4Yun5xWgXmWhGJEJbQhoj6RdDG5Je/+xbK6RWXu72yKdn8JFQJgMx0VSFEE6/lc7sknU0Q0PyMWLIBxSUwvhXTdx9FA=
-  on:
-    python: 3.6
-    distributions: sdist bdist_wheel
-    repo: liormizr/s3path
-    branch: master
+#deploy:
+#  provider: pypi
+#  user: lior.miz
+#  password:
+#    secure: lLdarC9B1QlJuLI89a+88nCTgqNVpm3OtA84/864B9pU7h+lddXWu2RnnKUfMI6U1ALLg4SzDRNoIaANTWx0l60zSA78lrudGCiGr5zaJCVfuG9sxgLT4zcCLM7jUE/RpVwCkpeQzqkmTZYlwnzoXEau76tpvApAvxEgA17K6MMVwKk0IQ69E5hkiMvW32wqVuxccatu1r1yZIC9WMmM+jiNW9QrrDWO/SvDKWPWsIsYUzZNOADZoP3HlUZZVhIcDgalc/a0tCp20sEW8A6g5bHXuNKLkxSpBazSrGMuVu5wpuOJB55Uyh7sCo5QNE3oafyCr0ciTS7QkT9PH4kikOh+iDGQ0MHw2UOcU5gXCRJXvI2qBrLZv2dvS6TZUA+NEVSDjZMSvLU7pnZcni7Ue+KMEmzGUBs3TmsDgAi/EmenjQI2d5xm8ekmyAethmDt5t75ypuilY9SpDc7GSBNepqBvHYuCA/SI322EDshgsAMCr083ppOeDGo+VW6WDV+kHCly9cFursnW7VrM+dkNqdS1EqHHOqYSWQM5rhryG5s5hGS7iBGL1CQ9tLVN7qpPhgJZGvlNialRybo4Yun5xWgXmWhGJEJbQhoj6RdDG5Je/+xbK6RWXu72yKdn8JFQJgMx0VSFEE6/lc7sknU0Q0PyMWLIBxSUwvhXTdx9FA=
+#  on:
+#    python: 3.6
+#    distributions: sdist bdist_wheel
+#    repo: liormizr/s3path
+#    branch: master
