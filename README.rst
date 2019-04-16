@@ -1,6 +1,14 @@
 S3Path
 ======
 
+.. image:: https://badgen.net/pypi/v/s3path
+    :target: https://pypi.org/project/s3path/
+    :alt: Latest version
+
+.. image:: https://badgen.net/travis/liormizr/s3path/
+    :target: https://travis-ci.org/liormizr/s3path
+    :alt: Travis-CI
+
 S3Path provide a Python convenient File-System/Path like interface for AWS S3 Service using boto3 S3 resource as a driver.
 
 Like pathlib, but for S3 Buckets
@@ -11,6 +19,13 @@ AWS S3 is among the most popular cloud storage solutions. It's object storage, i
 Currently, Python developers use Boto3 as the default API to connect / put / get / list / delete files from S3.
 
 S3Path blends Boto3's ease of use and the familiarity of pathlib api.
+
+Install:
+========
+
+.. code:: bash
+
+    $ pip install s3path
 
 Basic use:
 ==========
@@ -114,6 +129,12 @@ Or Simply reading:
    </body>
    </html>
    """
+
+Requirements:
+=============
+
+* Python >= 3.4
+* boto3
 
 For pathlib style documentation of all interfaces `interface_docs`_.
 

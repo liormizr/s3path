@@ -1,29 +1,29 @@
 #!/usr/bin/env python
-from distutils.core import setup
-from setuptools import find_packages
+import s3path
+from setuptools import setup
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name='s3path',
-    version='0.0.1',
+    name=s3path.__name__,
+    version=s3path.__version__,
     url='https://github.com/liormizr/s3path',
     author='Lior Mizrahi',
     author_email='li.mizr@gmail.com',
-    packages=find_packages(),
-    install_requires=[
-        'boto3',
-    ],
-    licence='Apache 2.0',
+    py_modules=['s3path'],
+    install_requires=['boto3'],
+    license='Apache 2.0',
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type='text/x-rst',
     python_requires='>= 3.4',
+    include_package_data=True,
     classifiers=[
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'License :: OSI Approved :: Apache Software License',
+        'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',

@@ -10,4 +10,9 @@ developer:
 tests:
 	pipenv run tox
 
+publish:
+	pipenv run python setup.py sdist bdist_wheel
+	pipenv run twine upload dist/*
+	rm -fr build dist .egg s3path.egg-info
+
 check: tests
