@@ -2,20 +2,19 @@ language: python
 sudo: required
 dist: xenial
 python:
-  - '3.7'
-  - '3.6'
-  - '3.5'
+- '3.7'
+- '3.6'
+- '3.5'
 before_install: sudo rm -f /etc/boto.cfg
 install: make init
 script:
-  - export BOTO_CONFIG=/dev/null
-  - make tests
+- export BOTO_CONFIG=/dev/null
+- make tests
 deploy:
   provider: pypi
-  skip_existing: true
-  distributions: sdist bdist_wheel
   user: lior.miz
   password:
-    secure: Mc3+dHpiEPyafpynHUXkrjjp3vbQUHb/5J1XWpptOk9AXefOuwf0rwValfnSEipmg+rDR/j4YkF20Ef48zKWhsZsANJAVRYqoq48szFpXg6jn41Zgq3nrfOBDyw8DcTFnFc0w/X8IquJ93Y/c7246uXWIq0XfijmNh8QWbJouRMvUQZw7f+gJbjdJl1cjx7FA0KbL4DEKCoBR8rVLcF2r+0ftLGyqCrRtbRmCBX7zlXgr4OWEY45StiRL7yJJNQOFysR+6DY83KXiVgTUm2Sm7Jkir4wTniYQOQ1m4GlksCqMdIp6Bcr4lJ7qyaeG8V4Im7ptzdls1Z5z2S5ff/ZoWiPQi5hn9zQbfL6eaCdzN7uJVIQGdu9j+QWpkYiGNIenX7Bg0Q3Xu1T0tQ08RZU2h/KEYEwMHttIgwVZf85B3nsnMARFYvxUjkA7jH/MD1YQfWfRbQWpEtZqeWe0aWrcAhtx+OQ7aP4KpKOCIIetzBtddDisM2onNG91QfXu8XSThuRBvg44XE4BpYmFrOMghW4qyjYvPhdjyCKzit0G9YB+d7WIiWSeHRzLbYuQQP5mewGe9SM5g/LSKvk89CrwnINCT7hNSprPFfCFSEZ4c7nrntE7ZYu5ls0GGKmqZmasqm9JsE384H+IY7rXyusLyS1sdwyG/4ey48YVJDE6Ag=
+    secure: y5z25rICuY5oCIyJNqWZcGLCCKFWDrRYtHTeXGz05x1ekIH1h1CLn0IgacpqE0QdGVV09Y6ZLQyaIWrmK8hRPeVF8oXoRGnOSMgA+LFlFvBRX+sXNF5PpGdipgQU9LYE/IyvcuhgDFOdC/TMM1FxKKPHFBPgCO1Vtut/dbyMjAL97MFtd4Q4qS5hh9TDhrEVK1RTu0OZdpjokCpGlo3MFMVw16Mk1ZTB4oZ/9KAzxU9Nmv6fFU267Q8I3iEaiLscTHqKqK8v6vtmG/Sfb4aO6/lEW2i1rO7xvSwrxVyXWNAOFF/Mb8dfsJHOVGMssRC9v7xDxGkg0d5k7M38iKUMjv24VK5c9HT2t1wLpWBuuL33hF40vj94IaZMvDox/rHMw9rssqAZf9Jm/KosRPBi5kgZbcBVVXdw/B7gnZDLVb+QX8KjGF7Emu0aJcCWcWiqQoxMvwMChH6O4zga1pbUTXF1kUIZfft+5hQWsSK8FHswOlpLFFEedySIHMZ5PXZnKPo72hk+eVsOWZHVcfLkgHBMwttfeE2EU94P1d6GMgQiPcBFxqwBaI3H52jqDkepj0NePA5dckIKvbxA8dSo7lS3y3JDPnVR/a/cXzVUW7PWeeF0cDS4y27ZIC60/HX2783yY1dChIn3L/ieZv5KcAnbJ+0bBnfZgbz59z0C6Io=
   on:
-    branch: master
+    distributions: sdist bdist_wheel
+    repo: liormizr/s3path
