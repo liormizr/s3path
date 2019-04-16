@@ -6,7 +6,7 @@ S3Path
     :alt: Latest version
 
 .. image:: https://badgen.net/travis/liormizr/s3path/
-    :target: https://travis-ci.org/liormizr/s3path
+    :target: https://travis-ci.com/liormizr/s3path
     :alt: Travis-CI
 
 S3Path provide a Python convenient File-System/Path like interface for AWS S3 Service using boto3 S3 resource as a driver.
