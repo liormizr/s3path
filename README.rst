@@ -142,6 +142,6 @@ For s3path vs boto3 comparison `boto3_comparison`_.
 
 For advance features (configurations/s3 parameters) `boto3_advance`_.
 
-.. _interface_docs: docs/interface.rst
-.. _boto3_comparison: docs/comparison.rst
-.. _boto3_advance: docs/advance.rst
+.. _interface_docs: https://github.com/liormizr/s3path/blob/master/docs/interface.rst
+.. _boto3_comparison: https://github.com/liormizr/s3path/blob/master/docs/comparison.rst
+.. _boto3_advance: https://github.com/liormizr/s3path/blob/master/docs/advance.rst
