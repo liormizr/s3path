@@ -79,6 +79,8 @@ class _S3Accessor(_Accessor):
         )
 
     def is_dir(self, path):
+        if str(path) == path.root:
+            return True
         bucket = self.s3.Bucket(self._bucket_name(path.bucket))
         return any(bucket.objects.filter(Prefix=self._generate_prefix(path)))
 
@@ -186,6 +188,8 @@ class _S3Accessor(_Accessor):
         )
 
     def _bucket_name(self, path):
+        if path is None:
+            return
         return str(path.bucket)[1:]
 
     def boto3_method_with_parameters(self, boto3_method, path=Path('/'), args=(), kwargs=None):
