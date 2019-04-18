@@ -84,7 +84,7 @@ yielding all matching files (of any kind):
    [S3Path('/pypi-proxy/boto3/'), S3Path('/pypi-proxy/botocore/')]
    >>> [path for path in bucket_path.glob('*/*.html')]
    [S3Path('/pypi-proxy/requests/index.html'),
-    S3Path('/pypi-proxy/index.html'),
+    S3Path('/pypi-proxy/boto3/index.html'),
     S3Path('/pypi-proxy/botocore/index.html')]]
 
 The "**" pattern means "this Bucket / key prefix and all sub key prefixes, recursively".
@@ -96,6 +96,7 @@ In other words, it enables recursive globbing:
    >>> list(bucket_path.glob('**/*.html'))
    [S3Path('/pypi-proxy/requests/index.html'),
     S3Path('/pypi-proxy/index.html'),
+    S3Path('/pypi-proxy/boto3/index.html'),
     S3Path('/pypi-proxy/botocore/index.html')]
 
 **NOTE:** Using the "**" pattern in large Buckets may consume an inordinate amount of time.
