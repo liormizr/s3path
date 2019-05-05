@@ -322,7 +322,6 @@ def test_read_text(s3_mock):
     assert path.read_text() == 'test data'
 
 
-@pytest.mark.skip()
 def test_owner(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
@@ -330,7 +329,7 @@ def test_owner(s3_mock):
     object_summary.put(Body=b'test data')
 
     path = S3Path('/test-bucket/directory/Test.test')
-    assert path.owner() == '???'
+    assert path.owner() == 'webfile'
 
 
 def test_rename_s3_to_s3(s3_mock):

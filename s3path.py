@@ -141,7 +141,15 @@ class _S3Accessor(_Accessor):
         bucket_name = self._bucket_name(path.bucket)
         key_name = str(path.key)
         object_summery = self.s3.ObjectSummary(bucket_name, key_name)
-        return object_summery.owner['DisplayName']
+        # return object_summery.owner['DisplayName']
+        # This is a hack till boto3 resolve this issue:
+        # https://github.com/boto/boto3/issues/1950
+        # todo: need to clean up
+        responce = object_summery.meta.client.list_objects_v2(
+            Bucket=object_summery.bucket_name,
+            Prefix=object_summery.key,
+            FetchOwner=True)
+        return responce['Contents'][0]['Owner']['DisplayName']
 
     def rename(self, path, target):
         source_bucket_name = self._bucket_name(path.bucket)
