@@ -108,17 +108,26 @@ class _S3Accessor(_Accessor):
         bucket = self.s3.Bucket(bucket_name)
         sep = path._flavour.sep
 
-        response = bucket.meta.client.list_objects(
-            Bucket=bucket.name,
-            Prefix=self._generate_prefix(path),
-            Delimiter=sep)
-        for folder in response.get('CommonPrefixes', ()):
-            full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
-            name = full_name.split(sep)[-1]
-            yield S3DirEntry(name, is_dir=True)
-        for file in response.get('Contents', ()):
-            name = file['Key'].split(sep)[-1]
-            yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
+        kwargs = {
+            'Bucket': bucket.name,
+            'Prefix': self._generate_prefix(path),
+            'Delimiter': sep}
+
+        continuation_token = None
+        while True:
+            if continuation_token:
+                kwargs['ContinuationToken'] = continuation_token
+            response = bucket.meta.client.list_objects_v2(**kwargs)
+            for folder in response.get('CommonPrefixes', ()):
+                full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
+                name = full_name.split(sep)[-1]
+                yield S3DirEntry(name, is_dir=True)
+            for file in response.get('Contents', ()):
+                name = file['Key'].split(sep)[-1]
+                yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
+            if not response.get('IsTruncated'):
+                break
+            continuation_token = response.get('NextContinuationToken')
 
     def listdir(self, path):
         return [entry.name for entry in self.scandir(path)]
