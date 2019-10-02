@@ -19,7 +19,7 @@ except ImportError:
     StreamingBody = object
     LazyLoadedDocstring = type(None)
 
-__version__ = '0.1.06'
+__version__ = '0.1.07'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
