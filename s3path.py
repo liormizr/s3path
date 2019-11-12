@@ -66,9 +66,9 @@ class _S3Accessor(_Accessor):
     In this case this will access AWS S3 service
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         if boto3 is not None:
-            self.s3 = boto3.resource('s3')
+            self.s3 = boto3.resource('s3', **kwargs)
         self.configuration_map = _S3ConfigurationMap()
 
     def stat(self, path):
@@ -255,51 +255,99 @@ class _PathNotSupportedMixin:
 
     @classmethod
     def cwd(cls):
+        """
+        cwd class method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = cls._NOT_SUPPORTED_MESSAGE.format(method=cls.cwd.__qualname__)
         raise NotImplementedError(message)
 
     @classmethod
     def home(cls):
+        """
+        home class method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = cls._NOT_SUPPORTED_MESSAGE.format(method=cls.home.__qualname__)
         raise NotImplementedError(message)
 
     def chmod(self, mode):
+        """
+        chmod method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.chmod.__qualname__)
         raise NotImplementedError(message)
 
     def expanduser(self):
+        """
+        expanduser method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.expanduser.__qualname__)
         raise NotImplementedError(message)
 
     def lchmod(self, mode):
+        """
+        lchmod method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lchmod.__qualname__)
         raise NotImplementedError(message)
 
     def group(self):
+        """
+        group method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.group.__qualname__)
         raise NotImplementedError(message)
 
     def is_block_device(self):
+        """
+        is_block_device method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.is_block_device.__qualname__)
         raise NotImplementedError(message)
 
     def is_char_device(self):
+        """
+        is_char_device method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.is_char_device.__qualname__)
         raise NotImplementedError(message)
 
     def lstat(self):
+        """
+        lstat method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.lstat.__qualname__)
         raise NotImplementedError(message)
 
     def resolve(self):
+        """
+        resolve method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.resolve.__qualname__)
         raise NotImplementedError(message)
 
     def symlink_to(self, *args, **kwargs):
+        """
+        symlink_to method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.symlink_to.__qualname__)
         raise NotImplementedError(message)
 
     def unlink(self):
+        """
+        unlink method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.unlink.__qualname__)
         raise NotImplementedError(message)
 
@@ -321,16 +369,19 @@ class PureS3Path(PurePath):
     PurePath subclass for AWS S3 service.
 
     S3 is not a file-system but we can look at it like a POSIX system.
-
-    # todo: finish the doc's
-    # instantiating a PurePath should return this object.
-    # However, you can also instantiate it directly on any system.
     """
     _flavour = _s3_flavour
     __slots__ = ()
 
     @classmethod
     def from_uri(cls, uri):
+        """
+        from_uri class method create a class instance from url
+
+        >> from s3path import PureS3Path
+        >> PureS3Path.from_url('s3://<bucket>/')
+        << PureS3Path('/<bucket>')
+        """
         if not uri.startswith('s3://'):
             raise ValueError('...')
         return cls(uri[4:])
@@ -338,8 +389,8 @@ class PureS3Path(PurePath):
     @property
     def bucket(self):
         """
-        Returns a Path
-        :return:
+        bucket property
+        return a new instance of only the bucket path
         """
         self._absolute_path_validation()
         if not self.is_absolute():
@@ -352,6 +403,10 @@ class PureS3Path(PurePath):
 
     @property
     def key(self):
+        """
+        bucket property
+        return a new instance of only the key path
+        """
         self._absolute_path_validation()
         key = self._flavour.sep.join(self.parts[2:])
         if not key:
