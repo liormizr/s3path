@@ -413,40 +413,64 @@ class PureS3Path(PurePath):
             return None
         return type(self)(key)
 
+    def as_uri(self):
+        """
+        Return the path as a 's3' URI.
+        """
+        return super().as_uri()
+
     def _absolute_path_validation(self):
         if not self.is_absolute():
             raise ValueError('relative path have no bucket, key specification')
 
 
 class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
-    """Path subclass for AWS S3 service.
+    """
+    Path subclass for AWS S3 service.
 
-    S3 is not a file-system but we can look at it like a POSIX system.
+    S3Path provide a Python convenient File-System/Path like interface for AWS S3 Service
+     using boto3 S3 resource as a driver.
 
-    # todo: finish the doc's
-    # On a POSIX system, instantiating a Path should return this object.
+    If boto3 isn't installed in your environment NotImplementedError will be raised.
     """
     __slots__ = ()
 
     def stat(self):
+        """
+        Returns information about this path (similarly to boto3's ObjectSummary).
+        The result is looked up at each call to this method
+        """
         self._absolute_path_validation()
         if not self.key:
             return None
         return super().stat()
 
     def exists(self):
+        """
+        Whether the path points to an existing Bucket, key or key prefix.
+        """
         self._absolute_path_validation()
         if not self.bucket:
             return True
         return self._accessor.exists(self)
 
     def is_dir(self):
+        """
+        Returns True if the path points to a Bucket or a key prefix, False if it points to a full key path.
+        False is also returned if the path doesn’t exist.
+        Other errors (such as permission errors) are propagated.
+        """
         self._absolute_path_validation()
         if self.bucket and not self.key:
             return True
         return self._accessor.is_dir(self)
 
     def is_file(self):
+        """
+        Returns True if the path points to a Bucket key, False if it points to Bucket or a key prefix.
+        False is also returned if the path doesn’t exist.
+        Other errors (such as permission errors) are propagated.
+        """
         self._absolute_path_validation()
         if not self.bucket or not self.key:
             return False
@@ -456,10 +480,29 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             return False
 
     def iterdir(self):
+        """
+        When the path points to a Bucket or a key prefix, yield path objects of the directory contents
+        """
         self._absolute_path_validation()
         yield from super().iterdir()
 
+    def glob(self, pattern):
+        """
+        Glob the given relative pattern in the Bucket / key prefix represented by this path,
+        yielding all matching files (of any kind)
+        """
+        yield from super().glob(pattern)
+
+    def rglob(self, pattern):
+        """
+        This is like calling S3Path.glob with "**/" added in front of the given relative pattern
+        """
+        yield from super().rglob(pattern)
+
     def open(self, mode='r', buffering=DEFAULT_BUFFER_SIZE, encoding=None, errors=None, newline=None):
+        """
+        Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
+        """
         self._absolute_path_validation()
         if mode not in _SUPPORTED_OPEN_MODES:
             raise ValueError('supported modes are {} got {}'.format(_SUPPORTED_OPEN_MODES, mode))
@@ -479,6 +522,10 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             newline=newline)
 
     def owner(self):
+        """
+        Returns the name of the user owning the Bucket or key.
+        Similarly to boto3's ObjectSummary owner attribute
+        """
         self._absolute_path_validation()
         if not self.is_file():
             return KeyError('file not found')
@@ -486,8 +533,10 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def rename(self, target):
         """
-        Need to support file or directory
-
+        Renames this file or Bucket / key prefix / key to the given target.
+        If target exists and is a file, it will be replaced silently if the user has permission.
+        If path is a key prefix, it will replace all the keys with the same prefix to the new target prefix.
+        Target can be either a string or another S3Path object.
         """
         self._absolute_path_validation()
         if not isinstance(target, type(self)):
@@ -496,9 +545,16 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         return super().rename(target)
 
     def replace(self, target):
+        """
+        Renames this Bucket / key prefix / key to the given target.
+        If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
+        """
         return self.rename(target)
 
     def rmdir(self):
+        """
+        Removes this Bucket / key prefix. The Bucket / key prefix must be empty
+        """
         self._absolute_path_validation()
         if self.is_file():
             raise NotADirectoryError()
@@ -507,17 +563,40 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         return super().rmdir()
 
     def samefile(self, other_path):
+        """
+        Returns whether this path points to the same Bucket key as other_path,
+        Which can be either a Path object, or a string
+        """
         self._absolute_path_validation()
         if not isinstance(other_path, Path):
             other_path = type(self)(other_path)
         return self.bucket == other_path.bucket and self.key == self.key and self.is_file()
 
     def touch(self, mode=0o666, exist_ok=True):
+        """
+        Creates a key at this given path.
+        If the key already exists,
+        the function succeeds if exist_ok is true (and its modification time is updated to the current time),
+        otherwise FileExistsError is raised
+        """
         if self.exists() and not exist_ok:
             raise FileExistsError()
         self.write_text('')
 
     def mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        """
+        Create a path bucket.
+        AWS S3 Service doesn't support folders, therefore the mkdir method will only create the current bucket.
+        If the bucket path already exists, FileExistsError is raised.
+
+        If exist_ok is false (the default), FileExistsError is raised if the target Bucket already exists.
+        If exist_ok is true, OSError exceptions will be ignored.
+
+        if parents is false (the default), mkdir will create the bucket only if this is a Bucket path.
+        if parents is true, mkdir will create the bucket even if the path have a Key path.
+
+        mode argument is ignored.
+        """
         try:
             if self.bucket is None:
                 raise FileNotFoundError('No bucket in {} {}'.format(type(self), self))
@@ -531,15 +610,27 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
                 raise
 
     def is_mount(self):
+        """
+        AWS S3 Service doesn't have mounting feature, There for this method will always return False
+        """
         return False
 
     def is_symlink(self):
+        """
+        AWS S3 Service doesn't have symlink feature, There for this method will always return False
+        """
         return False
 
     def is_socket(self):
+        """
+        AWS S3 Service doesn't have sockets feature, There for this method will always return False
+        """
         return False
 
     def is_fifo(self):
+        """
+        AWS S3 Service doesn't have fifo feature, There for this method will always return False
+        """
         return False
 
     def _init(self, template=None):
