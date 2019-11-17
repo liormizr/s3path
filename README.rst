@@ -23,9 +23,17 @@ S3Path blends Boto3's ease of use and the familiarity of pathlib api.
 Install:
 ========
 
+From PyPI:
+
 .. code:: bash
 
     $ pip install s3path
+
+From Conda:
+
+.. code:: bash
+
+    $ conda install -c conda-forge s3path
 
 Basic use:
 ==========
