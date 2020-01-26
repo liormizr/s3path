@@ -450,3 +450,33 @@ def test_mkdir(s3_mock):
     S3Path('/test-second-bucket/test-directory/file.name').mkdir(parents=True)
 
     assert s3.Bucket('test-second-bucket') in s3.buckets.all()
+
+
+def test_write_text(s3_mock):
+    s3 = boto3.resource('s3')
+
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'temp_key')
+    object_summary.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/temp_key')
+    data = path.read_text()
+    assert isinstance(data, str)
+
+    path.write_text(data)
+    assert path.read_text() == data
+
+
+def test_write_bytes(s3_mock):
+    s3 = boto3.resource('s3')
+
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'temp_key')
+    object_summary.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/temp_key')
+    data = path.read_bytes()
+    assert isinstance(data, bytes)
+
+    path.write_bytes(data)
+    assert path.read_bytes() == data

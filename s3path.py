@@ -241,13 +241,19 @@ class _S3Accessor(_Accessor):
 
 
 def _string_parser(text, *, mode, encoding):
+    if isinstance(text, memoryview):
+        if 'b' in mode:
+            return text
+        return text.obj.decode(encoding or 'utf-8')
     if isinstance(text, bytes):
         if 'b' in mode:
             return text
         return text.decode(encoding or 'utf-8')
-    if 't' in mode or 'r' == mode:
-        return text
-    return text.encode(encoding or 'utf-8')
+    if isinstance(text, str):
+        if 't' in mode or 'r' == mode:
+            return text
+        return text.encode(encoding or 'utf-8')
+    raise RuntimeError()
 
 
 class _PathNotSupportedMixin:
@@ -657,7 +663,7 @@ class S3KeyWritableFileObject(RawIOBase):
         self.errors = errors
         self.newline = newline
         self._cache = NamedTemporaryFile(
-            mode=self.mode + '+',
+            mode=self.mode + '+' if 'b' in self.mode else 'b' + self.mode + '+',
             buffering=self.buffering,
             encoding=self.encoding,
             newline=self.newline)
