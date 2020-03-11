@@ -9,6 +9,7 @@ from io import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
 
 try:
     from google.cloud import storage
+    from google.api_core import exceptions as gcs_errors
 except ImportError:
     storage = None
 
@@ -83,20 +84,28 @@ class _GCSAccessor(_Accessor):
     def exists(self, path) -> bool:
         bucket_name = self._bucket_name(path.bucket)
         if not bucket_name:
-            return any(self.gcs.buckets.all())
-        bucket = self.gcs.lookup_bucket(bucket_name)
+            return any(self.gcs.list_buckets())
+        try:
+            bucket = self.gcs.lookup_bucket(bucket_name)
+        except gcs_errors.ClientError:
+            return False
         if not path.key:
             return bucket is not None
         if bucket is None:
             return False
         key_name = str(path.key)
         blob = bucket.get_blob(key_name)
-        # for object in bucket.objects.filter(Prefix=key_name):
-        #     if object.key == key_name:
-        #         return True
-        #     if object.key.startswith(key_name + path._flavour.sep):
-        #         return True
-        return blob.exists(client=self.gcs)
+        if blob is not None:
+            return blob.exists(client=self.gcs)
+        # Because we want all the parents of a valid blob (e.g. "directory" in
+        # "directory/foo.file") to return True, we enumerate the blobs with a prefix
+        # and compare the object names to see if they match a substring of the path
+        for obj in self.gcs.list_blobs(bucket_name, prefix=key_name):
+            if obj.name == key_name:
+                return True
+            if obj.name.startswith(key_name + path._flavour.sep):
+                return True
+        return False
 
     def scandir(self, path):
         bucket_name = self._bucket_name(path.bucket)

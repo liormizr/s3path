@@ -13,20 +13,6 @@ from gcspath import GCSPath, PureGCSPath, StatResult, _gcs_accessor
 # todo: test adding parameners to boto3 by path
 
 
-def test_code_using_gcs(gcs_mock):
-    # from google.cloud import storage
-    # client = storage.Client()
-    # https://console.cloud.google.com/storage/browser/[bucket-id]/
-    bucket = gcs_mock.get_bucket("bucket-id-here")
-    # Then do other things...
-    blob = bucket.get_blob("remote/path/to/file.txt")
-    print(blob.download_as_string())
-    blob.upload_from_string("New contents!")
-    blob2 = bucket.blob("remote/path/storage.txt")
-    blob2.upload_from_filename(filename="/local/path.txt")
-    # now set 'return_value', etc. on client's methods.
-
-
 @pytest.fixture()
 def gcs_mock():
     client = mock.create_autospec(storage.Client)
@@ -59,17 +45,17 @@ def test_exists(gcs_mock):
     with pytest.raises(ValueError):
         path.exists()
 
-    path = GCSPath("/fake-bucket-1234-0987/fake-key")
-    with pytest.raises(ValueError):
-        path.exists()
+    # GCS buckets are globally unique and I don't have access to "test-bucket"
+    # I guess if you own that bucket and execute these tests, they might fail. |x_X|
+    assert GCSPath("/test-bucket/fake-key").exists() is False
+    assert GCSPath("/test-bucket-3415155/fake-key").exists() is False
+    assert GCSPath("/gcsbucket-test-dev/not_found.txt").exists() is False
 
-    test_path = "/gcsbucket-test-dev/director/foo.txt"
+    test_path = "/gcsbucket-test-dev/directory/foo.txt"
     test_gs_file = f"gs:/{test_path}"
     client = storage.Client()
     blob = storage.Blob.from_string(test_gs_file)
     blob.upload_from_string("New contents!", client=client)
-    path = GCSPath.from_uri(test_gs_file)
-    assert not GCSPath("/gcsbucket-test-dev/not_found.txt").exists()
     path = GCSPath(test_path)
     assert path.exists()
     for parent in path.parents:
