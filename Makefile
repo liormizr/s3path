@@ -1,18 +1,15 @@
-.PHONY: docs tests
-init:
-	pip install pipenv --upgrade
-	pipenv install
-	pipenv run pip freeze
+.PHONY: docs test
+venv:
+	pip install virtualenv --upgrade
+	virtualenv -p python3.7 env3.7
+	env3.7/bin/pip install -r requirements.txt -r requirements-dev.txt
 
-developer:
-	pipenv install --dev
+test: venv
+	env3.7/bin/tox
 
-tests:
-	pipenv run tox
+publish: venv
+	env3.7/bin/python setup.py sdist bdist_wheel
+	env3.7/bin/twine upload dist/*
+	rm -fr build dist .egg gcspath.egg-info
 
-publish:
-	pipenv run python setup.py sdist bdist_wheel
-	pipenv run twine upload dist/*
-	rm -fr build dist .egg s3path.egg-info
-
-check: tests
+check: test

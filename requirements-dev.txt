@@ -1,0 +1,7 @@
+pytest
+mypy
+flake8
+black
+pytest-coverage
+tox
+mock

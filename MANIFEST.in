@@ -1,4 +1,4 @@
-include s3path.py
+include gcspath.py
 include setup.py
 include README.rst
 include LICENSE
