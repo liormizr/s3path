@@ -48,12 +48,22 @@ S3Path.stat()
 ^^^^^^^^^^^^^
 
 Returns information about this path (similarly to boto3's `ObjectSummary`_).
+For compatibility with `pathlib`_, the returned object some similar attributes like `os.stat_result`_.
 The result is looked up at each call to this method:
 
 .. code:: python
 
-   >>> S3Path('/pypi-proxy/boto3/index.html').stat()
+   >>> path_stat = S3Path('/pypi-proxy/boto3/index.html').stat()
+   >>> path_stat
    StatResult(size=188, last_modified=datetime.datetime(2018, 4, 4, 12, 26, 3, tzinfo=tzutc()))
+   >>> path_stat.st_size
+   188
+   >>> path_stat.st_mtime
+   1522833963.0
+   >>> path_stat.st_atime
+   Traceback (most recent call last):
+   ...
+   io.UnsupportedOperation: StatResult do not support st_atime attribute
 
 S3Path.exists()
 ^^^^^^^^^^^^^^^
@@ -68,6 +78,7 @@ Whether the path points to an existing Bucket, key or key prefix:
    True
    >>> S3Path('/fake-bucket/').exists()
    False
+
 
 .. _S3Path.glob:
 
@@ -431,6 +442,8 @@ Here is a list of all unsupported methods:
 - S3Path.unlink()
 
 
+.. _pathlib : https://docs.python.org/3/library/pathlib.html
+.. _os.stat_result : https://docs.python.org/3/library/os.html#os.stat_result
 .. _PurePathDocs : https://docs.python.org/3/library/pathlib.html#pure-paths
 .. _PurePath : https://docs.python.org/3/library/pathlib.html#pathlib.PurePath
 .. _PurePosixPath : https://docs.python.org/3/library/pathlib.html#pathlib.PurePosixPath
