@@ -48,6 +48,7 @@ S3Path.stat()
 ^^^^^^^^^^^^^
 
 Returns information about this path (similarly to boto3's `ObjectSummary`_).
+For compatibility with `pathlib`_, the returned object some similar attributes like `os.stat_result`_.
 The result is looked up at each call to this method:
 
 .. code:: python
@@ -431,6 +432,8 @@ Here is a list of all unsupported methods:
 - S3Path.unlink()
 
 
+.. _pathlib : https://docs.python.org/3/library/pathlib.html
+.. _os.stat_result : https://docs.python.org/3/library/os.html#os.stat_result
 .. _PurePathDocs : https://docs.python.org/3/library/pathlib.html#pure-paths
 .. _PurePath : https://docs.python.org/3/library/pathlib.html#pathlib.PurePath
 .. _PurePosixPath : https://docs.python.org/3/library/pathlib.html#pathlib.PurePosixPath

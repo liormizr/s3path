@@ -1,6 +1,7 @@
 """
 s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
+from posix import stat_result
 from contextlib import suppress
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
@@ -19,7 +20,7 @@ except ImportError:
     StreamingBody = object
     LazyLoadedDocstring = type(None)
 
-__version__ = '0.1.092'
+__version__ = '0.1.093'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
@@ -444,6 +445,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     def stat(self):
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
+        For compatibility with pathlib, the returned object some similar attributes like os.stat_result.
         The result is looked up at each call to this method
         """
         self._absolute_path_validation()
@@ -794,7 +796,23 @@ class S3KeyReadableFileObject(RawIOBase):
         return False
 
 
-StatResult = namedtuple('StatResult', 'size, last_modified')
+class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
+    """
+    Base of os.stat_result but with boto3 s3 features
+    """
+
+    def __getattr__(self, item):
+        if item in vars(stat_result):
+            raise UnsupportedOperation('{} do not support {} attribute'.format(type(self).__name__, item))
+        return super().__getattribute__(item)
+
+    @property
+    def st_size(self):
+        return self.size
+
+    @property
+    def st_mtime(self):
+        return self.last_modified.timestamp()
 
 
 class S3DirEntry:

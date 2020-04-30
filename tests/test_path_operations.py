@@ -1,5 +1,7 @@
 import sys
 from pathlib import Path
+from io import UnsupportedOperation
+from tempfile import NamedTemporaryFile
 
 import boto3
 from botocore.exceptions import ClientError
@@ -42,11 +44,27 @@ def test_stat(s3_mock):
 
     path = S3Path('/test-bucket/Test.test')
     stat = path.stat()
+
     assert isinstance(stat, StatResult)
     assert stat == StatResult(
         size=object_summary.size,
         last_modified=object_summary.last_modified,
     )
+
+    with NamedTemporaryFile() as local_file:
+        local_file.write(path.read_bytes())
+        local_file.flush()
+        local_path = Path(local_file.name)
+
+        local_stat = local_path.stat()
+        s3_stat = path.stat()
+
+        assert s3_stat.st_size == local_stat.st_size == s3_stat.size
+        assert s3_stat.last_modified.timestamp() == s3_stat.st_mtime
+        assert s3_stat.st_mtime < local_stat.st_mtime
+
+    with pytest.raises(UnsupportedOperation):
+        path.stat().st_atime
 
     path = S3Path('/test-bucket')
     assert path.stat() is None
