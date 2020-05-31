@@ -2,7 +2,7 @@
 s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
 from posix import stat_result
-from contextlib import suppress, contextmanager
+from contextlib import suppress
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from functools import wraps, partial, lru_cache
@@ -20,7 +20,7 @@ except ImportError:
     StreamingBody = object
     LazyLoadedDocstring = type(None)
 
-__version__ = '0.1.093'
+__version__ = '0.1.101'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
@@ -59,6 +59,48 @@ class _S3ConfigurationMap(dict):
         return self.setdefault(Path('/'), {})
 
 
+class _S3Scandir:
+    def __init__(self, *, S3_accessor, path):
+        self._S3_accessor = S3_accessor
+        self._path = path
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return
+
+    def __iter__(self):
+        bucket_name = self._S3_accessor.bucket_name(self._path.bucket)
+        if not bucket_name:
+            for bucket in self._S3_accessor.s3.buckets.all():
+                yield S3DirEntry(bucket.name, is_dir=True)
+            return
+        bucket = self._S3_accessor.s3.Bucket(bucket_name)
+        sep = self._path._flavour.sep
+
+        kwargs = {
+            'Bucket': bucket.name,
+            'Prefix': self._S3_accessor.generate_prefix(self._path),
+            'Delimiter': sep}
+
+        continuation_token = None
+        while True:
+            if continuation_token:
+                kwargs['ContinuationToken'] = continuation_token
+            response = bucket.meta.client.list_objects_v2(**kwargs)
+            for folder in response.get('CommonPrefixes', ()):
+                full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
+                name = full_name.split(sep)[-1]
+                yield S3DirEntry(name, is_dir=True)
+            for file in response.get('Contents', ()):
+                name = file['Key'].split(sep)[-1]
+                yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
+            if not response.get('IsTruncated'):
+                break
+            continuation_token = response.get('NextContinuationToken')
+
+
 class _S3Accessor(_Accessor):
     """
     An accessor implements a particular (system-specific or not)
@@ -73,7 +115,7 @@ class _S3Accessor(_Accessor):
         self.configuration_map = _S3ConfigurationMap()
 
     def stat(self, path):
-        object_summery = self.s3.ObjectSummary(self._bucket_name(path.bucket), str(path.key))
+        object_summery = self.s3.ObjectSummary(self.bucket_name(path.bucket), str(path.key))
         return StatResult(
             size=object_summery.size,
             last_modified=object_summery.last_modified,
@@ -82,11 +124,11 @@ class _S3Accessor(_Accessor):
     def is_dir(self, path):
         if str(path) == path.root:
             return True
-        bucket = self.s3.Bucket(self._bucket_name(path.bucket))
-        return any(bucket.objects.filter(Prefix=self._generate_prefix(path)))
+        bucket = self.s3.Bucket(self.bucket_name(path.bucket))
+        return any(bucket.objects.filter(Prefix=self.generate_prefix(path)))
 
     def exists(self, path):
-        bucket_name = self._bucket_name(path.bucket)
+        bucket_name = self.bucket_name(path.bucket)
         if not bucket_name:
             return any(self.s3.buckets.all())
         if not path.key:
@@ -100,45 +142,15 @@ class _S3Accessor(_Accessor):
                 return True
         return False
 
-    @contextmanager
     def scandir(self, path):
-        def _scandir_iter(path):
-            bucket_name = self._bucket_name(path.bucket)
-            if not bucket_name:
-                for bucket in self.s3.buckets.all():
-                    yield S3DirEntry(bucket.name, is_dir=True)
-                return
-            bucket = self.s3.Bucket(bucket_name)
-            sep = path._flavour.sep
-
-            kwargs = {
-                'Bucket': bucket.name,
-                'Prefix': self._generate_prefix(path),
-                'Delimiter': sep}
-
-            continuation_token = None
-            while True:
-                if continuation_token:
-                    kwargs['ContinuationToken'] = continuation_token
-                response = bucket.meta.client.list_objects_v2(**kwargs)
-                for folder in response.get('CommonPrefixes', ()):
-                    full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
-                    name = full_name.split(sep)[-1]
-                    yield S3DirEntry(name, is_dir=True)
-                for file in response.get('Contents', ()):
-                    name = file['Key'].split(sep)[-1]
-                    yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
-                if not response.get('IsTruncated'):
-                    break
-                continuation_token = response.get('NextContinuationToken')
-        yield _scandir_iter(path)
+        return _S3Scandir(S3_accessor=self, path=path)
 
     def listdir(self, path):
         with self.scandir(path) as scandir_iter:
             return [entry.name for entry in scandir_iter]
 
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
-        bucket_name = self._bucket_name(path.bucket)
+        bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
         object_summery = self.s3.ObjectSummary(bucket_name, key_name)
         file_object = S3KeyReadableFileObject if 'r' in mode else S3KeyWritableFileObject
@@ -152,7 +164,7 @@ class _S3Accessor(_Accessor):
             newline=newline)
 
     def owner(self, path):
-        bucket_name = self._bucket_name(path.bucket)
+        bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
         object_summery = self.s3.ObjectSummary(bucket_name, key_name)
         # return object_summery.owner['DisplayName']
@@ -166,9 +178,9 @@ class _S3Accessor(_Accessor):
         return responce['Contents'][0]['Owner']['DisplayName']
 
     def rename(self, path, target):
-        source_bucket_name = self._bucket_name(path.bucket)
+        source_bucket_name = self.bucket_name(path.bucket)
         source_key_name = str(path.key)
-        target_bucket_name = self._bucket_name(target.bucket)
+        target_bucket_name = self.bucket_name(target.bucket)
         target_key_name = str(target.key)
 
         if not self.is_dir(path):
@@ -196,7 +208,7 @@ class _S3Accessor(_Accessor):
         return self.rename(path, target)
 
     def rmdir(self, path):
-        bucket_name = self._bucket_name(path.bucket)
+        bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
         bucket = self.s3.Bucket(bucket_name)
         for object_summery in bucket.objects.filter(Prefix=key_name):
@@ -206,10 +218,10 @@ class _S3Accessor(_Accessor):
         self.boto3_method_with_parameters(
             self.s3.create_bucket,
             path=path,
-            kwargs={'Bucket': self._bucket_name(path.bucket)},
+            kwargs={'Bucket': self.bucket_name(path.bucket)},
         )
 
-    def _bucket_name(self, path):
+    def bucket_name(self, path):
         if path is None:
             return
         return str(path.bucket)[1:]
@@ -223,7 +235,7 @@ class _S3Accessor(_Accessor):
         })
         return boto3_method(*args, **kwargs)
 
-    def _generate_prefix(self, path):
+    def generate_prefix(self, path):
         sep = path._flavour.sep
         if not path.key:
             return ''
