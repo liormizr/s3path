@@ -20,7 +20,7 @@ except ImportError:
     StreamingBody = object
     LazyLoadedDocstring = type(None)
 
-__version__ = '0.1.093'
+__version__ = '0.1.101'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
@@ -59,59 +59,29 @@ class _S3ConfigurationMap(dict):
         return self.setdefault(Path('/'), {})
 
 
-class _S3Accessor(_Accessor):
-    """
-    An accessor implements a particular (system-specific or not)
-    way of accessing paths on the filesystem.
+class _S3Scandir:
+    def __init__(self, *, S3_accessor, path):
+        self._S3_accessor = S3_accessor
+        self._path = path
 
-    In this case this will access AWS S3 service
-    """
+    def __enter__(self):
+        return self
 
-    def __init__(self, **kwargs):
-        if boto3 is not None:
-            self.s3 = boto3.resource('s3', **kwargs)
-        self.configuration_map = _S3ConfigurationMap()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return
 
-    def stat(self, path):
-        object_summery = self.s3.ObjectSummary(self._bucket_name(path.bucket), str(path.key))
-        return StatResult(
-            size=object_summery.size,
-            last_modified=object_summery.last_modified,
-        )
-
-    def is_dir(self, path):
-        if str(path) == path.root:
-            return True
-        bucket = self.s3.Bucket(self._bucket_name(path.bucket))
-        return any(bucket.objects.filter(Prefix=self._generate_prefix(path)))
-
-    def exists(self, path):
-        bucket_name = self._bucket_name(path.bucket)
+    def __iter__(self):
+        bucket_name = self._S3_accessor.bucket_name(self._path.bucket)
         if not bucket_name:
-            return any(self.s3.buckets.all())
-        if not path.key:
-            return self.s3.Bucket(bucket_name) in self.s3.buckets.all()
-        bucket = self.s3.Bucket(bucket_name)
-        key_name = str(path.key)
-        for object in bucket.objects.filter(Prefix=key_name):
-            if object.key == key_name:
-                return True
-            if object.key.startswith(key_name + path._flavour.sep):
-                return True
-        return False
-
-    def scandir(self, path):
-        bucket_name = self._bucket_name(path.bucket)
-        if not bucket_name:
-            for bucket in self.s3.buckets.all():
+            for bucket in self._S3_accessor.s3.buckets.all():
                 yield S3DirEntry(bucket.name, is_dir=True)
             return
-        bucket = self.s3.Bucket(bucket_name)
-        sep = path._flavour.sep
+        bucket = self._S3_accessor.s3.Bucket(bucket_name)
+        sep = self._path._flavour.sep
 
         kwargs = {
             'Bucket': bucket.name,
-            'Prefix': self._generate_prefix(path),
+            'Prefix': self._S3_accessor.generate_prefix(self._path),
             'Delimiter': sep}
 
         continuation_token = None
@@ -130,11 +100,57 @@ class _S3Accessor(_Accessor):
                 break
             continuation_token = response.get('NextContinuationToken')
 
+
+class _S3Accessor(_Accessor):
+    """
+    An accessor implements a particular (system-specific or not)
+    way of accessing paths on the filesystem.
+
+    In this case this will access AWS S3 service
+    """
+
+    def __init__(self, **kwargs):
+        if boto3 is not None:
+            self.s3 = boto3.resource('s3', **kwargs)
+        self.configuration_map = _S3ConfigurationMap()
+
+    def stat(self, path):
+        object_summery = self.s3.ObjectSummary(self.bucket_name(path.bucket), str(path.key))
+        return StatResult(
+            size=object_summery.size,
+            last_modified=object_summery.last_modified,
+        )
+
+    def is_dir(self, path):
+        if str(path) == path.root:
+            return True
+        bucket = self.s3.Bucket(self.bucket_name(path.bucket))
+        return any(bucket.objects.filter(Prefix=self.generate_prefix(path)))
+
+    def exists(self, path):
+        bucket_name = self.bucket_name(path.bucket)
+        if not bucket_name:
+            return any(self.s3.buckets.all())
+        if not path.key:
+            return self.s3.Bucket(bucket_name) in self.s3.buckets.all()
+        bucket = self.s3.Bucket(bucket_name)
+        key_name = str(path.key)
+        for object in bucket.objects.filter(Prefix=key_name):
+            if object.key == key_name:
+                return True
+            if object.key.startswith(key_name + path._flavour.sep):
+                return True
+        return False
+
+    def scandir(self, path):
+        return _S3Scandir(S3_accessor=self, path=path)
+
     def listdir(self, path):
-        return [entry.name for entry in self.scandir(path)]
+        with self.scandir(path) as scandir_iter:
+            return [entry.name for entry in scandir_iter]
 
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
-        bucket_name = self._bucket_name(path.bucket)
+        bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
         object_summery = self.s3.ObjectSummary(bucket_name, key_name)
         file_object = S3KeyReadableFileObject if 'r' in mode else S3KeyWritableFileObject
@@ -148,7 +164,7 @@ class _S3Accessor(_Accessor):
             newline=newline)
 
     def owner(self, path):
-        bucket_name = self._bucket_name(path.bucket)
+        bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
         object_summery = self.s3.ObjectSummary(bucket_name, key_name)
         # return object_summery.owner['DisplayName']
@@ -162,9 +178,9 @@ class _S3Accessor(_Accessor):
         return responce['Contents'][0]['Owner']['DisplayName']
 
     def rename(self, path, target):
-        source_bucket_name = self._bucket_name(path.bucket)
+        source_bucket_name = self.bucket_name(path.bucket)
         source_key_name = str(path.key)
-        target_bucket_name = self._bucket_name(target.bucket)
+        target_bucket_name = self.bucket_name(target.bucket)
         target_key_name = str(target.key)
 
         if not self.is_dir(path):
@@ -192,7 +208,7 @@ class _S3Accessor(_Accessor):
         return self.rename(path, target)
 
     def rmdir(self, path):
-        bucket_name = self._bucket_name(path.bucket)
+        bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
         bucket = self.s3.Bucket(bucket_name)
         for object_summery in bucket.objects.filter(Prefix=key_name):
@@ -202,10 +218,10 @@ class _S3Accessor(_Accessor):
         self.boto3_method_with_parameters(
             self.s3.create_bucket,
             path=path,
-            kwargs={'Bucket': self._bucket_name(path.bucket)},
+            kwargs={'Bucket': self.bucket_name(path.bucket)},
         )
 
-    def _bucket_name(self, path):
+    def bucket_name(self, path):
         if path is None:
             return
         return str(path.bucket)[1:]
@@ -219,7 +235,7 @@ class _S3Accessor(_Accessor):
         })
         return boto3_method(*args, **kwargs)
 
-    def _generate_prefix(self, path):
+    def generate_prefix(self, path):
         sep = path._flavour.sep
         if not path.key:
             return ''
@@ -499,6 +515,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
         """
+        # import ipdb; ipdb.set_trace()
         yield from super().glob(pattern)
 
     def rglob(self, pattern):
