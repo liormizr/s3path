@@ -2,7 +2,7 @@
 s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
 from posix import stat_result
-from contextlib import suppress
+from contextlib import suppress, contextmanager
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from functools import wraps, partial, lru_cache
@@ -100,38 +100,42 @@ class _S3Accessor(_Accessor):
                 return True
         return False
 
+    @contextmanager
     def scandir(self, path):
-        bucket_name = self._bucket_name(path.bucket)
-        if not bucket_name:
-            for bucket in self.s3.buckets.all():
-                yield S3DirEntry(bucket.name, is_dir=True)
-            return
-        bucket = self.s3.Bucket(bucket_name)
-        sep = path._flavour.sep
+        def _scandir_iter(path):
+            bucket_name = self._bucket_name(path.bucket)
+            if not bucket_name:
+                for bucket in self.s3.buckets.all():
+                    yield S3DirEntry(bucket.name, is_dir=True)
+                return
+            bucket = self.s3.Bucket(bucket_name)
+            sep = path._flavour.sep
 
-        kwargs = {
-            'Bucket': bucket.name,
-            'Prefix': self._generate_prefix(path),
-            'Delimiter': sep}
+            kwargs = {
+                'Bucket': bucket.name,
+                'Prefix': self._generate_prefix(path),
+                'Delimiter': sep}
 
-        continuation_token = None
-        while True:
-            if continuation_token:
-                kwargs['ContinuationToken'] = continuation_token
-            response = bucket.meta.client.list_objects_v2(**kwargs)
-            for folder in response.get('CommonPrefixes', ()):
-                full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
-                name = full_name.split(sep)[-1]
-                yield S3DirEntry(name, is_dir=True)
-            for file in response.get('Contents', ()):
-                name = file['Key'].split(sep)[-1]
-                yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
-            if not response.get('IsTruncated'):
-                break
-            continuation_token = response.get('NextContinuationToken')
+            continuation_token = None
+            while True:
+                if continuation_token:
+                    kwargs['ContinuationToken'] = continuation_token
+                response = bucket.meta.client.list_objects_v2(**kwargs)
+                for folder in response.get('CommonPrefixes', ()):
+                    full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
+                    name = full_name.split(sep)[-1]
+                    yield S3DirEntry(name, is_dir=True)
+                for file in response.get('Contents', ()):
+                    name = file['Key'].split(sep)[-1]
+                    yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
+                if not response.get('IsTruncated'):
+                    break
+                continuation_token = response.get('NextContinuationToken')
+        yield _scandir_iter(path)
 
     def listdir(self, path):
-        return [entry.name for entry in self.scandir(path)]
+        with self.scandir(path) as scandir_iter:
+            return [entry.name for entry in scandir_iter]
 
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         bucket_name = self._bucket_name(path.bucket)
@@ -499,6 +503,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
         """
+        # import ipdb; ipdb.set_trace()
         yield from super().glob(pattern)
 
     def rglob(self, pattern):
