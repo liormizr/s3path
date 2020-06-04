@@ -498,3 +498,16 @@ def test_write_bytes(s3_mock):
 
     path.write_bytes(data)
     assert path.read_bytes() == data
+
+
+def test_unlink(s3_mock):
+    s3 = boto3.resource('s3')
+
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'temp_key')
+    object_summary.put(Body=b'test data')
+    path = S3Path('/test-bucket/temp_key')
+    assert path.exists() is True
+    path.unlink()
+    assert path.exists() is False
+
