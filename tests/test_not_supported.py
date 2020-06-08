@@ -40,10 +40,6 @@ def test_is_mount():
     assert not S3Path('/fake-bucket/fake-key').is_mount()
 
 
-def test_is_symlink():
-    assert not S3Path('/fake-bucket/fake-key').is_symlink()
-
-
 def test_is_socket():
     assert not S3Path('/fake-bucket/fake-key').is_socket()
 
@@ -75,8 +71,3 @@ def test_resolve():
     with pytest.raises(NotImplementedError):
         path.resolve()
 
-
-def test_symlink_to():
-    path = S3Path('/fake-bucket/fake-key')
-    with pytest.raises(NotImplementedError):
-        path.symlink_to('file_name')

@@ -12,7 +12,7 @@ import sys
 
 try:
     import boto3
-    from botocore.exceptions import ClientError
+    from botocore.exceptions import ClientError, WaiterError
     from botocore.response import StreamingBody
     from botocore.docs.docstring import LazyLoadedDocstring
 except ImportError:
@@ -91,12 +91,39 @@ class _S3Scandir:
                 kwargs['ContinuationToken'] = continuation_token
             response = bucket.meta.client.list_objects_v2(**kwargs)
             for folder in response.get('CommonPrefixes', ()):
-                full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
+                prefix = folder['Prefix']
+                full_name = prefix[:-1] if prefix.endswith(sep) else prefix
                 name = full_name.split(sep)[-1]
                 yield S3DirEntry(name, is_dir=True)
             for file in response.get('Contents', ()):
                 name = file['Key'].split(sep)[-1]
-                yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
+                is_symlink = self._path.joinpath(name).is_symlink()
+                if int(file['Size']) == 0 and is_symlink:
+                    target = self._S3_accessor._get_object_summary(
+                        bucket.name,
+                        name,
+                        follow_symlinks=True,
+                        ignore_errors=False
+                    )
+                    is_dir = self._S3_accessor.is_dir(target.key)
+                    if is_dir:
+                        yield S3DirEntry(target.key, is_dir=True)
+                    else:
+                        yield S3DirEntry(
+                            name=target.key,
+                            is_dir=is_dir,
+                            size=target.size,
+                            last_modified=target.last_modified,
+                            is_symlink=False,
+                        )
+                else:
+                    yield S3DirEntry(
+                        name=name,
+                        is_dir=False,
+                        size=file['Size'],
+                        last_modified=file['LastModified'],
+                        is_symlink=is_symlink,
+                    )
             if not response.get('IsTruncated'):
                 break
             continuation_token = response.get('NextContinuationToken')
@@ -115,8 +142,46 @@ class _S3Accessor(_Accessor):
             self.s3 = boto3.resource('s3', **kwargs)
         self.configuration_map = _S3ConfigurationMap()
 
+    def _get_object_summary(
+        self,
+        bucket,
+        key,
+        follow_symlinks=False,
+        ignore_errors=False,
+    ):
+        base_summary = self.s3.ObjectSummary(bucket, key)
+        if not follow_symlinks:
+            return base_summary
+        symlink_target = base_summary.Object().website_redirect_location
+        if not symlink_target and not ignore_errors:
+            try:
+                base_summary.wait_until_exists()
+            except WaiterError:
+                raise FileNotFoundError(f"/{bucket}/{key}")
+        elif not symlink_target and not (
+            base_summary.meta or getattr(base_summary.meta, "get", None)
+        ):
+            symlink_target = None
+        elif not symlink_target:
+            symlink_target = base_summary.meta.get(
+                "x-amz-website-redirect-location", None
+            )
+        if symlink_target is None:
+            return base_summary
+        target_path = S3Path(symlink_target)
+        target_bucket = self.bucket_name(target_path.bucket)
+        target_key = str(target_path.key)
+        return self._get_object_summary(
+            target_bucket,
+            target_key,
+            follow_symlinks=follow_symlinks,
+            ignore_errors=ignore_errors,
+        )
+
     def stat(self, path):
-        object_summery = self.s3.ObjectSummary(self.bucket_name(path.bucket), str(path.key))
+        object_summery = self._get_object_summary(
+            self.bucket_name(path.bucket), str(path.key)
+        )
         return StatResult(
             size=object_summery.size,
             last_modified=object_summery.last_modified,
@@ -127,6 +192,26 @@ class _S3Accessor(_Accessor):
             return True
         bucket = self.s3.Bucket(self.bucket_name(path.bucket))
         return any(bucket.objects.filter(Prefix=self.generate_prefix(path)))
+
+    def fetch_object_summary(self, path):
+        return self._get_object_summary(self.bucket_name(path), str(path.key))
+
+    def is_symlink(self, path):
+        bucket_name = self.bucket_name(path)
+        key_name = str(path.key)
+        object_summary = self.s3.ObjectSummary(bucket_name, key_name)
+        object_inst = object_summary.Object()
+        if object_inst.website_redirect_location:
+            symlink_target = object_inst.website_redirect_location
+        elif not object_summary.meta or not getattr(object_summary.meta, "get", None):
+            symlink_target = None
+        else:
+            symlink_target = object_summary.meta.get(
+                "x-amz-website-redirect-location", None
+            )
+        if symlink_target is not None:
+            return True
+        return False
 
     def exists(self, path):
         bucket_name = self.bucket_name(path.bucket)
@@ -153,7 +238,27 @@ class _S3Accessor(_Accessor):
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
-        object_summery = self.s3.ObjectSummary(bucket_name, key_name)
+        # We want to follow symlinks when reading file contents, in case a file points
+        # off somewhere else -- this way we know we will read the contents of the
+        # target
+        follow_symlinks = True
+        # We don't want to ignore errors when reading, since files that don't exist
+        # aren't readable
+        ignore_errors = False
+        if "w" in mode:
+            # We will ignore errors when writing because it's expected that files
+            # won't yet exist
+            ignore_errors = True
+            # We won't follow symlinks when writing, since for example we first have to
+            # write a blank value, or we sometimes need to delete the non-referenced
+            # object without touching the target of the link
+            follow_symlinks = False
+        object_summery = self._get_object_summary(
+            bucket_name,
+            key_name,
+            follow_symlinks=follow_symlinks,
+            ignore_errors=ignore_errors,
+        )
         file_object = S3KeyReadableFileObject if 'r' in mode else S3KeyWritableFileObject
         return file_object(
             object_summery,
@@ -220,6 +325,18 @@ class _S3Accessor(_Accessor):
             self.s3.create_bucket,
             path=path,
             kwargs={'Bucket': self.bucket_name(path.bucket)},
+        )
+
+    def symlink(self, a, b, target_is_directory=False):
+        if not a.exists():
+            raise FileNotFoundError(a)
+        if b.exists():
+            raise FileExistsError(b)
+        dest_bucket_name = self.bucket_name(b.bucket)
+        dest_key_name = str(b.key)
+        dest_object = self.s3.Object(dest_bucket_name, dest_key_name)
+        self.boto3_method_with_parameters(
+            dest_object.put, kwargs={"Body": b"", "WebsiteRedirectLocation": str(a)}
         )
 
     def bucket_name(self, path):
@@ -369,14 +486,6 @@ class _PathNotSupportedMixin:
         AWS S3 don't have this file system action concept
         """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.resolve.__qualname__)
-        raise NotImplementedError(message)
-
-    def symlink_to(self, *args, **kwargs):
-        """
-        symlink_to method is unsupported on S3 service
-        AWS S3 don't have this file system action concept
-        """
-        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.symlink_to.__qualname__)
         raise NotImplementedError(message)
 
 
@@ -529,10 +638,22 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         yield from super().rglob(pattern)
 
+    def symlink_to(self, target, target_is_directory=False):
+        if not isinstance(target, S3Path):
+            target = S3Path(target)
+        self._accessor.symlink(target, self, target_is_directory=target.is_dir())
+
+    def is_symlink(self):
+        return self._accessor.is_symlink(self)
+
     def open(self, mode='r', buffering=DEFAULT_BUFFER_SIZE, encoding=None, errors=None, newline=None):
         """
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
         """
+        # non-binary files won't error if given an encoding, but we will open them in
+        # binary mode anyway, so we need to fix this first
+        if "w" in mode and "b" not in mode and encoding is not None:
+            encoding = None
         self._absolute_path_validation()
         if mode not in _SUPPORTED_OPEN_MODES:
             raise ValueError('supported modes are {} got {}'.format(_SUPPORTED_OPEN_MODES, mode))
@@ -661,12 +782,6 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     def is_mount(self):
         """
         AWS S3 Service doesn't have mounting feature, There for this method will always return False
-        """
-        return False
-
-    def is_symlink(self):
-        """
-        AWS S3 Service doesn't have symlink feature, There for this method will always return False
         """
         return False
 
@@ -857,10 +972,13 @@ class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
 
 
 class S3DirEntry:
-    def __init__(self, name, is_dir, size=None, last_modified=None):
+    def __init__(self, name, is_dir, size=None, last_modified=None, is_symlink=False):
         self.name = name
         self._is_dir = is_dir
+        self._size = size
+        self._last_modified = last_modified
         self._stat = StatResult(size=size, last_modified=last_modified)
+        self._is_symlink = is_symlink
 
     def __repr__(self):
         return '{}(name={}, is_dir={}, stat={})'.format(
@@ -876,7 +994,7 @@ class S3DirEntry:
         return not self._is_dir
 
     def is_symlink(self, *args, **kwargs):
-        return False
+        return self._is_symlink
 
     def stat(self):
         return self._stat
