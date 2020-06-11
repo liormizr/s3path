@@ -157,7 +157,7 @@ class _S3Accessor(_Accessor):
             try:
                 base_summary.wait_until_exists()
             except WaiterError:
-                raise FileNotFoundError("/{0}/{1}".format(bucket, key)
+                raise FileNotFoundError("/{0}/{1}".format(bucket, key))
         elif not symlink_target and not (
             base_summary.meta or getattr(base_summary.meta, "get", None)
         ):
