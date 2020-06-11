@@ -142,6 +142,23 @@ class _S3Accessor(_Accessor):
             self.s3 = boto3.resource('s3', **kwargs)
         self.configuration_map = _S3ConfigurationMap()
 
+    def _wait_for_object_summary(self, object_summary, delay=5, max_attempts=5):
+        waiter = object_summary.meta.client.get_waiter("object_exists")
+        try:
+            waiter.wait(
+                Bucket=object_summary.bucket_name,
+                Key=object_summary.key,
+                WaiterConfig={
+                    'Delay': delay,
+                    'MaxAttempts': max_attempts,
+                }
+            )
+        except WaiterError:
+            raise FileNotFoundError(
+                "/{0}/{1}".format(object_summary.bucket_name, object_summary.key)
+            )
+        return object_summary
+
     def _get_object_summary(
         self,
         bucket,
@@ -152,14 +169,17 @@ class _S3Accessor(_Accessor):
         base_summary = self.s3.ObjectSummary(bucket, key)
         if not follow_symlinks:
             return base_summary
-        symlink_target = base_summary.Object().website_redirect_location
-        if not symlink_target and not ignore_errors:
+        try:
+            symlink_target = base_summary.Object().website_redirect_location
+        except ClientError:
             try:
-                base_summary.wait_until_exists()
-            except WaiterError:
-                raise FileNotFoundError("/{0}/{1}".format(bucket, key))
-        elif not symlink_target and not (
-            base_summary.meta or getattr(base_summary.meta, "get", None)
+                self._wait_for_object_summary(base_summary)
+            except FileNotFoundError:
+                # ignore_errors allows us to create or modify non-existent symlinks
+                if not ignore_errors:
+                    raise
+        if not symlink_target and not (
+            base_summary.meta and getattr(base_summary.meta, "get", None)
         ):
             symlink_target = None
         elif not symlink_target:
@@ -193,25 +213,25 @@ class _S3Accessor(_Accessor):
         bucket = self.s3.Bucket(self.bucket_name(path.bucket))
         return any(bucket.objects.filter(Prefix=self.generate_prefix(path)))
 
-    def fetch_object_summary(self, path):
-        return self._get_object_summary(self.bucket_name(path), str(path.key))
-
     def is_symlink(self, path):
-        bucket_name = self.bucket_name(path)
+        bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
         object_summary = self.s3.ObjectSummary(bucket_name, key_name)
         object_inst = object_summary.Object()
-        if object_inst.website_redirect_location:
-            symlink_target = object_inst.website_redirect_location
-        elif not object_summary.meta or not getattr(object_summary.meta, "get", None):
-            symlink_target = None
-        else:
-            symlink_target = object_summary.meta.get(
+        redirect_location = None
+        try:
+            redirect_location = object_inst.website_redirect_location
+        except ClientError:
+            self._wait_for_object_summary(object_summary)
+        if redirect_location is not None and object_summary.size == 0:
+            return True
+        if object_summary.meta and getattr(object_summary.meta, "get", None):
+            redirect_location = object_summary.meta.get(
                 "x-amz-website-redirect-location", None
             )
-        if symlink_target is not None:
-            return True
-        return False
+        else:
+            redirect_location = None
+        return redirect_location is not None
 
     def exists(self, path):
         bucket_name = self.bucket_name(path.bucket)

@@ -540,5 +540,5 @@ def test_symlink(s3_mock):
     assert new_path.is_symlink() is True
     assert new_path.read_bytes() == data
     assert not path.is_symlink()
-    with pytest.raises(ClientError):
+    with pytest.raises(FileNotFoundError):
         assert not S3Path('/fake-bucket/fake-key').is_symlink()
