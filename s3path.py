@@ -8,6 +8,7 @@ from tempfile import NamedTemporaryFile
 from functools import wraps, partial, lru_cache
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
 from io import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
+import sys
 
 try:
     import boto3
@@ -244,11 +245,17 @@ class _S3Accessor(_Accessor):
             return key_name + sep
         return key_name
 
-    def unlink(self, path, *args, **kwargs) -> None:
+    def unlink(self, path, *args, **kwargs):
         bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
         bucket = self.s3.Bucket(bucket_name)
-        return bucket.delete_objects(Delete={"Objects": [{"Key": key_name}]})
+        try:
+            self.boto3_method_with_parameters(
+                bucket.meta.client.delete_object,
+                kwargs={"Bucket": bucket_name, "Key": key_name}
+            )
+        except ClientError:
+            raise OSError("/{0}/{1}".format(bucket_name, key_name))
 
     @lru_cache()
     def _get_action_arguments(self, action):
@@ -577,13 +584,19 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     def unlink(self, missing_ok=False):
         """
         Remove this key from its bucket.
-        If the path is a bucket, use rmdir() instead.
         """
-        try:
-            self._accessor.unlink(self)
-        except FileNotFoundError:
-            if not missing_ok:
-                raise
+        self._absolute_path_validation()
+        # S3 doesn't care if you remove full prefixes or buckets with its delete API
+        # so unless we manually check, this call will be dropped through without any
+        # validation and could result in data loss
+        if self.is_dir():
+            raise IsADirectoryError(str(self))
+        # XXX: Note: If we don't check if the file exists here, S3 will always return
+        # success even if we try to delete a key that doesn't exist. So, if we want
+        # to raise a `FileNotFoundError`, we need to manually check if the file exists
+        # before we make the API call -- since we want to delete the file anyway,
+        # we can just ignore this for now and be satisfied that the file will be removed
+        super().unlink()
 
     def rmdir(self):
         """
