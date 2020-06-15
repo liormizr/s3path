@@ -260,6 +260,13 @@ S3Path.rmdir()
 
 Removes this Bucket / key prefix. The Bucket / key prefix must be empty.
 
+S3Path.unlink()
+^^^^^^^^^^^^^^^
+
+Removes this key from S3. Note that this will not remove directories or buckets, but will
+instead raise an `IsADirectoryError`_. If the key does is not present in the given bucket,
+or if the bucket is not present, raises a `FileNotFoundError`_.
+
 S3Path.samefile(other_path)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -439,7 +446,6 @@ Here is a list of all unsupported methods:
 - S3Path.lstat()
 - S3Path.resolve()
 - S3Path.symlink_to(target, target_is_directory=False)
-- S3Path.unlink()
 
 
 .. _pathlib : https://docs.python.org/3/library/pathlib.html
@@ -452,5 +458,6 @@ Here is a list of all unsupported methods:
 .. _boto3 : https://github.com/boto/boto3
 .. _ValueError : https://docs.python.org/3/library/exceptions.html#ValueError
 .. _FileExistsError : https://docs.python.org/3/library/exceptions.html#FileExistsError
+.. _IsADirectoryError : https://docs.python.org/3/library/exceptions.html#IsADirectoryError
 .. _NotImplementedError : https://docs.python.org/3/library/exceptions.html#NotImplementedError
 .. _ObjectSummary : https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#objectsummary

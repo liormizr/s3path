@@ -591,6 +591,8 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         # validation and could result in data loss
         if self.is_dir():
             raise IsADirectoryError(str(self))
+        if not self.is_file():
+            raise FileNotFoundError(str(self))
         # XXX: Note: If we don't check if the file exists here, S3 will always return
         # success even if we try to delete a key that doesn't exist. So, if we want
         # to raise a `FileNotFoundError`, we need to manually check if the file exists
