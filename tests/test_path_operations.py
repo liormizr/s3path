@@ -513,7 +513,8 @@ def test_unlink(s3_mock):
     assert subdir_key.exists() is True
     path.unlink()
     assert path.exists() is False
-    S3Path("/test-bucket/fake_subfolder/fake_subkey").unlink()
+    with pytest.raises(FileNotFoundError):
+        S3Path("/test-bucket/fake_subfolder/fake_subkey").unlink()
     with pytest.raises(IsADirectoryError):
         S3Path("/test-bucket/fake_folder").unlink()
     with pytest.raises(IsADirectoryError):
