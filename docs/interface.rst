@@ -121,6 +121,25 @@ Returns ``True`` if the path points to a Bucket or a key prefix,
 ``False`` is also returned if the path doesn’t exist.
 Other errors (such as permission errors) are propagated.
 
+
+S3Path.is_symlink()
+^^^^^^^^^^^^^^^^^^^
+
+Returns ``False`` if the path points to a Bucket or key prefix by checking ``path.is_dir()``,
+returns ``False`` if the path does not exist.
+
+Returns ``True`` if the path is a 0-byte file with a value set for the header 
+``x-amz-website-redirect-location``.
+
+S3Path.symlink_to(target, target_is_directory=False)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Create a new symbolic link by writing a 0-byte file to the current path with the
+custom header ``x-amz-website-redirect-location`` using a value of ``target``. The second
+parameter, ``target_is_directory``, is present for API compatibility with ``pathlib.Path``
+but is ignored during evaluation.
+
+
 S3Path.is_file()
 ^^^^^^^^^^^^^^^^
 
@@ -134,12 +153,6 @@ S3Path.is_mount()
 ^^^^^^^^^^^^^^^^^
 
 AWS S3 Service doesn't have mounting feature,
-There for this method will always return ``False``
-
-S3Path.is_symlink()
-^^^^^^^^^^^^^^^^^^^
-
-AWS S3 Service doesn't have symlink feature,
 There for this method will always return ``False``
 
 S3Path.is_socket()
@@ -445,7 +458,6 @@ Here is a list of all unsupported methods:
 - S3Path.is_char_device()
 - S3Path.lstat()
 - S3Path.resolve()
-- S3Path.symlink_to(target, target_is_directory=False)
 
 
 .. _pathlib : https://docs.python.org/3/library/pathlib.html
