@@ -220,6 +220,11 @@ class _S3Accessor(_Accessor):
         object_inst = object_summary.Object()
         redirect_location = None
         try:
+            if path.exists() and path.is_dir():
+                return False
+        except ClientError:
+            raise FileNotFoundError(str(path))
+        try:
             redirect_location = object_inst.website_redirect_location
         except ClientError:
             self._wait_for_object_summary(object_summary)
