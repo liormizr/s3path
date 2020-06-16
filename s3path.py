@@ -8,6 +8,7 @@ from tempfile import NamedTemporaryFile
 from functools import wraps, partial, lru_cache
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
 from io import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
+import sys
 
 try:
     import boto3
@@ -244,6 +245,18 @@ class _S3Accessor(_Accessor):
             return key_name + sep
         return key_name
 
+    def unlink(self, path, *args, **kwargs):
+        bucket_name = self.bucket_name(path.bucket)
+        key_name = str(path.key)
+        bucket = self.s3.Bucket(bucket_name)
+        try:
+            self.boto3_method_with_parameters(
+                bucket.meta.client.delete_object,
+                kwargs={"Bucket": bucket_name, "Key": key_name}
+            )
+        except ClientError:
+            raise OSError("/{0}/{1}".format(bucket_name, key_name))
+
     @lru_cache()
     def _get_action_arguments(self, action):
         if isinstance(action.__doc__, LazyLoadedDocstring):
@@ -364,14 +377,6 @@ class _PathNotSupportedMixin:
         AWS S3 don't have this file system action concept
         """
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.symlink_to.__qualname__)
-        raise NotImplementedError(message)
-
-    def unlink(self):
-        """
-        unlink method is unsupported on S3 service
-        AWS S3 don't have this file system action concept
-        """
-        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.unlink.__qualname__)
         raise NotImplementedError(message)
 
 
@@ -575,6 +580,25 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
         """
         return self.rename(target)
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this key from its bucket.
+        """
+        self._absolute_path_validation()
+        # S3 doesn't care if you remove full prefixes or buckets with its delete API
+        # so unless we manually check, this call will be dropped through without any
+        # validation and could result in data loss
+        if self.is_dir():
+            raise IsADirectoryError(str(self))
+        if not self.is_file():
+            raise FileNotFoundError(str(self))
+        # XXX: Note: If we don't check if the file exists here, S3 will always return
+        # success even if we try to delete a key that doesn't exist. So, if we want
+        # to raise a `FileNotFoundError`, we need to manually check if the file exists
+        # before we make the API call -- since we want to delete the file anyway,
+        # we can just ignore this for now and be satisfied that the file will be removed
+        super().unlink()
 
     def rmdir(self):
         """

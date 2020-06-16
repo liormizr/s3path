@@ -76,12 +76,6 @@ def test_resolve():
         path.resolve()
 
 
-def test_unlink():
-    path = S3Path('/fake-bucket/fake-key')
-    with pytest.raises(NotImplementedError):
-        path.unlink()
-
-
 def test_symlink_to():
     path = S3Path('/fake-bucket/fake-key')
     with pytest.raises(NotImplementedError):

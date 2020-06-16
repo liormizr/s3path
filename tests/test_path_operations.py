@@ -498,3 +498,24 @@ def test_write_bytes(s3_mock):
 
     path.write_bytes(data)
     assert path.read_bytes() == data
+
+
+def test_unlink(s3_mock):
+    s3 = boto3.resource('s3')
+
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'temp_key')
+    object_summary.put(Body=b'test data')
+    path = S3Path('/test-bucket/temp_key')
+    subdir_key = S3Path('/test-bucket/fake_folder/some_key')
+    subdir_key.write_text("some text")
+    assert path.exists() is True
+    assert subdir_key.exists() is True
+    path.unlink()
+    assert path.exists() is False
+    with pytest.raises(FileNotFoundError):
+        S3Path("/test-bucket/fake_subfolder/fake_subkey").unlink()
+    with pytest.raises(IsADirectoryError):
+        S3Path("/test-bucket/fake_folder").unlink()
+    with pytest.raises(IsADirectoryError):
+        S3Path("/fake-bucket/").unlink()
