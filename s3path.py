@@ -96,27 +96,31 @@ class _S3Scandir:
                 name = full_name.split(sep)[-1]
                 yield S3DirEntry(name, is_dir=True)
             for file in response.get('Contents', ()):
-                name = file['Key'].split(sep)[-1]
-                is_symlink = self._path.joinpath(name).is_symlink()
+                name = file['Key']
+                new_path = self._path.joinpath(name.split(sep)[-1])
+                is_symlink = new_path.is_symlink()
                 if int(file['Size']) == 0 and is_symlink:
                     target = self._S3_accessor._get_object_summary(
                         bucket.name,
-                        name,
+                        str(new_path.key),
                         follow_symlinks=True,
                         ignore_errors=False
                     )
-                    is_dir = self._S3_accessor.is_dir(target.key)
-                    if is_dir:
-                        yield S3DirEntry(target.key, is_dir=True)
+                    target_path = type(self._path)("/{0}/{1}".format(target.bucket_name, target.key))
+                    is_dir = target_path.is_dir()
+                    name = name.split(sep)[-1]
+                    if target_path.is_dir():
+                        yield S3DirEntry(name, is_dir=True, is_symlink=True)
                     else:
                         yield S3DirEntry(
-                            name=target.key,
-                            is_dir=is_dir,
+                            name=name,
+                            is_dir=False,
                             size=target.size,
                             last_modified=target.last_modified,
-                            is_symlink=False,
+                            is_symlink=True,
                         )
                 else:
+                    name = name.split(sep)[-1]
                     yield S3DirEntry(
                         name=name,
                         is_dir=False,
