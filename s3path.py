@@ -1,7 +1,7 @@
 """
 s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
-from posix import stat_result
+from os import stat_result
 from contextlib import suppress
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
