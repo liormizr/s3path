@@ -231,7 +231,7 @@ class _S3Accessor(_Accessor):
         kwargs = kwargs or {}
         kwargs.update({
             key: value
-            for key, value in self.configuration_map[path]
+            for key, value in self.configuration_map[path].items()
             if key in self._get_action_arguments(boto3_method)
         })
         return boto3_method(*args, **kwargs)
