@@ -6,21 +6,15 @@ from tempfile import NamedTemporaryFile
 import boto3
 from botocore.exceptions import ClientError
 import pytest
-from moto import mock_s3
 
-from s3path import PureS3Path, S3Path, StatResult, _s3_accessor
+from s3path import PureS3Path, S3Path, StatResult
+
+from . import s3_mock
 
 # todo: test samefile/touch/write_text/write_bytes method
 # todo: test security and boto config changes
 # todo: test open method check R/W bytes/unicode
 # todo: test adding parameners to boto3 by path
-
-
-@pytest.fixture()
-def s3_mock():
-    with mock_s3():
-        _s3_accessor.s3 = boto3.resource('s3')
-        yield
 
 
 def test_path_support():

@@ -231,7 +231,7 @@ class _S3Accessor(_Accessor):
         kwargs = kwargs or {}
         kwargs.update({
             key: value
-            for key, value in self.configuration_map[path]
+            for key, value in self.configuration_map[path].items()
             if key in self._get_action_arguments(boto3_method)
         })
         return boto3_method(*args, **kwargs)
@@ -389,7 +389,7 @@ def register_configuration_parameter(path, *, parameters):
         raise TypeError('path argument have to be a {} type. got {}'.format(PureS3Path, type(path)))
     if not isinstance(parameters, dict):
         raise TypeError('parameters argument have to be a dict type. got {}'.format(type(path)))
-    _s3_accessor.configuration_map[path].update(**parameters)
+    _s3_accessor.configuration_map.setdefault(path, {}).update(**parameters)
 
 
 class PureS3Path(PurePath):
