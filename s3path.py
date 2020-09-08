@@ -389,7 +389,7 @@ def register_configuration_parameter(path, *, parameters):
         raise TypeError('path argument have to be a {} type. got {}'.format(PureS3Path, type(path)))
     if not isinstance(parameters, dict):
         raise TypeError('parameters argument have to be a dict type. got {}'.format(type(path)))
-    _s3_accessor.configuration_map[path].update(**parameters)
+    _s3_accessor.configuration_map.setdefault(path, {}).update(**parameters)
 
 
 class PureS3Path(PurePath):
