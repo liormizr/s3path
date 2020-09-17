@@ -144,12 +144,24 @@ Requirements:
 * Python >= 3.4
 * boto3
 
+
+Documentation:
+==============
+
 For pathlib style documentation of all interfaces `interface_docs`_.
 
 For s3path vs boto3 comparison `boto3_comparison`_.
 
-For advance features (configurations/s3 parameters) `boto3_advance`_.
+For advance features (Configurations/S3 Parameters/S3 Compatible Storage's) `boto3_advance`_.
 
+Similar Projects:
+=================
+
+* `pathlib`_ : Python standard library's Object-oriented filesystem paths and this project base
+* `pathy`_ : Similar project which provides a Path interface for GoogleCloudStorage.
+
+.. _pathlib : https://docs.python.org/3/library/pathlib.html
 .. _interface_docs: https://github.com/liormizr/s3path/blob/master/docs/interface.rst
 .. _boto3_comparison: https://github.com/liormizr/s3path/blob/master/docs/comparison.rst
 .. _boto3_advance: https://github.com/liormizr/s3path/blob/master/docs/advance.rst
+.. _pathy: https://github.com/justindujardin/pathy
