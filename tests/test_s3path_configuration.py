@@ -1,18 +1,7 @@
-import pytest
 import boto3
 from botocore.client import Config
 
 from s3path import S3Path, PureS3Path, register_configuration_parameter, _s3_accessor
-from . import s3_mock
-
-
-@pytest.yield_fixture()
-def reset_configuration_cache():
-    try:
-        _s3_accessor.configuration_map.get_configuration.cache_clear()
-        yield
-    finally:
-        _s3_accessor.configuration_map.get_configuration.cache_clear()
 
 
 def test_hierarchical_configuration(reset_configuration_cache):

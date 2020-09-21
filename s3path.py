@@ -108,9 +108,9 @@ class _S3Scandir:
 
     def __iter__(self):
         bucket_name = self._s3_accessor.bucket_name(self._path.bucket)
-        resource = self._s3_accessor.get_s3_resource(self._path)
+        resource, _ = self._s3_accessor.configuration_map.get_configuration(self._path)
         if not bucket_name:
-            for bucket in resource.buckets(self._path):
+            for bucket in resource.buckets.filter(Prefix=str(self._path)):
                 yield S3DirEntry(bucket.name, is_dir=True)
             return
         bucket = resource.Bucket(bucket_name)
@@ -161,10 +161,6 @@ class _S3Accessor(_Accessor):
         self._s3 = resource
         _, config = self.configuration_map.get_configuration(PureS3Path('/'))
         register_configuration_parameter(PureS3Path('/'), resource=resource, parameters=config)
-
-    def get_s3_resource(self, path):
-        resource, _ = self.configuration_map.get_configuration(path)
-        return resource
 
     def buckets(self, path):
         resource, _ = self.configuration_map.get_configuration(path)
