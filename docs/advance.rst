@@ -80,7 +80,7 @@ Some examples for S3-Compatible Storage can be:
 
 `boto3`_ can be used as a SDK for such scenarios.
 
-There for you can use s3path for them as well.
+Therefor you can use s3path for them as well.
 
 And even specify per "Bucket" what is the source.
 
