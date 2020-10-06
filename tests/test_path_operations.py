@@ -9,12 +9,9 @@ import pytest
 
 from s3path import PureS3Path, S3Path, StatResult
 
-from . import s3_mock
-
-# todo: test samefile/touch/write_text/write_bytes method
+# todo: test samefile/touch method
 # todo: test security and boto config changes
 # todo: test open method check R/W bytes/unicode
-# todo: test adding parameners to boto3 by path
 
 
 def test_path_support():
@@ -243,6 +240,18 @@ def test_iterdir(s3_mock):
         S3Path('/test-bucket/docs/conf.py'),
         S3Path('/test-bucket/docs/index.rst'),
         S3Path('/test-bucket/docs/make.bat'),
+    ]
+
+
+def test_iterdir_on_buckets(s3_mock):
+    s3 = boto3.resource('s3')
+    for index in range(4):
+        s3.create_bucket(Bucket='test-bucket{}'.format(index))
+
+    s3_root_path = S3Path('/')
+    assert sorted(s3_root_path.iterdir()) == [
+        S3Path('/test-bucket{}'.format(index))
+        for index in range(4)
     ]
 
 

@@ -67,9 +67,54 @@ S3Path('/bucket/key-prefix-directory/') - parameters that will be used per bucke
 
 **NOTE:** We recommend configuring everything only in one place and not in the code.
 
+
+S3 Compatible Storage:
+----------------------
+
+There are some cases that we want to use s3path for S3-Compatible Storage.
+
+Some examples for S3-Compatible Storage can be:
+
+* `LocalStack`_ - A fully functional local AWS cloud stack
+* `MinIO`_ - MinIO is a High Performance Object Storage released under Apache License v2.0
+
+`boto3`_ can be used as a SDK for such scenarios.
+
+Therefor you can use s3path for them as well.
+
+And even specify per "Bucket" what is the source.
+
+This example show how to specify default AWS S3 parameters, a `LocalStack`_ Bucket, and a `MinIO`_ Bucket:
+
+.. code:: python
+
+   >>> import boto3
+   >>> from botocore.client import Config
+   >>> from s3path import PureS3Path, register_configuration_parameter
+   >>> # Define path's for configuration
+   >>> default_aws_s3_path = PureS3Path('/')
+   >>> local_stack_bucket_path = PureS3Path('/LocalStackBucket/')
+   >>> minio_bucket_path = PureS3Path('/MinIOBucket/')
+   >>> # Define boto3 s3 resources
+   >>> local_stack_resource = boto3.resource('s3', endpoint_url='http://localhost:4566')
+   >>> minio_resource = boto3.resource(
+       's3',
+       endpoint_url='http://localhost:9000',
+       aws_access_key_id='minio',
+       aws_secret_access_key='minio123',
+       config=Config(signature_version='s3v4'),
+       region_name='us-east-1')
+   >>> # Configure and map root path's per boto3 parameters or resources
+   >>> register_configuration_parameter(default_aws_s3_path, parameters={'ServerSideEncryption': 'AES256'})
+   >>> register_configuration_parameter(local_stack_bucket_path, resource=local_stack_resource)
+   >>> register_configuration_parameter(minio_bucket_path, resource=minio_resource)
+
+
 .. _pathlib : https://docs.python.org/3/library/pathlib.html
 .. _boto3 : https://github.com/boto/boto3
 .. _configuration: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
 .. _profiles: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file
 .. _setup_default_session: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/boto3.html?highlight=setup_default_session#boto3.setup_default_session
 .. _s3-resource: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#service-resource
+.. _LocalStack: https://github.com/localstack/localstack
+.. _MinIO: https://docs.min.io/
