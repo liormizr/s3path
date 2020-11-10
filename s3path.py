@@ -873,7 +873,7 @@ class S3KeyReadableFileObject(RawIOBase):
 
     @readable_check
     def read(self, *args, **kwargs):
-        return self._string_parser(self._streaming_body.read())
+        return self._string_parser(self._streaming_body.read(*args, **kwargs))
 
     @readable_check
     def readlines(self, *args, **kwargs):
