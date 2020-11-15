@@ -604,8 +604,6 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         if 'b' in mode and encoding:
             raise ValueError("binary mode doesn't take an encoding argument")
 
-        if self._closed:
-            self._raise_closed()
         return self._accessor.open(
             self,
             mode=mode,
