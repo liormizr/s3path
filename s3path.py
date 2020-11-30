@@ -3,7 +3,7 @@ s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
 import warnings
 from os import stat_result
-from itertools import chain
+from itertools import chain, islice
 from contextlib import suppress
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
@@ -830,13 +830,8 @@ class S3KeyReadableFileObject(RawIOBase):
         self.errors = errors
         self.newline = newline
         self._streaming_body = None
+        self._streaming_line_iterator = None
         self._string_parser = partial(_string_parser, mode=self.mode, encoding=self.encoding)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return self.readline()
 
     def __getattr__(self, item):
         try:
@@ -869,22 +864,32 @@ class S3KeyReadableFileObject(RawIOBase):
             return True
         return False
 
+    @property
+    @readable_check
+    def _line_iterator(self):
+        if not self._streaming_line_iterator:
+            self._streaming_line_iterator = self._streaming_body.iter_lines(
+                chunk_size=self.buffering
+            )
+        return self._streaming_line_iterator
+
+    def __iter__(self):
+        for line in self._line_iterator:
+            yield self._string_parser(line)
+
+    def __next__(self):
+        return next(self.__iter__())
+
     @readable_check
     def read(self, *args, **kwargs):
         return self._string_parser(self._streaming_body.read(*args, **kwargs))
 
-    @readable_check
-    def readlines(self, *args, **kwargs):
-        return [
-            line
-            for line in iter(self.readline, self._string_parser(''))
-        ]
+    def readlines(self, hint=-1, *args, **kwargs):
+        return list(self) if hint == -1 else list(islice(self, hint))
 
-    @readable_check
     def readline(self):
         with suppress(StopIteration, ValueError):
-            line = next(self._streaming_body.iter_lines(chunk_size=self.buffering))
-            return self._string_parser(line)
+            return next(self)
         return self._string_parser(b'')
 
     def write(self, *args, **kwargs):
