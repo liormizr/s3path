@@ -800,7 +800,13 @@ class S3KeyWritableFileObject(RawIOBase):
         )
 
     def writelines(self, lines):
-        self.write(self._string_parser('\n').join(self._string_parser(line) for line in lines))
+        if not lines:
+            return
+        if isinstance(lines[0], bytes):
+            joined = b"".join(lines)
+        else:
+            joined = "".join(lines)
+        self.write(joined)
 
     def readable(self):
         return False
