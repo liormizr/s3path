@@ -203,6 +203,61 @@ def test_is_file(s3_mock):
     assert S3Path('/test-bucket/build/lib/pathlib.py').is_file()
 
 
+def test_read_line(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data\ntest data')
+
+    with S3Path('/test-bucket/directory/Test.test').open("r") as fp:
+        assert fp.readline() == "test data"
+        assert fp.readline() == "test data"
+        assert fp.readline() == ""
+
+
+def test_read_lines(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data\ntest data')
+
+    with S3Path('/test-bucket/directory/Test.test').open("r") as fp:
+        assert len(fp.readlines()) == 2
+
+
+def test_read_lines_hint(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data\ntest data')
+
+    with S3Path('/test-bucket/directory/Test.test').open("r") as fp:
+        assert len(fp.readlines(1)) == 1
+
+
+def test_iter_lines(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data\ntest data')
+
+    with S3Path('/test-bucket/directory/Test.test').open("r") as fp:
+        for line in fp:
+            assert line == "test data"
+
+
+def test_write_lines(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    with path.open("w") as fp:
+        fp.writelines(["line 1\n", "line 2\n"])
+
+    res = path.read_text().splitlines()
+    assert len(res) == 2
+
+
 def test_iterdir(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
