@@ -246,6 +246,18 @@ def test_iter_lines(s3_mock):
             assert line == "test data"
 
 
+def test_write_lines(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    with path.open("w") as fp:
+        fp.writelines(["line 1\n", "line 2\n"])
+
+    res = path.read_text().splitlines()
+    assert len(res) == 2
+
+
 def test_iterdir(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
