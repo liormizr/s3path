@@ -875,7 +875,7 @@ class S3KeyReadableFileObject(RawIOBase):
     def _line_iterator(self):
         if not self._streaming_line_iterator:
             self._streaming_line_iterator = self._streaming_body.iter_lines(
-                chunk_size=self.buffering
+                chunk_size=self.buffering, keepends=True
             )
         return self._streaming_line_iterator
 

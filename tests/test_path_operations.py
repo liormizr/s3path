@@ -210,7 +210,7 @@ def test_read_line(s3_mock):
     object_summary.put(Body=b'test data\ntest data')
 
     with S3Path('/test-bucket/directory/Test.test').open("r") as fp:
-        assert fp.readline() == "test data"
+        assert fp.readline() == "test data\n"
         assert fp.readline() == "test data"
         assert fp.readline() == ""
 
@@ -239,11 +239,11 @@ def test_iter_lines(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
     object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
-    object_summary.put(Body=b'test data\ntest data')
+    object_summary.put(Body=b'test data\ntest data\n')
 
     with S3Path('/test-bucket/directory/Test.test').open("r") as fp:
         for line in fp:
-            assert line == "test data"
+            assert line == "test data\n"
 
 
 def test_write_lines(s3_mock):
