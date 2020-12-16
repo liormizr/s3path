@@ -12,7 +12,7 @@ setup(
     author='Lior Mizrahi',
     author_email='li.mizr@gmail.com',
     py_modules=['s3path'],
-    install_requires=['boto3'],
+    install_requires=['boto3>=1.16.35'],
     license='Apache 2.0',
     long_description=long_description,
     long_description_content_type='text/x-rst',
