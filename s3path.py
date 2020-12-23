@@ -11,6 +11,8 @@ from functools import wraps, partial, lru_cache
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
 from io import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
 
+import smart_open
+
 try:
     import boto3
     from botocore.exceptions import ClientError
@@ -33,7 +35,7 @@ __all__ = (
     'S3KeyReadableFileObject',
 )
 
-_SUPPORTED_OPEN_MODES = {'r', 'br', 'rb', 'tr', 'rt', 'w', 'wb', 'bw', 'wt', 'tw'}
+# _SUPPORTED_OPEN_MODES = {'r', 'br', 'rb', 'tr', 'rt', 'w', 'wb', 'bw', 'wt', 'tw'}
 
 
 class _S3Flavour(_PosixFlavour):
@@ -208,6 +210,45 @@ class _S3Accessor(_Accessor):
         bucket_name = self.bucket_name(path.bucket)
         key_name = str(path.key)
         resource, _ = self.configuration_map.get_configuration(path)
+        #
+        import boto3
+        s3 = boto3.resource('s3')
+
+        smart_open.open(
+            uri=path.as_uri(),
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+            ignore_ext=True,
+            transport_params={
+                'session': resource.session,
+                'resource_kwargs': {
+                    'endpoint_url': resource._meta.client.endpoint_url,
+                    'aws_access_key_id': 'minio',
+                    'aws_secret_access_key': 'minio123',
+                    'config': resource.config,
+                    'region_name': resource.region_name,
+                    '': '',
+                },
+                # 'version_id': '',
+                # 'buffer_size': '',
+                # 'min_part_size': ''
+                # multipart_upload_kwargs: {},
+                # multipart_upload: bool,
+                # singlepart_upload_kwargs: {},
+                # object_kwargs: {},
+                # defer_seek: bool,
+            },
+        )
+        # session = None,
+        # resource_kwargs = None,
+        # multipart_upload_kwargs = None,
+        # multipart_upload = True,
+        # singlepart_upload_kwargs = None,
+        # object_kwargs
+        #
         object_summery = resource.ObjectSummary(bucket_name, key_name)
         file_object = S3KeyReadableFileObject if 'r' in mode else S3KeyWritableFileObject
         return file_object(
@@ -597,12 +638,12 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
         """
         self._absolute_path_validation()
-        if mode not in _SUPPORTED_OPEN_MODES:
-            raise ValueError('supported modes are {} got {}'.format(_SUPPORTED_OPEN_MODES, mode))
-        if buffering == 0 or buffering == 1:
-            raise ValueError('supported buffering values are only block sizes, no 0 or 1')
-        if 'b' in mode and encoding:
-            raise ValueError("binary mode doesn't take an encoding argument")
+        # if mode not in _SUPPORTED_OPEN_MODES:
+        #     raise ValueError('supported modes are {} got {}'.format(_SUPPORTED_OPEN_MODES, mode))
+        # if buffering == 0 or buffering == 1:
+        #     raise ValueError('supported buffering values are only block sizes, no 0 or 1')
+        # if 'b' in mode and encoding:
+        #     raise ValueError("binary mode doesn't take an encoding argument")
 
         return self._accessor.open(
             self,
@@ -680,7 +721,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         self._absolute_path_validation()
         if not isinstance(other_path, Path):
             other_path = type(self)(other_path)
-        return self.bucket == other_path.bucket and self.key == self.key and self.is_file()
+        return self.bucket == other_path.bucket and self.key == other_path.key and self.is_file()
 
     def touch(self, mode=0o666, exist_ok=True):
         """
