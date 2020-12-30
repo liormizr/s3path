@@ -11,7 +11,6 @@ sphinx = "*"
 tox = "*"
 tox-travis = "*"
 twine = "*"
-smart-open = "*"
 
 [dev-packages]
 s3path = {editable = true,path = "."}
