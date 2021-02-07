@@ -11,6 +11,7 @@ sphinx = "*"
 tox = "*"
 tox-travis = "*"
 twine = "*"
+pytest-cov = "*"
 
 [dev-packages]
 s3path = {editable = true,path = "."}

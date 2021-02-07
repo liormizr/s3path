@@ -174,8 +174,9 @@ yield path objects of the directory contents:
 S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Opens the Bucket key pointed to by the path,
-returns a Key file object that you can read/write with:
+Opens the Bucket key pointed to by the path.
+This delegates to the smart_open library that handles the file streaming.
+returns a file like object that you can read or write with:
 
 .. code:: python
 
@@ -381,38 +382,52 @@ Represents a AWS S3 URI as a PureS3Path:
 
 .. code:: python
 
-   >>> PureS3Path.from_uri('s3://pypi-proxy/boto3/')
-   PureS3Path('/pypi-proxy/boto3/')
+   >>> PureS3Path.from_uri('s3://pypi-proxy/boto3/index.html')
+   PureS3Path('/pypi-proxy/boto3/index.html')
 
 This is a new class method.
+
+PureS3Path.from_bucket_key(bucket, key)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Represents a AWS S3 Bucket and Key pairs as a PureS3Path:
+
+.. code:: python
+
+   >>> PureS3Path.from_bucket_key('pypi-proxy', 'boto3/index.html')
+   PureS3Path('/pypi-proxy/boto3/index.html')
+
+This is a new class method.
+
+New in version 0.3.0.
 
 PureS3Path.bucket
 ^^^^^^^^^^^^^^^^^
 
-The Bucket path.  If a path doesn't have a bucket, it returns ``None``:
+A string representing the AWS S3 Bucket name, if any:
 
 .. code:: python
 
-   >>> p = PureS3Path.from_uri('s3://pypi-proxy/boto3/').bucket
-   PureS3Path('/pypi-proxy/')
-   >>> p = PureS3Path('/').bucket
-   None
+   >>> PureS3Path.from_uri('s3://pypi-proxy/boto3/').bucket
+   'pypi-proxy'
+   >>> PureS3Path('/').bucket
+   ''
 
 This is a new property.
 
 PureS3Path.key
 ^^^^^^^^^^^^^^
 
-The Key path. If a path doesn't have a key, it returns ``None``:
+A string representing the AWS S3 Key name, if any:
 
 .. code:: python
 
-   >>> p = PureS3Path('/pypi-proxy/boto3/').key
-   PureS3Path('boto3')
+   >>> PureS3Path('/pypi-proxy/boto3/').key
+   'boto3'
    >>> PureS3Path('/pypi-proxy/boto3/index.html').key
-   PureS3Path('boto3/index.html')
-   >>> p = PureS3Path.from_uri('s3://pypi-proxy/').key
-   None
+   'boto3/index.html'
+   >>> PureS3Path.from_uri('s3://pypi-proxy/').key
+   ''
 
 This is a new property.
 
@@ -446,6 +461,16 @@ Here is a list of all unsupported methods:
 - S3Path.lstat()
 - S3Path.resolve()
 - S3Path.symlink_to(target, target_is_directory=False)
+
+
+Changed in version 0.3.0:
+=========================
+
+Changes in PureS3Path:
+^^^^^^^^^^^^^^^^^^^^^^
+
+*  bucket property return a string instead of an S3Path object
+*  key property return a string instead of an S3Path object
 
 
 .. _pathlib : https://docs.python.org/3/library/pathlib.html

@@ -53,8 +53,6 @@ class _S3ConfigurationMap:
         self.resources = {PureS3Path('/'): self.default_resource}
 
     def __repr__(self):
-        if self.arguments is None and self.resources is None:
-            self._initial_setup()
         return '{name}(arguments={arguments}, resources={resources})'.format(
             name=type(self).__name__,
             arguments=self.arguments,
@@ -78,8 +76,6 @@ class _S3ConfigurationMap:
                 resources = self.resources[path]
             if arguments is None and path in self.arguments:
                 arguments = self.arguments[path]
-        if resources is None or arguments is None:
-            raise ConnectionError('no configuration match')
         return resources, arguments
 
 
@@ -138,10 +134,6 @@ class _S3Accessor(_Accessor):
         self._s3 = boto3.resource('s3', **kwargs)
         self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)
 
-    def buckets(self, path):
-        resource, _ = self.configuration_map.get_configuration(path)
-        yield from resource.buckets.all()
-
     def stat(self, path):
         resource, _ = self.configuration_map.get_configuration(path)
         object_summery = resource.ObjectSummary(path.bucket, path.key)
@@ -160,8 +152,6 @@ class _S3Accessor(_Accessor):
     def exists(self, path):
         bucket_name = path.bucket
         resource, _ = self.configuration_map.get_configuration(path)
-        if not bucket_name:
-            return any(resource.buckets.all())
         if not path.key:
             return resource.Bucket(bucket_name) in resource.buckets.all()
         bucket = resource.Bucket(bucket_name)
@@ -187,6 +177,7 @@ class _S3Accessor(_Accessor):
             # This is a good example of the complicity of boto3 and botocore
             # resource arguments from the resource object :-/
             # very annoying...
+
             try:
                 access_key = resource.meta.client._request_signer._credentials.access_key
                 secret_key = resource.meta.client._request_signer._credentials.secret_key
@@ -337,22 +328,6 @@ class _S3Accessor(_Accessor):
             for line in docs.splitlines()
             if line.startswith(':param ')
         )
-
-
-def _string_parser(text, *, mode, encoding):
-    if isinstance(text, memoryview):
-        if 'b' in mode:
-            return text
-        return text.obj.decode(encoding or 'utf-8')
-    if isinstance(text, bytes):
-        if 'b' in mode:
-            return text
-        return text.decode(encoding or 'utf-8')
-    if isinstance(text, str):
-        if 't' in mode or 'r' == mode:
-            return text
-        return text.encode(encoding or 'utf-8')
-    raise RuntimeError()
 
 
 class _PathNotSupportedMixin:
