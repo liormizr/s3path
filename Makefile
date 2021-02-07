@@ -1,6 +1,6 @@
 .PHONY: docs tests
 init:
-	pip install pipenv==2018.11.26 --upgrade
+	pip install pipenv --upgrade
 	pipenv install --skip-lock
 	pipenv run pip freeze
 
