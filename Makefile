@@ -2,7 +2,7 @@
 init:
 	pip install --upgrade pip
 	pip install --upgrade pipenv
-	pipenv install --verbose --skip-lock
+	pipenv install --skip-lock
 	pipenv run pip freeze
 
 developer:
