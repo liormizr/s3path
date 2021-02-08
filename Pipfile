@@ -4,7 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-s3path = "*"
 moto = "*"
 pytest = "*"
 sphinx = "*"
@@ -12,11 +11,8 @@ tox = "*"
 tox-travis = "*"
 twine = "*"
 pytest-cov = "*"
+s3path = {editable = true,path = "."}
 
 [dev-packages]
-s3path = {editable = true,path = "."}
 ipython = "*"
 ipdb = "*"
-
-[requires]
-python_version = "3.8.3"

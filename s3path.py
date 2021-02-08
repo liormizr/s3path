@@ -9,10 +9,16 @@ from collections import namedtuple
 from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
 
-import boto3
-from botocore.exceptions import ClientError
-from botocore.docs.docstring import LazyLoadedDocstring
-import smart_open
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+    from botocore.docs.docstring import LazyLoadedDocstring
+    import smart_open
+except ImportError:
+    boto3 = None
+    ClientError = Exception
+    LazyLoadedDocstring = None
+    smart_open = None
 
 __version__ = '0.3.0'
 __all__ = (
@@ -131,7 +137,10 @@ class _S3Accessor(_Accessor):
     """
 
     def __init__(self, **kwargs):
-        self._s3 = boto3.resource('s3', **kwargs)
+        try:
+            self._s3 = boto3.resource('s3', **kwargs)
+        except AttributeError:
+            self._s3 = None
         self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)
 
     def stat(self, path):
