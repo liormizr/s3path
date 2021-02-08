@@ -5,7 +5,7 @@ S3Path
     :target: https://pypi.org/project/s3path/
     :alt: Latest version
 
-.. image:: https://badgen.net/travis/liormizr/s3path/
+.. image:: https://badgen.net/travis/liormizr/s3path/master/
     :target: https://travis-ci.com/liormizr/s3path
     :alt: Travis-CI
 
