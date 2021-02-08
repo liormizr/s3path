@@ -499,7 +499,7 @@ class PureS3Path(PurePath):
         """
         bucket = cls(cls._flavour.sep, bucket)
         if len(bucket.parts) != 2:
-            raise ValueError(f'bucket argument contains more then one path element: {bucket}')
+            raise ValueError('bucket argument contains more then one path element: {}'.format(bucket))
         key = cls(key)
         if key.is_absolute():
             key = key.relative_to('/')
