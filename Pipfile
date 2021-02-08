@@ -11,8 +11,10 @@ tox = "*"
 tox-travis = "*"
 twine = "*"
 pytest-cov = "*"
-#s3path = {editable = true, path = "."}
+smart-open = "*"
+s3path = {path = "."}
 
 [dev-packages]
 ipython = "*"
 ipdb = "*"
+s3path = {editable = true, path = "."}

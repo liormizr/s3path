@@ -12,8 +12,8 @@ setup(
     author_email='li.mizr@gmail.com',
     py_modules=['s3path'],
     install_requires=[
-        # 'boto3>=1.16.35',
-        # 'smart-open',
+        'boto3>=1.16.35',
+        'smart-open',
     ],
     license='Apache 2.0',
     long_description=long_description,
