@@ -148,6 +148,7 @@ def test_rglob(s3_mock):
         S3Path('/test-bucket/setup.py'),
         S3Path('/test-bucket/test_pathlib.py')]
 
+
 def test_accessor_scandir(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
@@ -164,18 +165,12 @@ def test_accessor_scandir(s3_mock):
     object_summary = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
     object_summary.put(Body=b'test data')
 
-    path = S3Path.from_uri('s3://test-bucket/')
-    a = S3Path('/')._accessor.scandir(path)
-    import ipdb; ipdb.set_trace()
-    pass
-
     assert sorted(S3Path.from_uri('s3://test-bucket/').rglob('*.py')) == [
         S3Path('/test-bucket/build/lib/pathlib.py'),
         S3Path('/test-bucket/docs/conf.py'),
         S3Path('/test-bucket/pathlib.py'),
         S3Path('/test-bucket/setup.py'),
         S3Path('/test-bucket/test_pathlib.py')]
-
 
 
 def test_is_dir(s3_mock):
@@ -264,7 +259,7 @@ def test_read_lines_hint(s3_mock):
     object_summary.put(Body=b'test data\ntest data')
 
     with S3Path('/test-bucket/directory/Test.test').open() as fp:
-        assert len(fp.readlines(1)) == 2
+        assert len(fp.readlines(1)) == 1
 
     with S3Path('/test-bucket/directory/Test.test').open('br') as fp:
         assert len(fp.readlines(1)) == 1  # work only in binary mode
