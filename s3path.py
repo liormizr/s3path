@@ -606,6 +606,8 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
         """
         self._absolute_path_validation()
+        if smart_open.__version__ < '4.0.0' and mode.startswith('b'):
+            mode = reversed(mode)
         return self._accessor.open(
             self,
             mode=mode,
