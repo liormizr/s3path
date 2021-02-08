@@ -607,7 +607,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         self._absolute_path_validation()
         if smart_open.__version__ < '4.0.0' and mode.startswith('b'):
-            mode = reversed(mode)
+            mode = ''.join(reversed(mode))
         return self._accessor.open(
             self,
             mode=mode,
