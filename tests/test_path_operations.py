@@ -577,3 +577,7 @@ def test_unlink(s3_mock):
         S3Path("/test-bucket/fake_folder").unlink()
     with pytest.raises(IsADirectoryError):
         S3Path("/fake-bucket/").unlink()
+
+    S3Path("/test-bucket/fake_subfolder/fake_subkey").unlink(missing_ok=True)
+    S3Path("/test-bucket/fake_folder").unlink(missing_ok=True)
+    S3Path("/fake-bucket/").unlink(missing_ok=True)

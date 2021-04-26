@@ -650,16 +650,21 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         # S3 doesn't care if you remove full prefixes or buckets with its delete API
         # so unless we manually check, this call will be dropped through without any
         # validation and could result in data loss
-        if self.is_dir():
-            raise IsADirectoryError(str(self))
-        if not self.is_file():
-            raise FileNotFoundError(str(self))
+        try:
+            if self.is_dir():
+                raise IsADirectoryError(str(self))
+            if not self.is_file():
+                raise FileNotFoundError(str(self))
+        except (IsADirectoryError, FileNotFoundError):
+            if missing_ok:
+                return
+            raise
         # XXX: Note: If we don't check if the file exists here, S3 will always return
         # success even if we try to delete a key that doesn't exist. So, if we want
         # to raise a `FileNotFoundError`, we need to manually check if the file exists
         # before we make the API call -- since we want to delete the file anyway,
         # we can just ignore this for now and be satisfied that the file will be removed
-        super().unlink()
+        super().unlink(missing_ok=missing_ok)
 
     def rmdir(self):
         """
