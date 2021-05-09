@@ -261,12 +261,13 @@ S3Path.rmdir()
 
 Removes this Bucket / key prefix. The Bucket / key prefix must be empty.
 
-S3Path.unlink()
+S3Path.unlink(missing_ok=False)
 ^^^^^^^^^^^^^^^
 
 Removes this key from S3. Note that this will not remove directories or buckets, but will
 instead raise an `IsADirectoryError`_. If the key does is not present in the given bucket,
 or if the bucket is not present, raises a `FileNotFoundError`_.
+If `missing_ok` is `True` then no exception will be raised.
 
 S3Path.samefile(other_path)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
