@@ -12,7 +12,6 @@ tox-travis = "*"
 twine = "*"
 pytest-cov = "*"
 smart-open = "*"
-#s3path = {path = "."}
 
 [dev-packages]
 ipython = "*"
