@@ -6,7 +6,9 @@ from os import stat_result
 from itertools import chain, islice
 from contextlib import suppress
 from collections import namedtuple
+from platform import python_version
 from tempfile import NamedTemporaryFile
+from distutils.version import StrictVersion
 from functools import wraps, partial, lru_cache
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
 from io import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
@@ -664,6 +666,8 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         # to raise a `FileNotFoundError`, we need to manually check if the file exists
         # before we make the API call -- since we want to delete the file anyway,
         # we can just ignore this for now and be satisfied that the file will be removed
+        if StrictVersion(python_version()) < StrictVersion('3.8'):
+            return super().unlink()
         super().unlink(missing_ok=missing_ok)
 
     def rmdir(self):
