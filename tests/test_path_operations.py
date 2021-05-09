@@ -11,7 +11,6 @@ from s3path import PureS3Path, S3Path, StatResult
 
 # todo: test samefile/touch method
 # todo: test security and boto config changes
-# todo: test open method check R/W bytes/unicode
 
 
 def test_path_support():
@@ -263,7 +262,6 @@ def test_read_lines_hint(s3_mock):
 
     with S3Path('/test-bucket/directory/Test.test').open('br') as fp:
         assert len(fp.readlines(1)) == 1  # work only in binary mode
-    # todo: explain in docs
 
 
 def test_iter_lines(s3_mock):
@@ -364,9 +362,6 @@ def test_open_for_write(s3_mock):
         assert file_obj.writable()
         file_obj.write(b'test data\n')
         file_obj.writelines([b'test data'])
-        # todo: need to remember to add to the docs
-        # todo: From now only on close we will see the key in bucket
-
     assert sum(1 for _ in bucket.objects.all()) == 1
 
     object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')

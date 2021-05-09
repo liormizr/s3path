@@ -238,7 +238,6 @@ class _S3Accessor(_Accessor):
         # return object_summery.owner['DisplayName']
         # This is a hack till boto3 resolve this issue:
         # https://github.com/boto/boto3/issues/1950
-        # todo: need to clean up
         responce = object_summery.meta.client.list_objects_v2(
             Bucket=object_summery.bucket_name,
             Prefix=object_summery.key,
