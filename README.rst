@@ -143,7 +143,7 @@ Requirements:
 
 * Python >= 3.4
 * boto3
-
+* smart-open
 
 Further Documentation:
 ======================

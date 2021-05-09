@@ -4,7 +4,6 @@ from setuptools import setup
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
-
 setup(
     name=s3path.__name__,
     version=s3path.__version__,
@@ -12,7 +11,10 @@ setup(
     author='Lior Mizrahi',
     author_email='li.mizr@gmail.com',
     py_modules=['s3path'],
-    install_requires=['boto3>=1.16.35'],
+    install_requires=[
+        'boto3>=1.16.35',
+        'smart-open',
+    ],
     license='Apache 2.0',
     long_description=long_description,
     long_description_content_type='text/x-rst',

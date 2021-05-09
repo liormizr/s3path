@@ -81,6 +81,8 @@ def test_exists(s3_mock):
     for parent in path.parents:
         assert parent.exists()
 
+    assert S3Path('/').exists()
+
 
 def test_glob(s3_mock):
     s3 = boto3.resource('s3')
@@ -147,6 +149,30 @@ def test_rglob(s3_mock):
         S3Path('/test-bucket/test_pathlib.py')]
 
 
+def test_accessor_scandir(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'setup.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'test_pathlib.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+    object_summary = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
+    object_summary.put(Body=b'test data')
+
+    assert sorted(S3Path.from_uri('s3://test-bucket/').rglob('*.py')) == [
+        S3Path('/test-bucket/build/lib/pathlib.py'),
+        S3Path('/test-bucket/docs/conf.py'),
+        S3Path('/test-bucket/pathlib.py'),
+        S3Path('/test-bucket/setup.py'),
+        S3Path('/test-bucket/test_pathlib.py')]
+
+
 def test_is_dir(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
@@ -163,6 +189,7 @@ def test_is_dir(s3_mock):
     object_summary = s3.ObjectSummary('test-bucket', 'build/lib/pathlib.py')
     object_summary.put(Body=b'test data')
 
+    assert S3Path('/').is_dir()
     assert not S3Path('/test-bucket/fake.test').is_dir()
     assert not S3Path('/test-bucket/fake/').is_dir()
     assert S3Path('/test-bucket/directory').is_dir()
@@ -231,8 +258,12 @@ def test_read_lines_hint(s3_mock):
     object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
     object_summary.put(Body=b'test data\ntest data')
 
-    with S3Path('/test-bucket/directory/Test.test').open("r") as fp:
-        assert len(fp.readlines(1)) == 1
+    with S3Path('/test-bucket/directory/Test.test').open() as fp:
+        assert len(fp.readlines(1)) == (1 if sys.version_info >= (3, 6) else 2)
+
+    with S3Path('/test-bucket/directory/Test.test').open('br') as fp:
+        assert len(fp.readlines(1)) == 1  # work only in binary mode
+    # todo: explain in docs
 
 
 def test_iter_lines(s3_mock):
@@ -328,10 +359,13 @@ def test_open_for_write(s3_mock):
     assert sum(1 for _ in bucket.objects.all()) == 0
 
     path = S3Path('/test-bucket/directory/Test.test')
-    file_obj = path.open(mode='bw')
-    assert file_obj.writable()
-    file_obj.write(b'test data\n')
-    file_obj.writelines([b'test data'])
+
+    with path.open(mode='bw') as file_obj:
+        assert file_obj.writable()
+        file_obj.write(b'test data\n')
+        file_obj.writelines([b'test data'])
+        # todo: need to remember to add to the docs
+        # todo: From now only on close we will see the key in bucket
 
     assert sum(1 for _ in bucket.objects.all()) == 1
 
