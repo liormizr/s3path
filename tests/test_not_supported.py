@@ -13,6 +13,16 @@ def test_cwd():
         S3Path.cwd()
 
 
+def test_expanduser():
+    with pytest.raises(NotImplementedError):
+        S3Path('/').expanduser()
+
+
+def test_readlink():
+    with pytest.raises(NotImplementedError):
+        S3Path('/').readlink()
+
+
 def test_home():
     with pytest.raises(NotImplementedError):
         S3Path.home()

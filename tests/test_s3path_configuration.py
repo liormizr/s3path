@@ -1,7 +1,39 @@
+from pathlib import Path
+
+import pytest
 import boto3
 from botocore.client import Config
 
 from s3path import S3Path, PureS3Path, register_configuration_parameter, _s3_accessor
+
+
+def test_s3_configuration_map_repr():
+    assert repr(_s3_accessor.configuration_map)
+
+
+def test_basic_configuration(reset_configuration_cache):
+    path = S3Path('/foo/')
+
+    _s3_accessor.configuration_map.arguments = _s3_accessor.configuration_map.resources = None
+
+    assert path not in (_s3_accessor.configuration_map.arguments or ())
+    assert path not in (_s3_accessor.configuration_map.resources or ())
+    assert _s3_accessor.configuration_map.get_configuration(path) == (
+        _s3_accessor.configuration_map.default_resource, {})
+
+    assert (_s3_accessor.configuration_map.get_configuration(S3Path('/foo/'))
+            == _s3_accessor.configuration_map.get_configuration(PureS3Path('/foo/')))
+
+
+def test_register_configuration_exceptions(reset_configuration_cache):
+    with pytest.raises(TypeError):
+        register_configuration_parameter(Path('/'), parameters={'ContentType': 'text/html'})
+
+    with pytest.raises(TypeError):
+        register_configuration_parameter(S3Path('/foo/'), parameters=('ContentType', 'text/html'))
+
+    with pytest.raises(ValueError):
+        register_configuration_parameter(S3Path('/foo/'))
 
 
 def test_hierarchical_configuration(reset_configuration_cache):

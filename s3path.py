@@ -1,39 +1,33 @@
 """
 s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
-import warnings
 from os import stat_result
-from itertools import chain, islice
+from itertools import chain
+from functools import lru_cache
 from contextlib import suppress
 from collections import namedtuple
-from tempfile import NamedTemporaryFile
-from functools import wraps, partial, lru_cache
+from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
-from io import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
 
 try:
     import boto3
     from botocore.exceptions import ClientError
-    from botocore.response import StreamingBody
     from botocore.docs.docstring import LazyLoadedDocstring
+    import smart_open
 except ImportError:
     boto3 = None
     ClientError = Exception
-    StreamingBody = object
-    LazyLoadedDocstring = type(None)
+    LazyLoadedDocstring = None
+    smart_open = None
 
-__version__ = '0.2.205'
+__version__ = '0.3.0'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
     'PureS3Path',
     'StatResult',
     'S3DirEntry',
-    'S3KeyWritableFileObject',
-    'S3KeyReadableFileObject',
 )
-
-_SUPPORTED_OPEN_MODES = {'r', 'br', 'rb', 'tr', 'rt', 'w', 'wb', 'bw', 'wt', 'tw'}
 
 
 class _S3Flavour(_PosixFlavour):
@@ -65,8 +59,6 @@ class _S3ConfigurationMap:
         self.resources = {PureS3Path('/'): self.default_resource}
 
     def __repr__(self):
-        if self.arguments is None and self.resources is None:
-            self._initial_setup()
         return '{name}(arguments={arguments}, resources={resources})'.format(
             name=type(self).__name__,
             arguments=self.arguments,
@@ -90,8 +82,6 @@ class _S3ConfigurationMap:
                 resources = self.resources[path]
             if arguments is None and path in self.arguments:
                 arguments = self.arguments[path]
-        if resources is None or arguments is None:
-            raise ConnectionError('no configuration match')
         return resources, arguments
 
 
@@ -107,7 +97,7 @@ class _S3Scandir:
         return
 
     def __iter__(self):
-        bucket_name = self._s3_accessor.bucket_name(self._path.bucket)
+        bucket_name = self._path.bucket
         resource, _ = self._s3_accessor.configuration_map.get_configuration(self._path)
         if not bucket_name:
             for bucket in resource.buckets.filter(Prefix=str(self._path)):
@@ -147,28 +137,15 @@ class _S3Accessor(_Accessor):
     """
 
     def __init__(self, **kwargs):
-        self._s3 = boto3.resource('s3', **kwargs) if boto3 is not None else None
+        try:
+            self._s3 = boto3.resource('s3', **kwargs)
+        except AttributeError:
+            self._s3 = None
         self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)
-
-    @property
-    def s3(self):
-        warnings.warn('s3 property is deprecated and will be removed in the next version', DeprecationWarning)
-        return self._s3
-
-    @s3.setter
-    def s3(self, resource):
-        warnings.warn('s3 property is deprecated and will be removed in the next version', DeprecationWarning)
-        self._s3 = resource
-        _, config = self.configuration_map.get_configuration(PureS3Path('/'))
-        register_configuration_parameter(PureS3Path('/'), resource=resource, parameters=config)
-
-    def buckets(self, path):
-        resource, _ = self.configuration_map.get_configuration(path)
-        yield from resource.buckets.all()
 
     def stat(self, path):
         resource, _ = self.configuration_map.get_configuration(path)
-        object_summery = resource.ObjectSummary(self.bucket_name(path.bucket), str(path.key))
+        object_summery = resource.ObjectSummary(path.bucket, path.key)
         return StatResult(
             size=object_summery.size,
             last_modified=object_summery.last_modified,
@@ -178,14 +155,12 @@ class _S3Accessor(_Accessor):
         if str(path) == path.root:
             return True
         resource, _ = self.configuration_map.get_configuration(path)
-        bucket = resource.Bucket(self.bucket_name(path.bucket))
+        bucket = resource.Bucket(path.bucket)
         return any(bucket.objects.filter(Prefix=self.generate_prefix(path)))
 
     def exists(self, path):
-        bucket_name = self.bucket_name(path.bucket)
+        bucket_name = path.bucket
         resource, _ = self.configuration_map.get_configuration(path)
-        if not bucket_name:
-            return any(resource.buckets.all())
         if not path.key:
             return resource.Bucket(bucket_name) in resource.buckets.all()
         bucket = resource.Bucket(bucket_name)
@@ -205,23 +180,57 @@ class _S3Accessor(_Accessor):
             return [entry.name for entry in scandir_iter]
 
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
-        bucket_name = self.bucket_name(path.bucket)
-        key_name = str(path.key)
-        resource, _ = self.configuration_map.get_configuration(path)
-        object_summery = resource.ObjectSummary(bucket_name, key_name)
-        file_object = S3KeyReadableFileObject if 'r' in mode else S3KeyWritableFileObject
-        return file_object(
-            object_summery,
-            path=path,
+        resource, config = self.configuration_map.get_configuration(path)
+
+        def get_resource_kwargs():
+            # This is a good example of the complicity of boto3 and botocore
+            # resource arguments from the resource object :-/
+            # very annoying...
+
+            try:
+                access_key = resource.meta.client._request_signer._credentials.access_key
+                secret_key = resource.meta.client._request_signer._credentials.secret_key
+                token = resource.meta.client._request_signer._credentials.token
+            except AttributeError:
+                access_key = secret_key = token = None
+            return {
+                'endpoint_url': resource.meta.client.meta._endpoint_url,
+                'config': resource.meta.client._client_config,
+                'region_name': resource.meta.client._client_config.region_name,
+                'use_ssl': resource.meta.client._endpoint.host.startswith('https'),
+                'verify': resource.meta.client._endpoint.http_session._verify,
+                'aws_access_key_id': access_key,
+                'aws_secret_access_key': secret_key,
+                'aws_session_token': token,
+            }
+
+        dummy_object = self._s3.Object('bucket', 'key')
+        object_kwargs = self._update_kwargs_with_config(
+            dummy_object.get, config=config)
+        multipart_upload_kwargs = self._update_kwargs_with_config(
+            dummy_object.initiate_multipart_upload, config=config)
+
+        file_object = smart_open.open(
+            uri=path.as_uri(),
             mode=mode,
             buffering=buffering,
             encoding=encoding,
             errors=errors,
-            newline=newline)
+            newline=newline,
+            ignore_ext=True,
+            transport_params={
+                'session': boto3.DEFAULT_SESSION,
+                'resource_kwargs': get_resource_kwargs(),
+                'multipart_upload_kwargs': multipart_upload_kwargs,
+                'object_kwargs': object_kwargs,
+                'defer_seek': True,
+            },
+        )
+        return file_object
 
     def owner(self, path):
-        bucket_name = self.bucket_name(path.bucket)
-        key_name = str(path.key)
+        bucket_name = path.bucket
+        key_name = path.key
         resource, _ = self.configuration_map.get_configuration(path)
         object_summery = resource.ObjectSummary(bucket_name, key_name)
         # return object_summery.owner['DisplayName']
@@ -235,10 +244,10 @@ class _S3Accessor(_Accessor):
         return responce['Contents'][0]['Owner']['DisplayName']
 
     def rename(self, path, target):
-        source_bucket_name = self.bucket_name(path.bucket)
-        source_key_name = str(path.key)
-        target_bucket_name = self.bucket_name(target.bucket)
-        target_key_name = str(target.key)
+        source_bucket_name = path.bucket
+        source_key_name = path.key
+        target_bucket_name = target.bucket
+        target_key_name = target.key
 
         resource, _ = self.configuration_map.get_configuration(path)
 
@@ -265,8 +274,8 @@ class _S3Accessor(_Accessor):
         return self.rename(path, target)
 
     def rmdir(self, path):
-        bucket_name = self.bucket_name(path.bucket)
-        key_name = str(path.key)
+        bucket_name = path.bucket
+        key_name = path.key
         resource, config = self.configuration_map.get_configuration(path)
         bucket = resource.Bucket(bucket_name)
         for object_summery in bucket.objects.filter(Prefix=key_name):
@@ -277,36 +286,25 @@ class _S3Accessor(_Accessor):
         self.boto3_method_with_parameters(
             resource.create_bucket,
             config=config,
-            kwargs={'Bucket': self.bucket_name(path.bucket)},
+            kwargs={'Bucket': path.bucket},
         )
 
-    def bucket_name(self, path):
-        if path is None:
-            return
-        return str(path.bucket)[1:]
-
     def boto3_method_with_parameters(self, boto3_method, config=None, args=(), kwargs=None):
-        kwargs = kwargs or {}
-        if config is not None:
-            kwargs.update({
-                key: value
-                for key, value in config.items()
-                if key in self._get_action_arguments(boto3_method)
-            })
+        kwargs = self._update_kwargs_with_config(boto3_method, config, kwargs)
         return boto3_method(*args, **kwargs)
 
     def generate_prefix(self, path):
         sep = path._flavour.sep
         if not path.key:
             return ''
-        key_name = str(path.key)
+        key_name = path.key
         if not key_name.endswith(sep):
             return key_name + sep
         return key_name
 
     def unlink(self, path, *args, **kwargs):
-        bucket_name = self.bucket_name(path.bucket)
-        key_name = str(path.key)
+        bucket_name = path.bucket
+        key_name = path.key
         resource, config = self.configuration_map.get_configuration(path)
         bucket = resource.Bucket(bucket_name)
         try:
@@ -317,6 +315,16 @@ class _S3Accessor(_Accessor):
             )
         except ClientError:
             raise OSError("/{0}/{1}".format(bucket_name, key_name))
+
+    def _update_kwargs_with_config(self, boto3_method, config, kwargs=None):
+        kwargs = kwargs or {}
+        if config is not None:
+            kwargs.update({
+                key: value
+                for key, value in config.items()
+                if key in self._get_action_arguments(boto3_method)
+            })
+        return kwargs
 
     @lru_cache()
     def _get_action_arguments(self, action):
@@ -329,22 +337,6 @@ class _S3Accessor(_Accessor):
             for line in docs.splitlines()
             if line.startswith(':param ')
         )
-
-
-def _string_parser(text, *, mode, encoding):
-    if isinstance(text, memoryview):
-        if 'b' in mode:
-            return text
-        return text.obj.decode(encoding or 'utf-8')
-    if isinstance(text, bytes):
-        if 'b' in mode:
-            return text
-        return text.decode(encoding or 'utf-8')
-    if isinstance(text, str):
-        if 't' in mode or 'r' == mode:
-            return text
-        return text.encode(encoding or 'utf-8')
-    raise RuntimeError()
 
 
 class _PathNotSupportedMixin:
@@ -440,6 +432,14 @@ class _PathNotSupportedMixin:
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.symlink_to.__qualname__)
         raise NotImplementedError(message)
 
+    def readlink(self):
+        """
+        readlink method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.readlink.__qualname__)
+        raise NotImplementedError(message)
+
 
 _s3_flavour = _S3Flavour()
 _s3_accessor = _S3Accessor()
@@ -470,8 +470,8 @@ class PureS3Path(PurePath):
         from_uri class method create a class instance from url
 
         >> from s3path import PureS3Path
-        >> PureS3Path.from_url('s3://<bucket>/')
-        << PureS3Path('/<bucket>')
+        >> PureS3Path.from_url('s3://<bucket>/<key>')
+        << PureS3Path('/<bucket>/<key>')
         """
         if not uri.startswith('s3://'):
             raise ValueError('...')
@@ -480,29 +480,39 @@ class PureS3Path(PurePath):
     @property
     def bucket(self):
         """
-        bucket property
-        return a new instance of only the bucket path
+        The AWS S3 Bucket name, or ''
         """
         self._absolute_path_validation()
-        if not self.is_absolute():
-            raise ValueError("relative path don't have bucket")
-        try:
+        with suppress(ValueError):
             _, bucket, *_ = self.parts
-        except ValueError:
-            return None
-        return type(self)(self._flavour.sep, bucket)
+            return bucket
+        return ''
 
     @property
     def key(self):
         """
-        bucket property
-        return a new instance of only the key path
+        The AWS S3 Key name, or ''
         """
         self._absolute_path_validation()
         key = self._flavour.sep.join(self.parts[2:])
-        if not key:
-            return None
-        return type(self)(key)
+        return key
+
+    @classmethod
+    def from_bucket_key(cls, bucket, key):
+        """
+        from_bucket_key class method create a class instance from bucket, key pair's
+
+        >> from s3path import PureS3Path
+        >> PureS3Path.from_bucket_key(bucket='<bucket>', key='<key>')
+        << PureS3Path('/<bucket>/<key>')
+        """
+        bucket = cls(cls._flavour.sep, bucket)
+        if len(bucket.parts) != 2:
+            raise ValueError('bucket argument contains more then one path element: {}'.format(bucket))
+        key = cls(key)
+        if key.is_absolute():
+            key = key.relative_to('/')
+        return bucket / key
 
     def as_uri(self):
         """
@@ -583,7 +593,6 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
         """
-        # import ipdb; ipdb.set_trace()
         yield from super().glob(pattern)
 
     def rglob(self, pattern):
@@ -597,13 +606,8 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
         """
         self._absolute_path_validation()
-        if mode not in _SUPPORTED_OPEN_MODES:
-            raise ValueError('supported modes are {} got {}'.format(_SUPPORTED_OPEN_MODES, mode))
-        if buffering == 0 or buffering == 1:
-            raise ValueError('supported buffering values are only block sizes, no 0 or 1')
-        if 'b' in mode and encoding:
-            raise ValueError("binary mode doesn't take an encoding argument")
-
+        if smart_open.__version__ < '4.0.0' and mode.startswith('b'):
+            mode = ''.join(reversed(mode))
         return self._accessor.open(
             self,
             mode=mode,
@@ -680,7 +684,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         self._absolute_path_validation()
         if not isinstance(other_path, Path):
             other_path = type(self)(other_path)
-        return self.bucket == other_path.bucket and self.key == self.key and self.is_file()
+        return self.bucket == other_path.bucket and self.key == other_path.key and self.is_file()
 
     def touch(self, mode=0o666, exist_ok=True):
         """
@@ -708,11 +712,11 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         mode argument is ignored.
         """
         try:
-            if self.bucket is None:
+            if not self.bucket:
                 raise FileNotFoundError('No bucket in {} {}'.format(type(self), self))
-            if self.key is not None and not parents:
+            if self.key and not parents:
                 raise FileNotFoundError('Only bucket path can be created, got {}'.format(self))
-            if self.bucket.exists():
+            if type(self)(self._flavour.sep, self.bucket).exists():
                 raise FileExistsError('Bucket {} already exists'.format(self.bucket))
             return super().mkdir(mode, parents=parents, exist_ok=exist_ok)
         except OSError:
@@ -747,165 +751,6 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         super()._init(template)
         if template is None:
             self._accessor = _s3_accessor
-
-
-class S3KeyWritableFileObject(RawIOBase):
-    def __init__(
-            self, object_summery, *,
-            path,
-            mode='w',
-            buffering=DEFAULT_BUFFER_SIZE,
-            encoding=None,
-            errors=None,
-            newline=None):
-        super().__init__()
-        self.object_summery = object_summery
-        self.path = path
-        self.mode = mode
-        self.buffering = buffering
-        self.encoding = encoding
-        self.errors = errors
-        self.newline = newline
-        self._cache = NamedTemporaryFile(
-            mode=self.mode + '+' if 'b' in self.mode else 'b' + self.mode + '+',
-            buffering=self.buffering,
-            encoding=self.encoding,
-            newline=self.newline)
-        self._string_parser = partial(_string_parser, mode=self.mode, encoding=self.encoding)
-
-    def __getattr__(self, item):
-        try:
-            return getattr(self._cache, item)
-        except AttributeError:
-            return super().__getattribute__(item)
-
-    def writable_check(method):
-        @wraps(method)
-        def wrapper(self, *args, **kwargs):
-            if not self.writable():
-                raise UnsupportedOperation('not writable')
-            return method(self, *args, **kwargs)
-        return wrapper
-
-    def writable(self, *args, **kwargs):
-        return 'w' in self.mode
-
-    @writable_check
-    def write(self, text):
-        self._cache.write(self._string_parser(text))
-        self._cache.seek(0)
-        _s3_accessor.boto3_method_with_parameters(
-            self.object_summery.put,
-            kwargs={'Body': self._cache}
-        )
-
-    def writelines(self, lines):
-        if not lines:
-            return
-        if isinstance(lines[0], bytes):
-            joined = b"".join(lines)
-        else:
-            joined = "".join(lines)
-        self.write(joined)
-
-    def readable(self):
-        return False
-
-    def read(self, *args, **kwargs):
-        raise UnsupportedOperation('not readable')
-
-    def readlines(self, *args, **kwargs):
-        raise UnsupportedOperation('not readable')
-
-
-class S3KeyReadableFileObject(RawIOBase):
-    def __init__(
-            self, object_summery, *,
-            path,
-            mode='b',
-            buffering=DEFAULT_BUFFER_SIZE,
-            encoding=None,
-            errors=None,
-            newline=None):
-        super().__init__()
-        self.object_summery = object_summery
-        self.path = path
-        self.mode = mode
-        self.buffering = buffering
-        self.encoding = encoding
-        self.errors = errors
-        self.newline = newline
-        self._streaming_body = None
-        self._streaming_line_iterator = None
-        self._string_parser = partial(_string_parser, mode=self.mode, encoding=self.encoding)
-
-    def __getattr__(self, item):
-        try:
-            return getattr(self._streaming_body, item)
-        except AttributeError:
-            return super().__getattribute__(item)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-    def readable_check(method):
-        @wraps(method)
-        def wrapper(self, *args, **kwargs):
-            if not self.readable():
-                raise UnsupportedOperation('not readable')
-            return method(self, *args, **kwargs)
-        return wrapper
-
-    def readable(self):
-        if 'r' not in self.mode:
-            return False
-        with suppress(ClientError):
-            if self._streaming_body is None:
-                self._streaming_body = _s3_accessor.boto3_method_with_parameters(
-                    self.object_summery.get,
-                )['Body']
-            return True
-        return False
-
-    @property
-    @readable_check
-    def _line_iterator(self):
-        if not self._streaming_line_iterator:
-            self._streaming_line_iterator = self._streaming_body.iter_lines(
-                chunk_size=self.buffering, keepends=True
-            )
-        return self._streaming_line_iterator
-
-    def __iter__(self):
-        for line in self._line_iterator:
-            yield self._string_parser(line)
-
-    def __next__(self):
-        return next(self.__iter__())
-
-    @readable_check
-    def read(self, *args, **kwargs):
-        return self._string_parser(self._streaming_body.read(*args, **kwargs))
-
-    def readlines(self, hint=-1, *args, **kwargs):
-        return list(self) if hint == -1 else list(islice(self, hint))
-
-    def readline(self):
-        with suppress(StopIteration, ValueError):
-            return next(self)
-        return self._string_parser(b'')
-
-    def write(self, *args, **kwargs):
-        raise UnsupportedOperation('not writable')
-
-    def writelines(self, *args, **kwargs):
-        raise UnsupportedOperation('not writable')
-
-    def writable(self, *args, **kwargs):
-        return False
 
 
 class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
