@@ -113,4 +113,9 @@ def test_open_method_with_custom_endpoint_url():
         resource=boto3.resource('s3', endpoint_url='http://localhost'))
 
     file_object = S3Path('/local/directory/Test.test').open('br')
-    assert file_object._client.client._endpoint.host == 'http://localhost'
+    from distutils.version import StrictVersion
+    import smart_open
+    if StrictVersion(smart_open.__version__) <= StrictVersion('3.0.0'):
+        assert file_object._session.client()._endpoint.host == 'http://localhost'
+    else:
+        assert file_object._client.client._endpoint.host == 'http://localhost'
