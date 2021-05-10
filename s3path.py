@@ -184,28 +184,6 @@ class _S3Accessor(_Accessor):
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         resource, config = self.configuration_map.get_configuration(path)
 
-        def get_resource_kwargs():
-            # This is a good example of the complicity of boto3 and botocore
-            # resource arguments from the resource object :-/
-            # very annoying...
-
-            try:
-                access_key = resource.meta.client._request_signer._credentials.access_key
-                secret_key = resource.meta.client._request_signer._credentials.secret_key
-                token = resource.meta.client._request_signer._credentials.token
-            except AttributeError:
-                access_key = secret_key = token = None
-            return {
-                'endpoint_url': resource.meta.client.meta._endpoint_url,
-                'config': resource.meta.client._client_config,
-                'region_name': resource.meta.client._client_config.region_name,
-                'use_ssl': resource.meta.client._endpoint.host.startswith('https'),
-                'verify': resource.meta.client._endpoint.http_session._verify,
-                'aws_access_key_id': access_key,
-                'aws_secret_access_key': secret_key,
-                'aws_session_token': token,
-            }
-
         dummy_object = self._s3.Object('bucket', 'key')
         object_kwargs = self._update_kwargs_with_config(
             dummy_object.get, config=config)
@@ -221,8 +199,7 @@ class _S3Accessor(_Accessor):
             newline=newline,
             ignore_ext=True,
             transport_params={
-                'session': boto3.DEFAULT_SESSION,
-                'resource_kwargs': get_resource_kwargs(),
+                'client': resource.meta.client,
                 'multipart_upload_kwargs': multipart_upload_kwargs,
                 'object_kwargs': object_kwargs,
                 'defer_seek': True,
