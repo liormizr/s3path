@@ -184,6 +184,12 @@ class _S3Accessor(_Accessor):
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         resource, config = self.configuration_map.get_configuration(path)
 
+        dummy_object = self._s3.Object('bucket', 'key')
+        object_kwargs = self._update_kwargs_with_config(
+            dummy_object.get, config=config)
+        multipart_upload_kwargs = self._update_kwargs_with_config(
+            dummy_object.initiate_multipart_upload, config=config)
+
         def get_resource_kwargs():
             # This is a good example of the complicity of boto3 and botocore
             # resource arguments from the resource object :-/
@@ -206,12 +212,6 @@ class _S3Accessor(_Accessor):
                 'aws_session_token': token,
             }
 
-        dummy_object = self._s3.Object('bucket', 'key')
-        object_kwargs = self._update_kwargs_with_config(
-            dummy_object.get, config=config)
-        multipart_upload_kwargs = self._update_kwargs_with_config(
-            dummy_object.initiate_multipart_upload, config=config)
-
         file_object = smart_open.open(
             uri=path.as_uri(),
             mode=mode,
@@ -221,11 +221,12 @@ class _S3Accessor(_Accessor):
             newline=newline,
             ignore_ext=True,
             transport_params={
-                'session': boto3.DEFAULT_SESSION,
-                'resource_kwargs': get_resource_kwargs(),
                 'multipart_upload_kwargs': multipart_upload_kwargs,
                 'object_kwargs': object_kwargs,
                 'defer_seek': True,
+                'client': resource.meta.client,             # New Smart-Open api
+                'resource_kwargs': get_resource_kwargs(),   # Old Smart-Open api
+                'session': boto3.DEFAULT_SESSION,           # Old Smart-Open api
             },
         )
         return file_object

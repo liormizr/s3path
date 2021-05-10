@@ -1,6 +1,9 @@
 from pathlib import Path
+from distutils.version import StrictVersion
 
 import pytest
+import smart_open
+
 import boto3
 from botocore.client import Config
 
@@ -104,3 +107,16 @@ def test_configuration_per_bucket(reset_configuration_cache):
     assert arguments == {}
     assert resources.meta.client._endpoint.host == 'http://localhost:4566'
 
+
+def test_open_method_with_custom_endpoint_url():
+    local_path = PureS3Path('/local/')
+    register_configuration_parameter(
+        local_path,
+        parameters={},
+        resource=boto3.resource('s3', endpoint_url='http://localhost'))
+
+    file_object = S3Path('/local/directory/Test.test').open('br')
+    if StrictVersion(smart_open.__version__) <= StrictVersion('3.0.0'):
+        assert file_object._object.meta.client._endpoint.host == 'http://localhost'
+    else:
+        assert file_object._client.client._endpoint.host == 'http://localhost'
