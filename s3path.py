@@ -22,7 +22,7 @@ except ImportError:
     LazyLoadedDocstring = None
     smart_open = None
 
-__version__ = '0.3.0'
+__version__ = '0.3.01'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
