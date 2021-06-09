@@ -147,10 +147,10 @@ class _S3Accessor(_Accessor):
 
     def stat(self, path):
         resource, _ = self.configuration_map.get_configuration(path)
-        object_summery = resource.ObjectSummary(path.bucket, path.key)
+        object_summary = resource.ObjectSummary(path.bucket, path.key)
         return StatResult(
-            size=object_summery.size,
-            last_modified=object_summery.last_modified,
+            size=object_summary.size,
+            last_modified=object_summary.last_modified,
         )
 
     def is_dir(self, path):
@@ -235,13 +235,13 @@ class _S3Accessor(_Accessor):
         bucket_name = path.bucket
         key_name = path.key
         resource, _ = self.configuration_map.get_configuration(path)
-        object_summery = resource.ObjectSummary(bucket_name, key_name)
-        # return object_summery.owner['DisplayName']
+        object_summary = resource.ObjectSummary(bucket_name, key_name)
+        # return object_summary.owner['DisplayName']
         # This is a hack till boto3 resolve this issue:
         # https://github.com/boto/boto3/issues/1950
-        responce = object_summery.meta.client.list_objects_v2(
-            Bucket=object_summery.bucket_name,
-            Prefix=object_summery.key,
+        responce = object_summary.meta.client.list_objects_v2(
+            Bucket=object_summary.bucket_name,
+            Prefix=object_summary.key,
             FetchOwner=True)
         return responce['Contents'][0]['Owner']['DisplayName']
 
@@ -255,22 +255,22 @@ class _S3Accessor(_Accessor):
 
         if not self.is_dir(path):
             target_bucket = resource.Bucket(target_bucket_name)
-            object_summery = resource.ObjectSummary(source_bucket_name, source_key_name)
-            old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
+            object_summary = resource.ObjectSummary(source_bucket_name, source_key_name)
+            old_source = {'Bucket': object_summary.bucket_name, 'Key': object_summary.key}
             self.boto3_method_with_parameters(
                 target_bucket.copy,
                 args=(old_source, target_key_name))
-            self.boto3_method_with_parameters(object_summery.delete)
+            self.boto3_method_with_parameters(object_summary.delete)
             return
         bucket = resource.Bucket(source_bucket_name)
         target_bucket = resource.Bucket(target_bucket_name)
-        for object_summery in bucket.objects.filter(Prefix=source_key_name):
-            old_source = {'Bucket': object_summery.bucket_name, 'Key': object_summery.key}
-            new_key = object_summery.key.replace(source_key_name, target_key_name)
+        for object_summary in bucket.objects.filter(Prefix=source_key_name):
+            old_source = {'Bucket': object_summary.bucket_name, 'Key': object_summary.key}
+            new_key = object_summary.key.replace(source_key_name, target_key_name)
             self.boto3_method_with_parameters(
                 target_bucket.copy,
                 args=(old_source, new_key))
-            self.boto3_method_with_parameters(object_summery.delete)
+            self.boto3_method_with_parameters(object_summary.delete)
 
     def replace(self, path, target):
         return self.rename(path, target)
@@ -280,8 +280,8 @@ class _S3Accessor(_Accessor):
         key_name = path.key
         resource, config = self.configuration_map.get_configuration(path)
         bucket = resource.Bucket(bucket_name)
-        for object_summery in bucket.objects.filter(Prefix=key_name):
-            self.boto3_method_with_parameters(object_summery.delete, config=config)
+        for object_summary in bucket.objects.filter(Prefix=key_name):
+            self.boto3_method_with_parameters(object_summary.delete, config=config)
 
     def mkdir(self, path, mode):
         resource, config = self.configuration_map.get_configuration(path)
