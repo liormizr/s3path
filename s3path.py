@@ -197,62 +197,32 @@ class _S3Accessor(_Accessor):
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         resource, config = self.configuration_map.get_configuration(path)
 
-        # Old Smart-Open api
+        smart_open_kwargs = {
+            'uri': path.as_uri(),
+            'mode': mode,
+            'buffering': buffering,
+            'encoding': encoding,
+            'errors': errors,
+            'newline': newline,
+        }
+        transport_params = {'defer_seek': True}
         dummy_object = self._s3.Object('bucket', 'key')
-        object_kwargs = self._update_kwargs_with_config(
-            dummy_object.get, config=config)
-        initiate_multipart_upload_kwargs = self._update_kwargs_with_config(
-            dummy_object.initiate_multipart_upload, config=config)
+        if smart_open.__version__ >= '5.0.0':
+            self._smart_open_new_version_kwargs(
+                dummy_object,
+                resource,
+                config,
+                transport_params,
+                smart_open_kwargs)
+        else:
+            self._smart_open_old_version_kwargs(
+                dummy_object,
+                resource,
+                config,
+                transport_params,
+                smart_open_kwargs)
 
-        # New Smart-Open api
-        get_object_kwargs = self._update_kwargs_with_config(
-            dummy_object.meta.client.get_object, config=config)
-        create_multipart_upload_kwargs = self._update_kwargs_with_config(
-            dummy_object.meta.client.create_multipart_upload, config = config)
-        def get_resource_kwargs():
-            # This is a good example of the complicity of boto3 and botocore
-            # resource arguments from the resource object :-/
-            # very annoying...
-
-            try:
-                access_key = resource.meta.client._request_signer._credentials.access_key
-                secret_key = resource.meta.client._request_signer._credentials.secret_key
-                token = resource.meta.client._request_signer._credentials.token
-            except AttributeError:
-                access_key = secret_key = token = None
-            return {
-                'endpoint_url': resource.meta.client.meta._endpoint_url,
-                'config': resource.meta.client._client_config,
-                'region_name': resource.meta.client._client_config.region_name,
-                'use_ssl': resource.meta.client._endpoint.host.startswith('https'),
-                'verify': resource.meta.client._endpoint.http_session._verify,
-                'aws_access_key_id': access_key,
-                'aws_secret_access_key': secret_key,
-                'aws_session_token': token,
-            }
-        file_object = smart_open.open(
-            uri=path.as_uri(),
-            mode=mode,
-            buffering=buffering,
-            encoding=encoding,
-            errors=errors,
-            newline=newline,
-            ignore_ext=True,
-            transport_params={
-                # Old Smart-Open api
-                'multipart_upload_kwargs': initiate_multipart_upload_kwargs,
-                'object_kwargs': object_kwargs,
-                # New Smart-Open api
-                'client_kwargs': {
-                    'S3.Client.create_multipart_upload': create_multipart_upload_kwargs,
-                    'S3.Client.get_object': get_object_kwargs
-                },
-                'defer_seek': True,
-                'client': resource.meta.client,             # New Smart-Open api
-                'resource_kwargs': get_resource_kwargs(),   # Old Smart-Open api
-                'session': boto3.DEFAULT_SESSION,           # Old Smart-Open api
-            },
-        )
+        file_object = smart_open.open(**smart_open_kwargs)
         return file_object
 
     def owner(self, path):
@@ -281,13 +251,13 @@ class _S3Accessor(_Accessor):
             target_bucket = resource.Bucket(target_bucket_name)
             object_summary = resource.ObjectSummary(source_bucket_name, source_key_name)
             old_source = {'Bucket': object_summary.bucket_name, 'Key': object_summary.key}
-            self.boto3_method_with_extraargs(
+            self._boto3_method_with_extraargs(
                 target_bucket.copy,
                 config=config,
                 args=(old_source, target_key_name),
                 allowed_extra_args=ALLOWED_COPY_ARGS,
             )
-            self.boto3_method_with_parameters(object_summary.delete)
+            self._boto3_method_with_parameters(object_summary.delete)
             return
         bucket = resource.Bucket(source_bucket_name)
         target_bucket = resource.Bucket(target_bucket_name)
@@ -295,13 +265,13 @@ class _S3Accessor(_Accessor):
             old_source = {'Bucket': object_summary.bucket_name, 'Key': object_summary.key}
             new_key = object_summary.key.replace(source_key_name, target_key_name)
             _, config = self.configuration_map.get_configuration(S3Path(target_bucket_name, new_key))
-            self.boto3_method_with_extraargs(
+            self._boto3_method_with_extraargs(
                 target_bucket.copy,
                 config=config,
                 args=(old_source, new_key),
                 allowed_extra_args=ALLOWED_COPY_ARGS,
             )
-            self.boto3_method_with_parameters(object_summary.delete)
+            self._boto3_method_with_parameters(object_summary.delete)
 
     def replace(self, path, target):
         return self.rename(path, target)
@@ -312,39 +282,15 @@ class _S3Accessor(_Accessor):
         resource, config = self.configuration_map.get_configuration(path)
         bucket = resource.Bucket(bucket_name)
         for object_summary in bucket.objects.filter(Prefix=key_name):
-            self.boto3_method_with_parameters(object_summary.delete, config=config)
+            self._boto3_method_with_parameters(object_summary.delete, config=config)
 
     def mkdir(self, path, mode):
         resource, config = self.configuration_map.get_configuration(path)
-        self.boto3_method_with_parameters(
+        self._boto3_method_with_parameters(
             resource.create_bucket,
             config=config,
             kwargs={'Bucket': path.bucket},
         )
-
-    def boto3_method_with_parameters(self, boto3_method, config=None, args=(), kwargs=None):
-        kwargs = self._update_kwargs_with_config(boto3_method, config, kwargs)
-        return boto3_method(*args, **kwargs)
-
-    def boto3_method_with_extraargs(
-        self,
-        boto3_method,
-        config=None,
-        args=(),
-        kwargs=None,
-        extra_args=None,
-        allowed_extra_args=(),
-    ):
-        kwargs = kwargs or {}
-        extra_args = extra_args or {}
-        if config is not None:
-            extra_args.update({
-                key: value
-                for key, value in config.items()
-                if key in allowed_extra_args
-            })
-        kwargs["ExtraArgs"] = extra_args
-        return boto3_method(*args, **kwargs)
 
     def generate_prefix(self, path):
         sep = path._flavour.sep
@@ -361,7 +307,7 @@ class _S3Accessor(_Accessor):
         resource, config = self.configuration_map.get_configuration(path)
         bucket = resource.Bucket(bucket_name)
         try:
-            self.boto3_method_with_parameters(
+            self._boto3_method_with_parameters(
                 bucket.meta.client.delete_object,
                 config=config,
                 kwargs={"Bucket": bucket_name, "Key": key_name}
@@ -389,6 +335,103 @@ class _S3Accessor(_Accessor):
             line.replace(':param ', '').strip().strip(':')
             for line in docs.splitlines()
             if line.startswith(':param ')
+        )
+
+    def _boto3_method_with_parameters(self, boto3_method, config=None, args=(), kwargs=None):
+        kwargs = self._update_kwargs_with_config(boto3_method, config, kwargs)
+        return boto3_method(*args, **kwargs)
+
+    def _boto3_method_with_extraargs(
+        self,
+        boto3_method,
+        config=None,
+        args=(),
+        kwargs=None,
+        extra_args=None,
+        allowed_extra_args=()):
+        kwargs = kwargs or {}
+        extra_args = extra_args or {}
+        if config is not None:
+            extra_args.update({
+                key: value
+                for key, value in config.items()
+                if key in allowed_extra_args
+            })
+        kwargs["ExtraArgs"] = extra_args
+        return boto3_method(*args, **kwargs)
+
+    def _smart_open_new_version_kwargs(
+            self,
+            dummy_object,
+            resource,
+            config,
+            transport_params,
+            smart_open_kwargs):
+        """
+        New Smart-Open api
+        Doc: https://github.com/RaRe-Technologies/smart_open/blob/develop/MIGRATING_FROM_OLDER_VERSIONS.rst
+        """
+        get_object_kwargs = self._update_kwargs_with_config(
+            dummy_object.meta.client.get_object, config=config)
+        create_multipart_upload_kwargs = self._update_kwargs_with_config(
+            dummy_object.meta.client.create_multipart_upload, config=config)
+        transport_params.update(
+            client=resource.meta.client,
+            client_kwargs={
+                'S3.Client.create_multipart_upload': create_multipart_upload_kwargs,
+                'S3.Client.get_object': get_object_kwargs
+            },
+        )
+        smart_open_kwargs.update(
+            compression='disable',
+            transport_params=transport_params,
+        )
+
+    def _smart_open_old_version_kwargs(
+            self,
+            dummy_object,
+            resource,
+            config,
+            transport_params,
+            smart_open_kwargs):
+        """
+        Old Smart-Open api
+        <5.0.0
+        """
+        def get_resource_kwargs():
+            # This is a good example of the complicity of boto3 and botocore
+            # resource arguments from the resource object :-/
+            # very annoying...
+
+            try:
+                access_key = resource.meta.client._request_signer._credentials.access_key
+                secret_key = resource.meta.client._request_signer._credentials.secret_key
+                token = resource.meta.client._request_signer._credentials.token
+            except AttributeError:
+                access_key = secret_key = token = None
+            return {
+                'endpoint_url': resource.meta.client.meta._endpoint_url,
+                'config': resource.meta.client._client_config,
+                'region_name': resource.meta.client._client_config.region_name,
+                'use_ssl': resource.meta.client._endpoint.host.startswith('https'),
+                'verify': resource.meta.client._endpoint.http_session._verify,
+                'aws_access_key_id': access_key,
+                'aws_secret_access_key': secret_key,
+                'aws_session_token': token,
+            }
+
+        initiate_multipart_upload_kwargs = self._update_kwargs_with_config(
+            dummy_object.initiate_multipart_upload, config=config)
+        object_kwargs = self._update_kwargs_with_config(dummy_object.get, config=config)
+        transport_params.update(
+            multipart_upload_kwargs=initiate_multipart_upload_kwargs,
+            object_kwargs=object_kwargs,
+            resource_kwargs=get_resource_kwargs(),
+            session=boto3.DEFAULT_SESSION,
+        )
+        smart_open_kwargs.update(
+            ignore_ext=True,
+            transport_params=transport_params,
         )
 
 
