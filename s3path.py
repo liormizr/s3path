@@ -197,12 +197,18 @@ class _S3Accessor(_Accessor):
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         resource, config = self.configuration_map.get_configuration(path)
 
+        # Old Smart-Open api
         dummy_object = self._s3.Object('bucket', 'key')
         object_kwargs = self._update_kwargs_with_config(
             dummy_object.get, config=config)
-        multipart_upload_kwargs = self._update_kwargs_with_config(
+        initiate_multipart_upload_kwargs = self._update_kwargs_with_config(
             dummy_object.initiate_multipart_upload, config=config)
 
+        # New Smart-Open api
+        get_object_kwargs = self._update_kwargs_with_config(
+            dummy_object.meta.client.get_object, config=config)
+        create_multipart_upload_kwargs = self._update_kwargs_with_config(
+            dummy_object.meta.client.create_multipart_upload, config = config)
         def get_resource_kwargs():
             # This is a good example of the complicity of boto3 and botocore
             # resource arguments from the resource object :-/
@@ -224,7 +230,6 @@ class _S3Accessor(_Accessor):
                 'aws_secret_access_key': secret_key,
                 'aws_session_token': token,
             }
-
         file_object = smart_open.open(
             uri=path.as_uri(),
             mode=mode,
@@ -234,8 +239,14 @@ class _S3Accessor(_Accessor):
             newline=newline,
             ignore_ext=True,
             transport_params={
-                'multipart_upload_kwargs': multipart_upload_kwargs,
+                # Old Smart-Open api
+                'multipart_upload_kwargs': initiate_multipart_upload_kwargs,
                 'object_kwargs': object_kwargs,
+                # New Smart-Open api
+                'client_kwargs': {
+                    'S3.Client.create_multipart_upload': create_multipart_upload_kwargs,
+                    'S3.Client.get_object': get_object_kwargs
+                },
                 'defer_seek': True,
                 'client': resource.meta.client,             # New Smart-Open api
                 'resource_kwargs': get_resource_kwargs(),   # Old Smart-Open api
