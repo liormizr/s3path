@@ -16,11 +16,14 @@ try:
     from botocore.exceptions import ClientError
     from botocore.docs.docstring import LazyLoadedDocstring
     import smart_open
+    from s3transfer.manager import TransferManager
+    ALLOWED_COPY_ARGS = TransferManager.ALLOWED_COPY_ARGS
 except ImportError:
     boto3 = None
     ClientError = Exception
     LazyLoadedDocstring = None
     smart_open = None
+    ALLOWED_COPY_ARGS = []
 
 __version__ = '0.3.01'
 __all__ = (
@@ -261,15 +264,18 @@ class _S3Accessor(_Accessor):
         target_bucket_name = target.bucket
         target_key_name = target.key
 
-        resource, _ = self.configuration_map.get_configuration(path)
+        resource, config = self.configuration_map.get_configuration(path)
 
         if not self.is_dir(path):
             target_bucket = resource.Bucket(target_bucket_name)
             object_summary = resource.ObjectSummary(source_bucket_name, source_key_name)
             old_source = {'Bucket': object_summary.bucket_name, 'Key': object_summary.key}
-            self.boto3_method_with_parameters(
+            self.boto3_method_with_extraargs(
                 target_bucket.copy,
-                args=(old_source, target_key_name))
+                config=config,
+                args=(old_source, target_key_name),
+                allowed_extra_args=ALLOWED_COPY_ARGS,
+            )
             self.boto3_method_with_parameters(object_summary.delete)
             return
         bucket = resource.Bucket(source_bucket_name)
@@ -277,9 +283,13 @@ class _S3Accessor(_Accessor):
         for object_summary in bucket.objects.filter(Prefix=source_key_name):
             old_source = {'Bucket': object_summary.bucket_name, 'Key': object_summary.key}
             new_key = object_summary.key.replace(source_key_name, target_key_name)
-            self.boto3_method_with_parameters(
+            _, config = self.configuration_map.get_configuration(S3Path(target_bucket_name, new_key))
+            self.boto3_method_with_extraargs(
                 target_bucket.copy,
-                args=(old_source, new_key))
+                config=config,
+                args=(old_source, new_key),
+                allowed_extra_args=ALLOWED_COPY_ARGS,
+            )
             self.boto3_method_with_parameters(object_summary.delete)
 
     def replace(self, path, target):
@@ -303,6 +313,26 @@ class _S3Accessor(_Accessor):
 
     def boto3_method_with_parameters(self, boto3_method, config=None, args=(), kwargs=None):
         kwargs = self._update_kwargs_with_config(boto3_method, config, kwargs)
+        return boto3_method(*args, **kwargs)
+
+    def boto3_method_with_extraargs(
+        self,
+        boto3_method,
+        config=None,
+        args=(),
+        kwargs=None,
+        extra_args=None,
+        allowed_extra_args=(),
+    ):
+        kwargs = kwargs or {}
+        extra_args = extra_args or {}
+        if config is not None:
+            extra_args.update({
+                key: value
+                for key, value in config.items()
+                if key in allowed_extra_args
+            })
+        kwargs["ExtraArgs"] = extra_args
         return boto3_method(*args, **kwargs)
 
     def generate_prefix(self, path):
