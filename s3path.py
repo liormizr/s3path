@@ -164,7 +164,17 @@ class _S3Accessor(_Accessor):
         bucket_name = path.bucket
         resource, _ = self.configuration_map.get_configuration(path)
         if not path.key:
-            return resource.Bucket(bucket_name) in resource.buckets.all()
+            # Check whether or not the bucket exists.
+            # See https://stackoverflow.com/questions/26871884
+            try:
+                resource.meta.client.head_bucket(Bucket=bucket_name)
+                return True
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                if error_code == '404':
+                    # Not found
+                    return False
+                raise e
         bucket = resource.Bucket(bucket_name)
         key_name = str(path.key)
         for object in bucket.objects.filter(Prefix=key_name):
