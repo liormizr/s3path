@@ -198,7 +198,7 @@ class _S3Accessor(_Accessor):
         resource, config = self.configuration_map.get_configuration(path)
 
         smart_open_kwargs = {
-            'uri': path.as_uri(),
+            'uri': "s3:/" + str(path),
             'mode': mode,
             'buffering': buffering,
             'encoding': encoding,
