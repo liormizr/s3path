@@ -126,6 +126,8 @@ class _S3Scandir:
                 name = full_name.split(sep)[-1]
                 yield S3DirEntry(name, is_dir=True)
             for file in response.get('Contents', ()):
+                if file['Key'] == response['Prefix']:
+                    continue
                 name = file['Key'].split(sep)[-1]
                 yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
             if not response.get('IsTruncated'):
