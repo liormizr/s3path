@@ -21,6 +21,8 @@ jobs:
         run: python -c "import sys; print(sys.version)"
 
       - name: Install dependencies
+        env:
+          PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
         run: make init
 
       - name: Run Tests
