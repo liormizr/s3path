@@ -251,6 +251,15 @@ def test_read_lines(s3_mock):
         assert len(fp.readlines()) == 2
 
 
+def test_fix_url_encoding_issue(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'paramA=valueA/paramB=valueB/name')
+    object_summary.put(Body=b'test data\ntest data')
+
+    assert S3Path('/test-bucket/paramA=valueA/paramB=valueB/name').read_bytes() == b'test data\ntest data'
+
+
 def test_read_lines_hint(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
@@ -337,6 +346,16 @@ def test_iterdir_on_buckets(s3_mock):
         S3Path('/test-bucket{}'.format(index))
         for index in range(4)
     ]
+
+
+def test_empty_directory(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+
+    assert list(S3Path('/test-bucket').iterdir()) == []
+
+    s3.meta.client.put_object(Bucket='test-bucket', Key='to/empty/dir/')
+    assert list(S3Path('/test-bucket/to/empty/dir/').iterdir()) == []
 
 
 def test_open_for_reading(s3_mock):
