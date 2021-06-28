@@ -9,7 +9,7 @@ developer:
 	pipenv install --dev --skip-lock
 
 tests:
-	pipenv run tox
+	pipenv run pytest
 
 publish:
 	pipenv run python setup.py sdist bdist_wheel
