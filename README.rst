@@ -5,9 +5,9 @@ S3Path
     :target: https://pypi.org/project/s3path/
     :alt: Latest version
 
-.. image:: https://badgen.net/travis/liormizr/s3path/master/
-    :target: https://travis-ci.com/liormizr/s3path
-    :alt: Travis-CI
+.. image:: https://github.com/liormizr/s3path/actions/workflows/testing.yml/badge.svg?branch=master&event=push
+    :target: https://github.com/liormizr/s3path/actions/workflows/testing.yml
+    :alt: S3Path CI
 
 S3Path provide a Python convenient File-System/Path like interface for AWS S3 Service using boto3 S3 resource as a driver.
 
