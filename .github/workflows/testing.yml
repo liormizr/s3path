@@ -22,6 +22,6 @@ jobs:
           sudo rm -f /etc/boto.cfg
           make init
       - name: Run Tests
-        env: BOTO_CONFIG=/dev/null
+#         env: BOTO_CONFIG=/dev/null
         run: make tests
 
