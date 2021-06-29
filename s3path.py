@@ -616,12 +616,33 @@ class PureS3Path(PurePath):
         """
         Return the path as a 's3' URI.
         """
-        return super().as_uri()
+        return "s3:/" + str(self)
 
     def _absolute_path_validation(self):
         if not self.is_absolute():
             raise ValueError('relative path have no bucket, key specification')
 
+    def __fspath__(self):
+        if strict_fspath_mode:
+            raise UnsupportedOperation(
+                "The fspath protocol is disabled under s3path's strict fspath mode "
+                "because S3 paths do not exist on the local filesystem. You must "
+                "explicitly specify the desired behavior. If you would like to convert "
+                "this object into a URI, then use .as_uri(). If supported, you may "
+                "wish to use a file handle, for example,\n\n    with this_path.open() "
+                "as file_handle:\n        do_something_with(file_handle)\n\n(The "
+                "latter is recommended when using Pandas.)"
+            )
+        else:
+            return self.as_uri()
+
+strict_fspath_mode = False
+"""When true, this prevents fspath from implicitly converting an S3Path object to a URI.
+To enable, do
+
+    import s3path
+    s3path.strict_fspath_mode = True
+"""
 
 class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     """
