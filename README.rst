@@ -152,14 +152,7 @@ Further Documentation:
 * `Abstract pathlib interface`_ implemented by S3Path
 * `Boto3 vs S3Path usage examples`_
 
-Similar Projects:
-=================
 
-* `pathlib`_ : Python standard library's Object-oriented filesystem paths and this project base
-* `pathy`_ : Similar project which provides a Path interface for GoogleCloudStorage.
-
-.. _pathlib : https://docs.python.org/3/library/pathlib.html
 .. _Abstract pathlib interface: https://github.com/liormizr/s3path/blob/master/docs/interface.rst
 .. _Boto3 vs S3Path usage examples: https://github.com/liormizr/s3path/blob/master/docs/comparison.rst
 .. _Advanced S3Path configuration: https://github.com/liormizr/s3path/blob/master/docs/advance.rst
-.. _pathy: https://github.com/justindujardin/pathy
