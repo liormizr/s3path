@@ -150,6 +150,9 @@ class _S3Accessor(_Accessor):
             self._s3 = None
         self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)
 
+    def metadata(self, path):
+        return self._s3.Object(path.bucket, path.key).metadata
+
     def stat(self, path):
         resource, _ = self.configuration_map.get_configuration(path)
         object_summary = resource.ObjectSummary(path.bucket, path.key)
@@ -653,6 +656,9 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         if not self.bucket:
             return True
         return self._accessor.exists(self)
+
+    def metadata(self):
+        return self._accessor.metadata(self)
 
     def is_dir(self):
         """
