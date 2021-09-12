@@ -148,7 +148,7 @@ class _S3Accessor(_Accessor):
             self._s3 = boto3.resource('s3', **kwargs)
         except AttributeError:
             self._s3 = None
-        self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)
+        self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)  # , **kwargs) Todo: I'm here
 
     def stat(self, path):
         resource, _ = self.configuration_map.get_configuration(path)
@@ -209,7 +209,7 @@ class _S3Accessor(_Accessor):
         }
         transport_params = {'defer_seek': True}
         dummy_object = self._s3.Object('bucket', 'key')
-        if smart_open.__version__ >= '5.0.0':
+        if smart_open.__version__ >= '5.1.0':
             self._smart_open_new_version_kwargs(
                 dummy_object,
                 resource,
