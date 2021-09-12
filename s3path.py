@@ -53,11 +53,15 @@ class _S3Flavour(_PosixFlavour):
 
 
 class _S3ConfigurationMap:
-    def __init__(self, default_resource, **default_arguments):
-        self.default_resource = default_resource
+    def __init__(self, default_resource_kwargs, **default_arguments):
+        self.default_resource_kwargs = default_resource_kwargs
         self.default_arguments = default_arguments
         self.arguments = None
         self.resources = None
+
+    @property
+    def default_resource(self):
+        return boto3.resource('s3', **self.default_resource_kwargs)
 
     def _initial_setup(self):
         self.arguments = {PureS3Path('/'): self.default_arguments}
@@ -144,11 +148,7 @@ class _S3Accessor(_Accessor):
     """
 
     def __init__(self, **kwargs):
-        try:
-            self._s3 = boto3.resource('s3', **kwargs)
-        except AttributeError:
-            self._s3 = None
-        self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)
+        self.configuration_map = _S3ConfigurationMap(default_resource_kwargs=kwargs)
 
     def stat(self, path):
         resource, _ = self.configuration_map.get_configuration(path)
@@ -208,7 +208,7 @@ class _S3Accessor(_Accessor):
             'newline': newline,
         }
         transport_params = {'defer_seek': True}
-        dummy_object = self._s3.Object('bucket', 'key')
+        dummy_object = resource.Object('bucket', 'key')
         if smart_open.__version__ >= '5.1.0':
             self._smart_open_new_version_kwargs(
                 dummy_object,
