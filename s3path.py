@@ -148,7 +148,7 @@ class _S3Accessor(_Accessor):
             self._s3 = boto3.resource('s3', **kwargs)
         except AttributeError:
             self._s3 = None
-        self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)  # , **kwargs) Todo: I'm here
+        self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)
 
     def stat(self, path):
         resource, _ = self.configuration_map.get_configuration(path)
