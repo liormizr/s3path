@@ -150,7 +150,7 @@ class _S3Accessor(_Accessor):
     def __init__(self, **kwargs):
         self.configuration_map = _S3ConfigurationMap(default_resource_kwargs=kwargs)
 
-    def stat(self, path):
+    def stat(self, path, *, follow_symlinks=True):
         resource, _ = self.configuration_map.get_configuration(path)
         object_summary = resource.ObjectSummary(path.bucket, path.key)
         return StatResult(
