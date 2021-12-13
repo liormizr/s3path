@@ -151,6 +151,11 @@ class _S3Accessor(_Accessor):
         self.configuration_map = _S3ConfigurationMap(default_resource_kwargs=kwargs)
 
     def stat(self, path, *, follow_symlinks=True):
+        if not follow_symlinks:
+            raise NotImplementedError(
+                f'Setting follow_symlinks to {follow_symlinks} is '
+                'unsupported on S3 service.'
+            )
         resource, _ = self.configuration_map.get_configuration(path)
         object_summary = resource.ObjectSummary(path.bucket, path.key)
         return StatResult(
