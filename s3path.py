@@ -632,6 +632,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     If boto3 isn't installed in your environment NotImplementedError will be raised.
     """
+    _accessor = _s3_accessor
     __slots__ = ()
 
     def stat(self):
