@@ -463,7 +463,7 @@ class _PathNotSupportedMixin:
         message = cls._NOT_SUPPORTED_MESSAGE.format(method=cls.home.__qualname__)
         raise NotImplementedError(message)
 
-    def chmod(self, mode):
+    def chmod(self, mode, *, follow_symlinks=True):
         """
         chmod method is unsupported on S3 service
         AWS S3 don't have this file system action concept
@@ -640,12 +640,18 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     _accessor = _s3_accessor
     __slots__ = ()
 
-    def stat(self):
+    def stat(self, *, follow_symlinks=True):
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
         For compatibility with pathlib, the returned object some similar attributes like os.stat_result.
         The result is looked up at each call to this method
         """
+        if not follow_symlinks:
+            raise NotImplementedError(
+                'Setting follow_symlinks to {follow_symlinks} is '
+                'unsupported on S3 service.'.format(follow_symlinks=follow_symlinks)
+            )
+
         self._absolute_path_validation()
         if not self.key:
             return None
