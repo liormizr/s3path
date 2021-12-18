@@ -44,8 +44,8 @@ All the methods below will raise a `ValueError`_ if the path isn't absolute.
 Many of these methods can raise a `botocore.exceptions.ClientError` if `boto3`_ call fails
 (for example because the path doesn't exist).
 
-S3Path.stat()
-^^^^^^^^^^^^^
+S3Path.stat(*, follow_symlinks=True)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Returns information about this path (similarly to boto3's `ObjectSummary`_).
 For compatibility with `pathlib`_, the returned object some similar attributes like `os.stat_result`_.
@@ -64,6 +64,8 @@ The result is looked up at each call to this method:
    Traceback (most recent call last):
    ...
    io.UnsupportedOperation: StatResult do not support st_atime attribute
+
+**NOTE:** ``follow_symlinks`` option must be always set to ``True``.
 
 S3Path.exists()
 ^^^^^^^^^^^^^^^
@@ -301,8 +303,8 @@ Opens the key pointed to in bytes mode, write data to it, and close / save the k
    >>> S3Path('/test_bucket/test.txt').read_bytes()
    b'Binary file contents'
 
-S3Path.write_text(data, encoding=None, errors=None)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+S3Path.write_text(data, encoding=None, errors=None, newline=None)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Opens the key pointed to in text mode, writes data to it, and close / save the key:
 
@@ -311,6 +313,8 @@ Opens the key pointed to in text mode, writes data to it, and close / save the k
    >>> S3Path('/test_bucket/test.txt').write_text('Text file contents')
    >>> S3Path('/test_bucket/test.txt').read_text()
    'Text file contents'
+
+**NOTE:** ``newline`` option is only available on Python 3.10 and greater.
 
 S3Path.mkdir(mode=0o777, parents=False, exist_ok=False)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -453,7 +457,7 @@ Here is a list of all unsupported methods:
 
 - classmethod S3Path.cwd()
 - classmethod S3Path.home()
-- S3Path.chmod(mode)
+- S3Path.chmod(mode, *, follow_symlinks=True)
 - S3Path.expanduser()
 - S3Path.lchmod(mode)
 - S3Path.group()
