@@ -577,7 +577,7 @@ class PureS3Path(PurePath):
         << PureS3Path('/<bucket>/<key>')
         """
         if not uri.startswith('s3://'):
-            raise ValueError('...')
+            raise ValueError('Provided uri seems to be no S3 URI!')
         return cls(uri[4:])
 
     @property
