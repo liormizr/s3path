@@ -160,7 +160,7 @@ class _S3Accessor(_Accessor):
                 'unsupported on S3 service.'.format(follow_symlinks=follow_symlinks)
             )
         resource, _ = self.configuration_map.get_configuration(path)
-        object_summary = resource.Object(path.bucket, path.key)
+        object_summary = resource.ObjectSummary(path.bucket, path.key)
         return StatResult(
             size=object_summary.size,
             last_modified=object_summary.last_modified,
@@ -643,7 +643,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     _accessor = _s3_accessor
     __slots__ = ()
 
-    def stat(self):
+    def stat(self, *, follow_symlinks=True):
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
         For compatibility with pathlib, the returned object some similar attributes like os.stat_result.
