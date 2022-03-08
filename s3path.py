@@ -151,7 +151,8 @@ class _S3Accessor(_Accessor):
         self.configuration_map = _S3ConfigurationMap(default_resource_kwargs=kwargs)
 
     def metadata(self, path):
-        return self._s3.Object(path.bucket, path.key).metadata
+        resource, _ = self.configuration_map.get_configuration(path)
+        return resource.Object(path.bucket, path.key).metadata
 
     def stat(self, path, *, follow_symlinks=True):
         if not follow_symlinks:
