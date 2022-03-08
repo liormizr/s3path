@@ -90,3 +90,9 @@ def test_symlink_to():
     path = S3Path('/fake-bucket/fake-key')
     with pytest.raises(NotImplementedError):
         path.symlink_to('file_name')
+
+
+def test_stat():
+    path = S3Path('/fake-bucket/fake-key')
+    with pytest.raises(NotImplementedError):
+        path.stat(follow_symlinks=False)

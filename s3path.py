@@ -25,7 +25,7 @@ except ImportError:
     smart_open = None
     ALLOWED_COPY_ARGS = []
 
-__version__ = '0.3.02'
+__version__ = '0.3.3'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
@@ -53,11 +53,15 @@ class _S3Flavour(_PosixFlavour):
 
 
 class _S3ConfigurationMap:
-    def __init__(self, default_resource, **default_arguments):
-        self.default_resource = default_resource
+    def __init__(self, default_resource_kwargs, **default_arguments):
+        self.default_resource_kwargs = default_resource_kwargs
         self.default_arguments = default_arguments
         self.arguments = None
         self.resources = None
+
+    @property
+    def default_resource(self):
+        return boto3.resource('s3', **self.default_resource_kwargs)
 
     def _initial_setup(self):
         self.arguments = {PureS3Path('/'): self.default_arguments}
@@ -144,18 +148,19 @@ class _S3Accessor(_Accessor):
     """
 
     def __init__(self, **kwargs):
-        try:
-            self._s3 = boto3.resource('s3', **kwargs)
-        except AttributeError:
-            self._s3 = None
-        self.configuration_map = _S3ConfigurationMap(default_resource=self._s3)
+        self.configuration_map = _S3ConfigurationMap(default_resource_kwargs=kwargs)
 
     def metadata(self, path):
         return self._s3.Object(path.bucket, path.key).metadata
 
-    def stat(self, path):
+    def stat(self, path, *, follow_symlinks=True):
+        if not follow_symlinks:
+            raise NotImplementedError(
+                'Setting follow_symlinks to {follow_symlinks} is '
+                'unsupported on S3 service.'.format(follow_symlinks=follow_symlinks)
+            )
         resource, _ = self.configuration_map.get_configuration(path)
-        object_summary = resource.ObjectSummary(path.bucket, path.key)
+        object_summary = resource.Object(path.bucket, path.key)
         return StatResult(
             size=object_summary.size,
             last_modified=object_summary.last_modified,
@@ -211,8 +216,8 @@ class _S3Accessor(_Accessor):
             'newline': newline,
         }
         transport_params = {'defer_seek': True}
-        dummy_object = self._s3.Object('bucket', 'key')
-        if smart_open.__version__ >= '5.0.0':
+        dummy_object = resource.Object('bucket', 'key')
+        if smart_open.__version__ >= '5.1.0':
             self._smart_open_new_version_kwargs(
                 dummy_object,
                 resource,
@@ -461,7 +466,7 @@ class _PathNotSupportedMixin:
         message = cls._NOT_SUPPORTED_MESSAGE.format(method=cls.home.__qualname__)
         raise NotImplementedError(message)
 
-    def chmod(self, mode):
+    def chmod(self, mode, *, follow_symlinks=True):
         """
         chmod method is unsupported on S3 service
         AWS S3 don't have this file system action concept
@@ -575,7 +580,7 @@ class PureS3Path(PurePath):
         << PureS3Path('/<bucket>/<key>')
         """
         if not uri.startswith('s3://'):
-            raise ValueError('...')
+            raise ValueError('Provided uri seems to be no S3 URI!')
         return cls(uri[4:])
 
     @property
@@ -635,6 +640,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     If boto3 isn't installed in your environment NotImplementedError will be raised.
     """
+    _accessor = _s3_accessor
     __slots__ = ()
 
     def stat(self):
@@ -643,6 +649,12 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         For compatibility with pathlib, the returned object some similar attributes like os.stat_result.
         The result is looked up at each call to this method
         """
+        if not follow_symlinks:
+            raise NotImplementedError(
+                'Setting follow_symlinks to {follow_symlinks} is '
+                'unsupported on S3 service.'.format(follow_symlinks=follow_symlinks)
+            )
+
         self._absolute_path_validation()
         if not self.key:
             return None
