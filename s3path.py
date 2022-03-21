@@ -10,6 +10,7 @@ from platform import python_version
 from distutils.version import StrictVersion
 from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
 from pathlib import _PosixFlavour, _Accessor, PurePath, Path
+from threading import Lock
 
 try:
     import boto3
@@ -58,14 +59,20 @@ class _S3ConfigurationMap:
         self.default_arguments = default_arguments
         self.arguments = None
         self.resources = None
+        self.setup_lock = Lock()
+        self.is_setup = False
 
     @property
     def default_resource(self):
         return boto3.resource('s3', **self.default_resource_kwargs)
 
-    def _initial_setup(self):
-        self.arguments = {PureS3Path('/'): self.default_arguments}
-        self.resources = {PureS3Path('/'): self.default_resource}
+    def _delayed_setup(self):
+        """ Resolves a circular dependency between us and PureS3Path """
+        with self.setup_lock:
+            if not self.is_setup:
+                self.arguments = {PureS3Path('/'): self.default_arguments}
+                self.resources = {PureS3Path('/'): self.default_resource}
+                self.is_setup = True
 
     def __repr__(self):
         return '{name}(arguments={arguments}, resources={resources})'.format(
@@ -74,8 +81,7 @@ class _S3ConfigurationMap:
             resources=self.resources)
 
     def set_configuration(self, path, *, resource=None, arguments=None):
-        if self.arguments is None and self.resources is None:
-            self._initial_setup()
+        self._delayed_setup()
         if arguments is not None:
             self.arguments[path] = arguments
         if resource is not None:
@@ -83,8 +89,7 @@ class _S3ConfigurationMap:
 
     @lru_cache()
     def get_configuration(self, path):
-        if self.arguments is None and self.resources is None:
-            self._initial_setup()
+        self._delayed_setup()
         resources = arguments = None
         for path in chain([path], path.parents):
             if resources is None and path in self.resources:
