@@ -5,13 +5,18 @@ from moto import mock_s3
 from s3path import register_configuration_parameter, PureS3Path, _s3_accessor
 
 
+def _cleanup():
+    _s3_accessor.configuration_map.get_configuration.cache_clear()
+    _s3_accessor.configuration_map.is_setup = False
+
+
 @pytest.fixture()
 def reset_configuration_cache():
     try:
-        _s3_accessor.configuration_map.get_configuration.cache_clear()
+        _cleanup()
         yield
     finally:
-        _s3_accessor.configuration_map.get_configuration.cache_clear()
+        _cleanup()
 
 
 @pytest.fixture()
