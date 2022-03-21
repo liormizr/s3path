@@ -75,10 +75,11 @@ class _S3ConfigurationMap:
                 self.is_setup = True
 
     def __repr__(self):
-        return '{name}(arguments={arguments}, resources={resources})'.format(
+        return '{name}(arguments={arguments}, resources={resources}, is_setup={is_setup})'.format(
             name=type(self).__name__,
             arguments=self.arguments,
-            resources=self.resources)
+            resources=self.resources,
+            is_setup=self.is_setup)
 
     def set_configuration(self, path, *, resource=None, arguments=None):
         self._delayed_setup()
