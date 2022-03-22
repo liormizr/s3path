@@ -26,7 +26,7 @@ except ImportError:
     smart_open = None
     ALLOWED_COPY_ARGS = []
 
-__version__ = '0.3.3'
+__version__ = '0.3.4'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
