@@ -13,7 +13,7 @@ setup(
     py_modules=['s3path'],
     install_requires=[
         'boto3>=1.16.35',
-        'smart-open<=5.2.1',
+        'smart-open==5.2.1',
     ],
     license='Apache 2.0',
     long_description=long_description,
