@@ -579,7 +579,7 @@ class PureS3Path(PurePath):
         from_uri class method create a class instance from url
 
         >> from s3path import PureS3Path
-        >> PureS3Path.from_url('s3://<bucket>/<key>')
+        >> PureS3Path.from_uri('s3://<bucket>/<key>')
         << PureS3Path('/<bucket>/<key>')
         """
         if not uri.startswith('s3://'):
@@ -919,3 +919,36 @@ class S3DirEntry:
 
     def stat(self):
         return self._stat
+
+
+def s3_factory_and_sanitize_args(cls, cls_if_s3, *args):
+    """Determine if path provide to the constructor starts with
+    "s3://", if it's an S3 URI, return arranged args
+    to match constructor behaviour (without `s3://`) and given
+    cls_if_s3 as Object to use. if not return cls and args as it.
+    """
+    if args and str(args[0]).startswith("s3://"):
+        cls = cls_if_s3
+        largs = list(args)
+        largs[0] = largs[0][4:]
+        args = tuple(largs)
+    elif args and args[0].__class__ is cls_if_s3:
+        cls = cls_if_s3
+    return cls, args
+
+original_path_new = Path.__new__
+original_purepath_new = PurePath.__new__
+
+def __monkey_patch_path__new__(cls, *args, **kwargs):
+    if cls is Path:
+        cls, args = s3_factory_and_sanitize_args(cls, S3Path, *args)
+    return original_path_new(cls, *args, **kwargs)
+
+
+def __monkey_patch_purepath__new__(cls, *args, **kwargs):
+    if cls is PurePath:
+        cls, args = s3_factory_and_sanitize_args(cls, PureS3Path, *args)
+    return original_purepath_new(cls, *args, **kwargs)
+
+Path.__new__ = __monkey_patch_path__new__
+PurePath.__new__ = __monkey_patch_purepath__new__

@@ -1,7 +1,7 @@
 import os
 import sys
 import pytest
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath, PurePath
 from s3path import PureS3Path
 
 
@@ -186,3 +186,49 @@ def test_with_suffix():
     assert s3_path.with_suffix('.txt') == PureS3Path('README.txt')
     s3_path = PureS3Path('README.txt')
     assert s3_path.with_suffix('') == PureS3Path('README')
+
+def test_instantiate_empty():
+    test = PurePath()
+    assert test
+
+
+def test_auto_instantiate_PureS3Path():
+    s3_path = PurePath("s3://bucket/directory/file.csv")
+    assert s3_path.__class__ is PureS3Path
+    assert s3_path.as_uri() == "s3://bucket/directory/file.csv"
+    assert s3_path.root == "/"
+    assert s3_path.drive == ""
+
+
+def test_auto_instantiate_PureS3Path_splited_string():
+    s3_path = PurePath("s3://", "bucket", "directory", "file.csv")
+    assert s3_path.__class__ is PureS3Path
+    assert s3_path.as_uri() == "s3://bucket/directory/file.csv"
+    assert s3_path.root == "/"
+    assert s3_path.drive == ""
+
+
+def test_auto_instantiate_PureS3Path_splited_path():
+    s3_path = PurePath(PurePath("s3://"), PurePath("bucket"), PurePath("directory"), PurePath("file.csv"))
+    assert s3_path.__class__ is PureS3Path
+    assert s3_path.as_uri() == "s3://bucket/directory/file.csv"
+    assert s3_path.root == "/"
+    assert s3_path.drive == ""
+
+
+def test_not_PureS3Path():
+    not_s3_path = PurePath("/", "directory", "file.csv")
+    assert not_s3_path.__class__ is not PureS3Path
+
+
+def test_not_PureS3Path_split_path():
+    not_s3_path = PurePath(PurePath("/"), PurePath("directory"), PurePath("file.csv"))
+    assert not_s3_path.__class__ is not PureS3Path
+
+
+def test_PureS3Path_from_uri():
+    s3_path = PureS3Path.from_uri("s3://bucket/directory/file.csv")
+    assert s3_path.__class__ is PureS3Path
+    assert s3_path.as_uri() == "s3://bucket/directory/file.csv"
+    assert s3_path.root == "/"
+    assert s3_path.drive == ""

@@ -629,3 +629,10 @@ def test_unlink(s3_mock):
     S3Path("/test-bucket/fake_subfolder/fake_subkey").unlink(missing_ok=True)
     S3Path("/test-bucket/fake_folder").unlink(missing_ok=True)
     S3Path("/fake-bucket/").unlink(missing_ok=True)
+
+def test_auto_instantiate_S3Path():
+    s3_path = Path("s3://bucket/directory/file.csv")
+    assert s3_path.__class__ is S3Path
+    assert s3_path.as_uri() == "s3://bucket/directory/file.csv"
+    assert s3_path.root == "/"
+    assert s3_path.drive == ""

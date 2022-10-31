@@ -57,6 +57,15 @@ Importing the main class:
 
    >>> from s3path import S3Path
 
+Or Importing `pathilb.Pah` it will automatically instantiate S3Path detecting `s3://` in the uri.
+
+.. code:: python
+
+   >>> from pathlib import Path
+   >>> Path("s3://pypi-proxy/")
+   S3Path('/pypi-proxy/')
+
+
 Listing "subdirectories" - s3 keys can be split like file-system with a `/` in s3path we:
 
 .. code:: python
