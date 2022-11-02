@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from io import UnsupportedOperation
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from uri_pathlib_factory import PathFactory
 
 import boto3
@@ -477,7 +477,7 @@ def test_rename_s3_to_s3(s3_mock):
 
     s3.create_bucket(Bucket='target-bucket')
 
-    S3Path('/test-bucket/docs/conf.py').rename('/test-bucket/docs/conf1.py')
+    S3Path('/test-bucket/docs/conf.py').rename('s3://test-bucket/docs/conf1.py')
     assert not S3Path('/test-bucket/docs/conf.py').exists()
     assert S3Path('/test-bucket/docs/conf1.py').is_file()
 
@@ -492,6 +492,36 @@ def test_rename_s3_to_s3(s3_mock):
     assert S3Path('/target-bucket/folder/_build/22conf.py').is_file()
     assert S3Path('/target-bucket/folder/_static/conf.py').is_file()
 
+def test_rename_fs_to_s3(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    s3_destination = S3Path("/test-bucket") / "README.md"
+    content = "# Moving file from FS to S3"
+    assert not s3_destination.exists()
+    with TemporaryDirectory() as tmp_dir:
+        local_file = Path(tmp_dir) / "test.md"
+        local_file.write_text(content)
+        assert local_file.exists()
+        local_file.rename(s3_destination)
+        assert s3_destination.exists()
+        assert s3_destination.is_file()
+        assert s3_destination.read_text() == content
+        assert not local_file.exists()
+
+def test_rename_s3_to_fs(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    content = "# Moving file from S3 to FS"
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/README.md')
+    object_summary.put(Body=content)
+    s3_source = S3Path('/test-bucket/docs/README.md')
+    assert s3_source.is_file()
+    assert s3_source.exists()
+    with TemporaryDirectory() as tmp_dir:
+        local_destination = Path(tmp_dir) / "README.md"
+        s3_source.rename(local_destination)
+        assert local_destination.exists()
+    
 
 def test_replace_s3_to_s3(s3_mock):
     s3 = boto3.resource('s3')
@@ -513,7 +543,7 @@ def test_replace_s3_to_s3(s3_mock):
 
     s3.create_bucket(Bucket='target-bucket')
 
-    S3Path('/test-bucket/docs/conf.py').replace('/test-bucket/docs/conf1.py')
+    S3Path('/test-bucket/docs/conf.py').replace('s3://test-bucket/docs/conf1.py')
     assert not S3Path('/test-bucket/docs/conf.py').exists()
     assert S3Path('/test-bucket/docs/conf1.py').is_file()
 

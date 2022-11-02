@@ -19,6 +19,8 @@ try:
     import smart_open
     from s3transfer.manager import TransferManager
     ALLOWED_COPY_ARGS = TransferManager.ALLOWED_COPY_ARGS
+    ALLOWED_UPLOAD_ARGS = TransferManager.ALLOWED_UPLOAD_ARGS
+    ALLOWED_DOWNLOAD_ARGS = TransferManager.ALLOWED_DOWNLOAD_ARGS
 except ImportError:
     boto3 = None
     ClientError = Exception
@@ -26,6 +28,12 @@ except ImportError:
     smart_open = None
     Version = None
     ALLOWED_COPY_ARGS = []
+    ALLOWED_UPLOAD_ARGS = []
+    ALLOWED_DOWNLOAD_ARGS = []
+try:
+    from uri_pathlib_factory import PathFactory
+except ImportError:
+    from pathlib import Path as PathFactory
 
 __version__ = '0.3.4'
 __all__ = (
@@ -287,6 +295,27 @@ class _S3Accessor(_Accessor):
                 allowed_extra_args=ALLOWED_COPY_ARGS,
             )
             self._boto3_method_with_parameters(object_summary.delete)
+
+    def put(self, source, target):
+        resource, config = self.configuration_map.get_configuration(target)
+        bucket = resource.Bucket(target.bucket)
+        self._boto3_method_with_extraargs(
+            bucket.upload_file,
+            config=config,
+            args=(str(source), target.key, ),
+            allowed_extra_args=ALLOWED_UPLOAD_ARGS,
+        )
+
+    def get(self, source, target):
+        resource, config = self.configuration_map.get_configuration(source)
+        s3_object = resource.Bucket(source.bucket).Object(source.key)
+        with open(target, 'wb') as data:
+            self._boto3_method_with_extraargs(
+                s3_object.download_fileobj,
+                config=config,
+                args=(data,),
+                allowed_extra_args=ALLOWED_DOWNLOAD_ARGS,
+            )
 
     def replace(self, path, target):
         return self.rename(path, target)
@@ -752,10 +781,30 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         Target can be either a string or another S3Path object.
         """
         self._absolute_path_validation()
+        if isinstance(target, str):
+            target = PathFactory(target) 
         if not isinstance(target, type(self)):
-            target = type(self)(target)
+            return self._rename_to_fs(target)
         target._absolute_path_validation()
         return super().rename(target)
+
+    def _rename_to_fs(self, target):
+        self._accessor.get(self, target)
+        if not target.exists():
+            raise Exception(
+                "Something goes wrong while renaming s3 object from %s to %s " % (self, target)
+            )
+        self.unlink()
+        return target
+
+    def _rename_from_fs(self, source):
+        self._accessor.put(source, self)
+        if not self.exists():
+            raise Exception(
+                "Something goes wrong while renaming file from %s to s3 object %s " % (source, self)
+            )
+        source.unlink()
+        return self
 
     def replace(self, target):
         """
@@ -877,7 +926,6 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         if template is None:
             self._accessor = _s3_accessor
 
-
 class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
     """
     Base of os.stat_result but with boto3 s3 features
@@ -930,3 +978,19 @@ def register_uri_pathlib_s3_backend():
     (scheme, PurePathClass, PathClass, Optional[params_adapter], )
     """
     return ("s3", PureS3Path, S3Path, None)
+
+
+original_path_rename = Path.rename
+
+
+def __mokey_patch_path_rename__(self, target):
+    if isinstance(target, str):
+        target = PathFactory(target)
+    if self.__class__ is S3Path and target.__class__ is not S3Path:
+        return self._rename_to_fs(target)
+    elif self.__class__ is not S3Path and target.__class__ is S3Path:
+        return target._rename_from_fs(self)
+    return original_path_rename(self, target)
+
+
+Path.rename = __mokey_patch_path_rename__
