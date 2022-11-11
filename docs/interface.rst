@@ -229,7 +229,7 @@ S3Path.rename(target)
 Renames this file or Bucket / key prefix / key to the given target.
 If target exists and is a file, it will be replaced silently if the user has permission.
 If path is a key prefix, it will replace all the keys with the same prefix to the new target prefix.
-target can be either a string or another S3Path_ object:
+target can be either a string or another subclass of `Path`_ (PosixPath, S3Path_, ...) object:
 
 .. code:: python
 

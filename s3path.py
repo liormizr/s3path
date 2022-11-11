@@ -298,22 +298,38 @@ class _S3Accessor(_Accessor):
 
     def put(self, source, target):
         resource, config = self.configuration_map.get_configuration(target)
+        callback_class = config.pop("callback_class", None)
+        if callback_class is not None:
+            callback_class = callback_class(source)
+        kwargs = {
+            "Config": config.pop("transfert_config", None),
+            "Callback": callback_class,
+        }
         bucket = resource.Bucket(target.bucket)
         self._boto3_method_with_extraargs(
             bucket.upload_file,
             config=config,
             args=(str(source), target.key, ),
+            kwargs=kwargs,
             allowed_extra_args=ALLOWED_UPLOAD_ARGS,
         )
 
     def get(self, source, target):
         resource, config = self.configuration_map.get_configuration(source)
+        callback_class = config.pop("callback_class", None)
+        if callback_class is not None:
+            callback_class = callback_class(source)
+        kwargs = {
+            "Config": config.pop("transfert_config", None),
+            "Callback": callback_class,
+        }
         s3_object = resource.Bucket(source.bucket).Object(source.key)
         with open(target, 'wb') as data:
             self._boto3_method_with_extraargs(
                 s3_object.download_fileobj,
                 config=config,
                 args=(data,),
+                kwargs=kwargs,
                 allowed_extra_args=ALLOWED_DOWNLOAD_ARGS,
             )
 

@@ -110,6 +110,80 @@ This example show how to specify default AWS S3 parameters, a `LocalStack`_ Buck
    >>> register_configuration_parameter(minio_bucket_path, resource=minio_resource)
 
 
+while using rename to/from S3 path we are using upload/download methods
+but s3 transfer configuration set in your `.aws/config` file won't be honored
+as this is not part of boto3_ but config interpretation is part of `aws-cli`_ in the
+`RuntimeConfig` class.
+
+So we provide a way to configurer additional params in order to be able to
+configure TransferConfig and Callback:
+
+.. code:: python
+
+   >>> import sys
+   >>> import threading
+   >>> import boto3
+   >>> from botocore.client import Config
+   >>> from boto3.s3.transfer import TransferConfig
+   >>> from s3path import PureS3Path, register_configuration_parameter
+   >>> 
+   >>> 
+   >>> KB = 1024
+   >>> MB = 1024 ** 2
+   >>> GB = 1024 ** 3
+   >>> 
+   >>> 
+   >>> class ProgressPercentage(object):
+   >>> 
+   >>>     def __init__(self, filename):
+   >>>         self._filename = filename
+   >>>         self._size = filename.stat().st_size
+   >>>         self._seen_so_far = 0
+   >>>         self._lock = threading.Lock()
+   >>> 
+   >>>     def __call__(self, bytes_amount):
+   >>>         # To simplify we'll assume this is hooked up
+   >>>         # to a single filename.
+   >>>         with self._lock:
+   >>>             self._seen_so_far += bytes_amount
+   >>>             percentage = (self._seen_so_far / self._size) * 100
+   >>>             sys.stdout.write(
+   >>>                 "\r%s  %.3f GB / %.3f GB  (%.2f%%)" % (
+   >>>                     self._filename, self._seen_so_far / GB, self._size / GB,
+   >>>                     percentage))
+   >>>             sys.stdout.flush()
+   >>>
+   >>> # Define path's for configuration
+   >>> default_s3_path = PureS3Path('/')
+   >>> # Define boto3 s3 resources
+   >>> minio_resource = boto3.resource(
+       's3',
+       endpoint_url='http://localhost:9000',
+       aws_access_key_id='minio',
+       aws_secret_access_key='minio123',
+       config=Config(signature_version='s3v4'),
+       region_name='us-east-1')
+   >>> register_configuration_parameter(
+       default_s3_path,
+       resource=minio_resource, 
+       parameters={
+         "StorageClass": "GLACIER",
+         "transfert_config": TransferConfig(
+            use_threads=True,
+            multipart_threshold=30 * MB,
+            multipart_chunksize=20 * MB,
+            max_concurrency=10,
+            max_bandwidth=None,
+         ),
+         "callback_class": ProgressPercentage,
+       }, )
+
+
+Please follow the following link to find more informations regarding TransferConfig_ parameters.
+  
+
+.. _aws-cli : https://github.com/aws/aws-cli/blob/master/awscli/customizations/s3/transferconfig.py
+.. _TransferConfig: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/customizations/s3.html#boto3.s3.transfer.TransferConfig
 .. _pathlib : https://docs.python.org/3/library/pathlib.html
 .. _boto3 : https://github.com/boto/boto3
 .. _configuration: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
