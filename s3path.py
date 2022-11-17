@@ -904,7 +904,8 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def _glob(self, pattern):
         """ Glob with new Algorithm that better fit S3 API """
-        sys.audit("pathlib.Path.glob", self, pattern)
+        if StrictVersion(python_version()) >= StrictVersion('3.8'):
+            sys.audit("pathlib.Path.glob", self, pattern)
         if not pattern:
             raise ValueError("Unacceptable pattern: {!r}".format(pattern))
         drv, root, pattern_parts = self._flavour.parse_parts((pattern,))
@@ -930,7 +931,8 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def _rglob(self, pattern):
         """ RGlob with new Algorithm that better fit S3 API """
-        sys.audit("pathlib.Path.rglob", self, pattern)
+        if StrictVersion(python_version()) >= StrictVersion('3.8'):
+            sys.audit("pathlib.Path.rglob", self, pattern)
         if not pattern:
             raise ValueError("Unacceptable pattern: {!r}".format(pattern))
         drv, root, pattern_parts = self._flavour.parse_parts((pattern,))
