@@ -11,7 +11,6 @@ from functools import lru_cache
 from contextlib import suppress
 from platform import python_version
 from collections import namedtuple, deque
-from distutils.version import StrictVersion
 from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
 from pathlib import _PosixFlavour, _Accessor, _is_wildcard_pattern, PurePath, Path
 
@@ -19,6 +18,7 @@ try:
     import boto3
     from botocore.exceptions import ClientError
     from botocore.docs.docstring import LazyLoadedDocstring
+    from packaging.version import Version
     import smart_open
     from s3transfer.manager import TransferManager
     ALLOWED_COPY_ARGS = TransferManager.ALLOWED_COPY_ARGS
@@ -27,6 +27,7 @@ except ImportError:
     ClientError = Exception
     LazyLoadedDocstring = None
     smart_open = None
+    Version = None
     ALLOWED_COPY_ARGS = []
 
 __version__ = '0.4.0'
@@ -1005,7 +1006,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         # to raise a `FileNotFoundError`, we need to manually check if the file exists
         # before we make the API call -- since we want to delete the file anyway,
         # we can just ignore this for now and be satisfied that the file will be removed
-        if StrictVersion(python_version()) < StrictVersion('3.8'):
+        if Version(python_version()) < Version('3.8'):
             return super().unlink()
         super().unlink(missing_ok=missing_ok)
 
