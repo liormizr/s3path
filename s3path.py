@@ -100,11 +100,8 @@ class _S3ConfigurationMap:
                 self.is_setup = True
 
     def __repr__(self):
-        return '{name}(arguments={arguments}, resources={resources}, is_setup={is_setup})'.format(
-            name=type(self).__name__,
-            arguments=self.arguments,
-            resources=self.resources,
-            is_setup=self.is_setup)
+        return f'{type(self).__name__}' \
+               f'(arguments={self.arguments}, resources={self.resources}, is_setup={self.is_setup})'
 
     def set_configuration(self, path, *, resource=None, arguments=None, glob_new_algorithm=None):
         self._delayed_setup()
@@ -194,9 +191,7 @@ class _S3Accessor(_Accessor):
     def stat(self, path, *, follow_symlinks=True):
         if not follow_symlinks:
             raise NotImplementedError(
-                'Setting follow_symlinks to {follow_symlinks} is '
-                'unsupported on S3 service.'.format(follow_symlinks=follow_symlinks)
-            )
+                f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
         resource, _ = self.configuration_map.get_configuration(path)
         object_summary = resource.ObjectSummary(path.bucket, path.key)
         return StatResult(
@@ -361,7 +356,7 @@ class _S3Accessor(_Accessor):
                 kwargs={"Bucket": bucket_name, "Key": key_name}
             )
         except ClientError:
-            raise OSError("/{0}/{1}".format(bucket_name, key_name))
+            raise OSError(f'/{bucket_name}/{key_name}')
 
     def iter_keys(self, path, *, prefix=None, full_keys=True):
         resource, _ = self.configuration_map.get_configuration(path)
@@ -737,9 +732,9 @@ _s3_accessor = _S3Accessor()
 
 def register_configuration_parameter(path, *, parameters=None, resource=None, glob_new_algorithm=None):
     if not isinstance(path, PureS3Path):
-        raise TypeError('path argument have to be a {} type. got {}'.format(PurePath, type(path)))
+        raise TypeError(f'path argument have to be a {PurePath} type. got {type(path)}')
     if parameters and not isinstance(parameters, dict):
-        raise TypeError('parameters argument have to be a dict type. got {}'.format(type(path)))
+        raise TypeError(f'parameters argument have to be a dict type. got {type(path)}')
     if parameters is None and resource is None and glob_new_algorithm is None:
         raise ValueError('user have to specify parameters or resource arguments')
     _s3_accessor.configuration_map.set_configuration(
@@ -802,7 +797,7 @@ class PureS3Path(PurePath):
         """
         bucket = cls(cls._flavour.sep, bucket)
         if len(bucket.parts) != 2:
-            raise ValueError('bucket argument contains more then one path element: {}'.format(bucket))
+            raise ValueError(f'bucket argument contains more then one path element: {bucket}')
         key = cls(key)
         if key.is_absolute():
             key = key.relative_to('/')
@@ -839,9 +834,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         if not follow_symlinks:
             raise NotImplementedError(
-                'Setting follow_symlinks to {follow_symlinks} is '
-                'unsupported on S3 service.'.format(follow_symlinks=follow_symlinks)
-            )
+                f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
 
         self._absolute_path_validation()
         if not self.key:
@@ -907,7 +900,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         if StrictVersion(python_version()) >= StrictVersion('3.8'):
             sys.audit("pathlib.Path.glob", self, pattern)
         if not pattern:
-            raise ValueError("Unacceptable pattern: {!r}".format(pattern))
+            raise ValueError(f'Unacceptable pattern: {pattern}')
         drv, root, pattern_parts = self._flavour.parse_parts((pattern,))
         if drv or root:
             raise NotImplementedError("Non-relative patterns are unsupported")
@@ -934,7 +927,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         if StrictVersion(python_version()) >= StrictVersion('3.8'):
             sys.audit("pathlib.Path.rglob", self, pattern)
         if not pattern:
-            raise ValueError("Unacceptable pattern: {!r}".format(pattern))
+            raise ValueError(f'Unacceptable pattern: {pattern}')
         drv, root, pattern_parts = self._flavour.parse_parts((pattern,))
         if drv or root:
             raise NotImplementedError("Non-relative patterns are unsupported")
@@ -1064,11 +1057,11 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         try:
             if not self.bucket:
-                raise FileNotFoundError('No bucket in {} {}'.format(type(self), self))
+                raise FileNotFoundError(f'No bucket in {type(self)} {self}')
             if self.key and not parents:
-                raise FileNotFoundError('Only bucket path can be created, got {}'.format(self))
+                raise FileNotFoundError(f'Only bucket path can be created, got {self}')
             if type(self)(self._flavour.sep, self.bucket).exists():
-                raise FileExistsError('Bucket {} already exists'.format(self.bucket))
+                raise FileExistsError(f'Bucket {self.bucket} already exists')
             return super().mkdir(mode, parents=parents, exist_ok=exist_ok)
         except OSError:
             if not exist_ok:
@@ -1111,7 +1104,7 @@ class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
 
     def __getattr__(self, item):
         if item in vars(stat_result):
-            raise UnsupportedOperation('{} do not support {} attribute'.format(type(self).__name__, item))
+            raise UnsupportedOperation(f'{type(self).__name__} do not support {item} attribute')
         return super().__getattribute__(item)
 
     @property
@@ -1130,8 +1123,7 @@ class S3DirEntry:
         self._stat = StatResult(size=size, last_modified=last_modified)
 
     def __repr__(self):
-        return '{}(name={}, is_dir={}, stat={})'.format(
-            type(self).__name__, self.name, self._is_dir, self._stat)
+        return f'{type(self).__name__}(name={self.name}, is_dir={self._is_dir}, stat={self._stat})'
 
     def inode(self, *args, **kwargs):
         return None
