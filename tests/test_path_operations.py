@@ -115,9 +115,12 @@ def test_glob(s3_mock):
         S3Path('/test-bucket/pathlib.py'),
         S3Path('/test-bucket/setup.py'),
         S3Path('/test-bucket/test_pathlib.py')]
-    assert sorted(S3Path.from_uri('s3://test-bucket/').glob('*cs')) == [
-        S3Path('/test-bucket/docs/'),
-    ]
+    assert sorted(S3Path.from_uri('s3://test-bucket/').glob('*cs')) == [S3Path('/test-bucket/docs/')]
+    assert sorted(S3Path.from_uri('s3://test-bucket/').glob('docs/')) == [S3Path('/test-bucket/docs/')]
+
+
+def test_glob_old_algo(s3_mock, enable_old_glob):
+    test_glob(s3_mock)
 
 
 def test_rglob(s3_mock):
@@ -148,6 +151,10 @@ def test_rglob(s3_mock):
         S3Path('/test-bucket/test_pathlib.py')]
 
 
+def test_rglob_new_algo(s3_mock, enable_old_glob):
+    test_rglob(s3_mock)
+
+
 def test_accessor_scandir(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
@@ -170,6 +177,10 @@ def test_accessor_scandir(s3_mock):
         S3Path('/test-bucket/pathlib.py'),
         S3Path('/test-bucket/setup.py'),
         S3Path('/test-bucket/test_pathlib.py')]
+
+
+def test_accessor_scandir_new_algo(s3_mock, enable_old_glob):
+    test_accessor_scandir(s3_mock)
 
 
 def test_is_dir(s3_mock):

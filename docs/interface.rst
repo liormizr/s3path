@@ -112,7 +112,19 @@ In other words, it enables recursive globbing:
     S3Path('/pypi-proxy/boto3/index.html'),
     S3Path('/pypi-proxy/botocore/index.html')]
 
-**NOTE:** Using the "**" pattern in large Buckets may consume an inordinate amount of time.
+New in version 0.4.0:
+New Algorithm that better suited to s3 API.
+Especially for recursive searches.
+
+To enable the old (pathlib common) Algorithm you can configure it like this:
+
+.. code:: python
+
+        register_configuration_parameter(path, glob_new_algorithm=False)
+
+For more configuration details please see this `Advanced S3Path configuration`_
+
+**NOTE:** Using the "**" pattern in large Buckets may consume an inordinate amount of time in the old algorithm.
 
 S3Path.is_dir()
 ^^^^^^^^^^^^^^^
@@ -257,6 +269,10 @@ This is like calling S3Path.glob_ with ``"**/"`` added in front of the given rel
    [S3Path('/pypi-proxy/requests/index.html'),
     S3Path('/pypi-proxy/index.html'),
     S3Path('/pypi-proxy/botocore/index.html')]
+
+New in version 0.4.0:
+New Algorithm that better suited to s3 API.
+Especially for recursive searches.
 
 S3Path.rmdir()
 ^^^^^^^^^^^^^^
@@ -491,3 +507,4 @@ Changes in PureS3Path:
 .. _IsADirectoryError : https://docs.python.org/3/library/exceptions.html#IsADirectoryError
 .. _NotImplementedError : https://docs.python.org/3/library/exceptions.html#NotImplementedError
 .. _ObjectSummary : https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#objectsummary
+.. _Abstract pathlib interface: https://github.com/liormizr/s3path/blob/master/docs/interface.rst
