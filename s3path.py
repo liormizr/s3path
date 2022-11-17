@@ -898,7 +898,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def _glob(self, pattern):
         """ Glob with new Algorithm that better fit S3 API """
-        if StrictVersion(python_version()) >= StrictVersion('3.8'):
+        if Version(python_version()) >= Version('3.8'):
             sys.audit("pathlib.Path.glob", self, pattern)
         if not pattern:
             raise ValueError(f'Unacceptable pattern: {pattern}')
@@ -925,7 +925,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def _rglob(self, pattern):
         """ RGlob with new Algorithm that better fit S3 API """
-        if StrictVersion(python_version()) >= StrictVersion('3.8'):
+        if Version(python_version()) >= Version('3.8'):
             sys.audit("pathlib.Path.rglob", self, pattern)
         if not pattern:
             raise ValueError(f'Unacceptable pattern: {pattern}')
