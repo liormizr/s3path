@@ -298,6 +298,7 @@ class _S3Accessor(_Accessor):
 
     def put(self, source, target):
         resource, config = self.configuration_map.get_configuration(target)
+        config = config.copy()
         callback_class = config.pop("callback_class", None)
         if callback_class is not None:
             callback_class = callback_class(source)
@@ -316,6 +317,7 @@ class _S3Accessor(_Accessor):
 
     def get(self, source, target):
         resource, config = self.configuration_map.get_configuration(source)
+        config = config.copy()
         callback_class = config.pop("callback_class", None)
         if callback_class is not None:
             callback_class = callback_class(source)
