@@ -10,6 +10,7 @@ sphinx = "*"
 twine = "*"
 pytest-cov = "*"
 smart-open = "*"
+packaging = "*"
 
 [dev-packages]
 ipython = "*"

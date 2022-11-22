@@ -1,9 +1,8 @@
 name: S3Path Deplyer
 
-on:
+on:  # workflow_dispatch
   release:
     types: [published]
-
 
 jobs:
   deploy:
