@@ -1,7 +1,8 @@
 import os
 import sys
 import pytest
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
+from uri_pathlib_factory import PurePathFactory
 from s3path import PureS3Path
 
 
@@ -186,3 +187,23 @@ def test_with_suffix():
     assert s3_path.with_suffix('.txt') == PureS3Path('README.txt')
     s3_path = PureS3Path('README.txt')
     assert s3_path.with_suffix('') == PureS3Path('README')
+
+
+def test_auto_instantiate_PureS3Path(pathlib_monkey_patch):
+    s3_uri = "s3://bucket/directory/file.csv"
+    s3_path = PurePath(s3_uri)
+    assert s3_path.__class__ is PureS3Path
+    assert s3_path.as_uri() == s3_uri
+    assert s3_path.root == "/"
+    assert s3_path.drive == ""
+    assert str(s3_path) == "/bucket/directory/file.csv"
+
+
+def test_PureS3Path_using_PurePathFactory(pathlib_monkey_patch):
+    s3_uri = "s3://bucket/directory/file.csv"
+    s3_path = PurePathFactory(s3_uri)
+    assert s3_path.__class__ is PureS3Path
+    assert s3_path.as_uri() == s3_uri
+    assert s3_path.root == "/"
+    assert s3_path.drive == ""
+    assert str(s3_path) == "/bucket/directory/file.csv"

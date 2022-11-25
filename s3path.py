@@ -920,3 +920,12 @@ class S3DirEntry:
 
     def stat(self):
         return self._stat
+
+
+def register_uri_pathlib_s3_backend():
+    """Register s3:// pathlib implementation
+
+    return a tuple with
+    (scheme, PurePathClass, PathClass, Optional[params_adapter], )
+    """
+    return ("s3", PureS3Path, S3Path, None)

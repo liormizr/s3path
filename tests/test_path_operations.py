@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from io import UnsupportedOperation
 from tempfile import NamedTemporaryFile
+from uri_pathlib_factory import PathFactory
 
 import boto3
 from botocore.exceptions import ClientError
@@ -629,3 +630,23 @@ def test_unlink(s3_mock):
     S3Path("/test-bucket/fake_subfolder/fake_subkey").unlink(missing_ok=True)
     S3Path("/test-bucket/fake_folder").unlink(missing_ok=True)
     S3Path("/fake-bucket/").unlink(missing_ok=True)
+
+
+
+def test_auto_instantiate_S3Path_with_pathlib_patched(pathlib_monkey_patch):
+    s3_uri = "s3://bucket/directory/file.csv"
+    s3_path = Path(s3_uri)
+    assert s3_path.__class__ is S3Path
+    assert s3_path.root == "/"
+    assert s3_path.drive == ""
+    assert s3_path.as_uri() == s3_uri
+    assert str(s3_path) == "/bucket/directory/file.csv"
+
+def test_instantiate_S3Path_using_PathFactory():
+    s3_uri = "s3://bucket/directory/file.csv"
+    s3_path = PathFactory(s3_uri)
+    assert s3_path.__class__ is S3Path
+    assert s3_path.root == "/"
+    assert s3_path.drive == ""
+    assert s3_path.as_uri() == s3_uri
+    assert str(s3_path) == "/bucket/directory/file.csv"

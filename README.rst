@@ -29,6 +29,15 @@ From PyPI:
 
     $ pip install s3path
 
+
+Or with extra `factory` dependencies in order to use PathFactory or
+patch pathlib as factory. 
+
+.. code:: bash
+
+    $ pip install s3path[factory]
+
+
 From Conda:
 
 .. code:: bash
@@ -138,12 +147,41 @@ Or Simply reading:
    </html>
    """
 
+Using extra `factory` dependencies this lib act as s3 uri backend for 
+`uri-pathlib-factory`_ library. It gives the ability to instantiate
+S3Path, PosixPath or any other uri's backend plugin according provided uri:
+
+.. code:: python
+
+    >>> from uri_pathlib_factory import PathFactory
+    >>> PathFactory("s3://pypi-proxy/")
+    S3Path('/pypi-proxy')
+    >>> PathFactory("/pypi-proxy/")
+    PosixPath('/pypi-proxy')
+
+Or by patching pathlib module in order to use `pathlib.Path` to act as
+factory. This allows to turn existing library using pathlib interface
+to handle s3 files:
+
+    >>> from pathlib import Path
+    >>> from uri_pathlib_factory import load_pathlib_monkey_patch
+    >>> Path("s3://pypi-proxy/")
+    PosixPath('s3:/pypi-proxy')
+    >>> load_pathlib_monkey_patch()
+    >>> Path("s3://pypi-proxy/")
+    S3Path('/pypi-proxy')
+
+
 Requirements:
 =============
 
 * Python >= 3.4
 * boto3
 * smart-open
+
+Using extra `factory`
+
+* uri-pathlib-factory
 
 Further Documentation:
 ======================
@@ -156,3 +194,4 @@ Further Documentation:
 .. _Abstract pathlib interface: https://github.com/liormizr/s3path/blob/master/docs/interface.rst
 .. _Boto3 vs S3Path usage examples: https://github.com/liormizr/s3path/blob/master/docs/comparison.rst
 .. _Advanced S3Path configuration: https://github.com/liormizr/s3path/blob/master/docs/advance.rst
+.. _uri-pathlib-factory: https://pypi.org/project/uri-pathlib-factory/

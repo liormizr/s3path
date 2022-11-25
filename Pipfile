@@ -15,4 +15,4 @@ packaging = "*"
 [dev-packages]
 ipython = "*"
 ipdb = "*"
-s3path = {editable = true, path = "."}
+s3path = {editable = true, path = ".[factory]"}

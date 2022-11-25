@@ -16,6 +16,14 @@ setup(
         'packaging',
         'smart-open',
     ],
+    extras_require={
+        "factory": ["uri-pathlib-factory", ]
+    },
+    entry_points = {
+        "uri_pathlib_backend": [
+            's3 = s3path:register_uri_pathlib_s3_backend'
+        ]
+    },
     license='Apache 2.0',
     long_description=long_description,
     long_description_content_type='text/x-rst',
