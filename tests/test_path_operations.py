@@ -457,7 +457,7 @@ def test_owner(s3_mock):
     assert path.owner() == 'webfile'
 
 
-def test_rename_s3_to_s3(s3_mock):
+def test_rename_s3_to_s3(pathlib_monkey_patch, s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
     object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
@@ -523,7 +523,7 @@ def test_rename_s3_to_fs(s3_mock):
         assert local_destination.exists()
     
 
-def test_replace_s3_to_s3(s3_mock):
+def test_replace_s3_to_s3(pathlib_monkey_patch, s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
     object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')

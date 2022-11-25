@@ -30,10 +30,22 @@ except ImportError:
     ALLOWED_COPY_ARGS = []
     ALLOWED_UPLOAD_ARGS = []
     ALLOWED_DOWNLOAD_ARGS = []
-try:
-    from uri_pathlib_factory import PathFactory
-except ImportError:
-    from pathlib import Path as PathFactory
+
+# TODO: Should be better to use PathFactory instead
+# requiring patching pathlib to get *rename* support
+# but for the time being importing PathFactory and
+# registering plugin here from the same python module
+# cause circular import so could do this
+#  
+#   try:
+#       from uri_pathlib_factory import PathFactory
+#   except ImportError:
+#       from pathlib import Path as PathFactory
+#
+# not sure yet how to solve it, hope while
+# moving the rename monkey patch to uri-pathlib-factory
+# we will avoid that
+from pathlib import Path as PathFactory
 
 __version__ = '0.3.4'
 __all__ = (
