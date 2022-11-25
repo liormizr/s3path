@@ -30,6 +30,7 @@ except ImportError:
 __version__ = '0.3.4'
 __all__ = (
     'register_configuration_parameter',
+    "register_uri_pathlib_s3_backend",
     'S3Path',
     'PureS3Path',
     'StatResult',
