@@ -110,6 +110,20 @@ This example show how to specify default AWS S3 parameters, a `LocalStack`_ Buck
    >>> register_configuration_parameter(minio_bucket_path, resource=minio_resource)
 
 
+s3path library general options:
+-------------------------------
+
+In Version 0.4.0 we added a new algorithm for the r/glob methods.
+To enable the old (pathlib common) Algorithm you can configure it like this:
+
+.. code:: python
+
+   >>> from s3path import PureS3Path, register_configuration_parameter
+   >>> # Define path's for configuration
+   >>> path = PureS3Path('/')
+   >>> register_configuration_parameter(path, glob_new_algorithm=False)
+
+
 .. _pathlib : https://docs.python.org/3/library/pathlib.html
 .. _boto3 : https://github.com/boto/boto3
 .. _configuration: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
