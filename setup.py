@@ -19,7 +19,7 @@ setup(
     license='Apache 2.0',
     long_description=long_description,
     long_description_content_type='text/x-rst',
-    python_requires='>=3.6.x, >3.11',
+    python_requires='>3.5.x, >3.11',
     include_package_data=True,
     classifiers=[
         'Development Status :: 4 - Beta',
