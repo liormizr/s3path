@@ -640,3 +640,13 @@ def test_unlink(s3_mock):
     S3Path("/test-bucket/fake_subfolder/fake_subkey").unlink(missing_ok=True)
     S3Path("/test-bucket/fake_folder").unlink(missing_ok=True)
     S3Path("/fake-bucket/").unlink(missing_ok=True)
+
+def test_absolute(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    absolute_path = S3Path('/test-bucket/directory/Test.test')
+    assert absolute_path.absolute() is absolute_path
+
+    relative_path = S3Path('./Test.test')
+    with pytest.raises(ValueError):
+        relative_path.absolute()
