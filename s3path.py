@@ -835,6 +835,11 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     _accessor = _s3_accessor
     __slots__ = ()
 
+    def _init(self, template=None):
+        super()._init(template)
+        if template is None:
+            self._accessor = _s3_accessor
+
     def stat(self, *, follow_symlinks=True):
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
