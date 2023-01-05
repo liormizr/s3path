@@ -14,21 +14,13 @@ from collections import namedtuple, deque
 from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
 from pathlib import _PosixFlavour, _is_wildcard_pattern, PurePath, Path
 
-try:
-    import boto3
-    from botocore.exceptions import ClientError
-    from botocore.docs.docstring import LazyLoadedDocstring
-    from packaging.version import Version
-    import smart_open
-    from s3transfer.manager import TransferManager
-    ALLOWED_COPY_ARGS = TransferManager.ALLOWED_COPY_ARGS
-except ImportError:
-    boto3 = None
-    ClientError = Exception
-    LazyLoadedDocstring = None
-    smart_open = None
-    Version = None
-    ALLOWED_COPY_ARGS = []
+import boto3
+from botocore.exceptions import ClientError
+from botocore.docs.docstring import LazyLoadedDocstring
+
+import smart_open
+from packaging.version import Version
+from s3transfer.manager import TransferManager
 
 __version__ = '0.4.0'
 __all__ = (
@@ -38,6 +30,8 @@ __all__ = (
     'StatResult',
     'S3DirEntry',
 )
+
+ALLOWED_COPY_ARGS = TransferManager.ALLOWED_COPY_ARGS
 
 
 class _S3Flavour(_PosixFlavour):
