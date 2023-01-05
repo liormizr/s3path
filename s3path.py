@@ -1110,11 +1110,6 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         return False
 
-    def _init(self, template=None):
-        super()._init(template)
-        if template is None:
-            self._accessor = _s3_accessor
-
     def absolute(self):
         """
         Handle absolute method only if the path is already an absolute one
