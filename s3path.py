@@ -12,7 +12,7 @@ from contextlib import suppress
 from platform import python_version
 from collections import namedtuple, deque
 from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
-from pathlib import _PosixFlavour, _Accessor, _is_wildcard_pattern, PurePath, Path
+from pathlib import _PosixFlavour, _is_wildcard_pattern, PurePath, Path
 
 try:
     import boto3
@@ -178,7 +178,7 @@ class _S3Scandir:
             continuation_token = response.get('NextContinuationToken')
 
 
-class _S3Accessor(_Accessor):
+class _S3Accessor:
     """
     An accessor implements a particular (system-specific or not)
     way of accessing paths on the filesystem.
@@ -609,6 +609,14 @@ class _PathNotSupportedMixin:
         message = self._NOT_SUPPORTED_MESSAGE.format(method=self.symlink_to.__qualname__)
         raise NotImplementedError(message)
 
+    def hardlink_to(self, *args, **kwargs):
+        """
+        hardlink_to method is unsupported on S3 service
+        AWS S3 don't have this file system action concept
+        """
+        message = self._NOT_SUPPORTED_MESSAGE.format(method=self.hardlink_to.__qualname__)
+        raise NotImplementedError(message)
+
     def readlink(self):
         """
         readlink method is unsupported on S3 service
@@ -840,7 +848,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         self._absolute_path_validation()
         if not self.key:
             return None
-        return super().stat()
+        return self._accessor.stat(self, follow_symlinks=follow_symlinks)
 
     def exists(self):
         """
@@ -881,7 +889,8 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
         self._absolute_path_validation()
-        yield from super().iterdir()
+        for name in self._accessor.listdir(self):
+            yield self._make_child_relpath(name)
 
     def glob(self, pattern):
         """
@@ -910,6 +919,12 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
                 raise ValueError("Invalid pattern: '**' can only be an entire path component")
         selector = _Selector(self, pattern=pattern)
         yield from selector.select()
+
+    def _scandir(self):
+        """
+        Override _scandir so _Selector will rely on an S3 compliant implementation
+        """
+        return self._accessor.scandir(self)
 
     def rglob(self, pattern):
         """
@@ -975,7 +990,8 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         if not isinstance(target, type(self)):
             target = type(self)(target)
         target._absolute_path_validation()
-        return super().rename(target)
+        self._accessor.rename(self, target)
+        return self.__class__(target)
 
     def replace(self, target):
         """
@@ -1001,14 +1017,16 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             if missing_ok:
                 return
             raise
-        # XXX: Note: If we don't check if the file exists here, S3 will always return
-        # success even if we try to delete a key that doesn't exist. So, if we want
-        # to raise a `FileNotFoundError`, we need to manually check if the file exists
-        # before we make the API call -- since we want to delete the file anyway,
-        # we can just ignore this for now and be satisfied that the file will be removed
-        if Version(python_version()) < Version('3.8'):
-            return super().unlink()
-        super().unlink(missing_ok=missing_ok)
+        try:
+            # XXX: Note: If we don't check if the file exists here, S3 will always return
+            # success even if we try to delete a key that doesn't exist. So, if we want
+            # to raise a `FileNotFoundError`, we need to manually check if the file exists
+            # before we make the API call -- since we want to delete the file anyway,
+            # we can just ignore this for now and be satisfied that the file will be removed
+            self._accessor.unlink(self)
+        except FileNotFoundError:
+            if not missing_ok:
+                raise
 
     def rmdir(self):
         """
@@ -1019,7 +1037,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             raise NotADirectoryError()
         if not self.is_dir():
             raise FileNotFoundError()
-        return super().rmdir()
+        self._accessor.rmdir(self)
 
     def samefile(self, other_path):
         """
@@ -1063,7 +1081,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
                 raise FileNotFoundError(f'Only bucket path can be created, got {self}')
             if type(self)(self._flavour.sep, self.bucket).exists():
                 raise FileExistsError(f'Bucket {self.bucket} already exists')
-            return super().mkdir(mode, parents=parents, exist_ok=exist_ok)
+            self._accessor.mkdir(self, mode)
         except OSError:
             if not exist_ok:
                 raise
@@ -1096,6 +1114,16 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         super()._init(template)
         if template is None:
             self._accessor = _s3_accessor
+
+    def absolute(self):
+        """
+        Handle absolute method only if the path is already an absolute one
+        since we have no way to compute an absolute path from a relative one in S3.
+        """
+        if self.is_absolute():
+            return self
+        # We can't compute the absolute path from a relative one
+        raise ValueError("Absolute path can't be determined for relative S3Path objects")
 
 
 class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
