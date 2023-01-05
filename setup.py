@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-import s3path
 from setuptools import setup
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 setup(
-    name=s3path.__name__,
-    version=s3path.__version__,
+    name='s3path',
+    version='0.4.0',
     url='https://github.com/liormizr/s3path',
     author='Lior Mizrahi',
     author_email='li.mizr@gmail.com',
