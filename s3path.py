@@ -660,11 +660,7 @@ class _Selector:
         if self._prefix:
             pattern = f'{self._prefix}{self._path._flavour.sep}{pattern}'
         *_, pattern_parts = self._path._flavour.parse_parts((pattern,))
-        index = 0
-        for index, part in enumerate(reversed(pattern_parts), 1):
-            if not _is_wildcard_pattern(part):
-                break
-        return index
+        return len(pattern_parts)
 
     def _calculate_full_or_just_folder(self, pattern):
         if '**' in pattern:
@@ -682,16 +678,12 @@ class _Selector:
             key_sep_count = key.count(self._path._flavour.sep) + 1
             key_parts = key.rsplit(self._path._flavour.sep, maxsplit=key_sep_count - prefix_sep_count)
             key_parts_count = sum(1 for _ in key.split(self._path._flavour.sep) if _)
-            for index in range(prefix_sep_count, key_parts_count + 1):
-                if self._target_level and self._target_level < index:
-                    break
-                target_path_parts = key_parts[:index]
-                target_path = (self._path._flavour.sep).join(target_path_parts)
-                if cache.in_cache(target_path):
-                    continue
-                if self._target_level is None or self._target_level == index:
-                    yield target_path
-                cache.add(target_path_parts, target_path)
+            target_path_parts = key_parts[:self._target_level]
+            target_path = (self._path._flavour.sep).join(target_path_parts)
+            if cache.in_cache(target_path):
+                continue
+            yield target_path
+            cache.add(target_path_parts)
 
 
 class _DeepDirCache:
@@ -700,12 +692,12 @@ class _DeepDirCache:
         self._tree = {}
 
     def __repr__(self):
-        return f'{type(self).__name__}{self._tree, self._queue}'
+        return f'{type(self).__name__}({self._tree, self._queue})'
 
-    def in_cache(self, directory):
-        return directory in self._queue
+    def in_cache(self, target_path: str) -> bool:
+        return target_path in self._queue
 
-    def add(self, directory_parts, directory):
+    def add(self, directory_parts):
         tree = self._tree
         for part in directory_parts:
             if part in tree:
@@ -715,8 +707,10 @@ class _DeepDirCache:
                 deep_count = self._deep_count(tree)
                 tree.clear()
                 for _ in range(deep_count):
-                    self._queue.pop()
+                    with suppress(IndexError):
+                        self._queue.pop()
             tree[part] = {}
+        directory = '/'.join(directory_parts)
         self._queue.append(directory)
 
     def _deep_count(self, tree):

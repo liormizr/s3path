@@ -119,8 +119,44 @@ def test_glob(s3_mock):
     assert sorted(S3Path.from_uri('s3://test-bucket/').glob('docs/')) == [S3Path('/test-bucket/docs/')]
 
 
+def test_glog_nested_folders_issue_no_115(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='my-bucket')
+    full_folder_tree = ''
+    object_summary = s3.ObjectSummary('my-bucket', 'test.txt')
+    object_summary.put(Body=b'test data')
+    for folder in range(6):
+        object_summary = s3.ObjectSummary('my-bucket', f'{full_folder_tree}test.txt')
+        object_summary.put(Body=b'test data')
+        full_folder_tree += f'{folder}/'
+
+    bucket = S3Path("/my-bucket/")
+    path = bucket
+    assert list(path.glob('*.txt')) == [S3Path('/my-bucket/test.txt')]
+    path /= S3Path('0/')
+    assert list(path.glob('*.txt')) == [S3Path('/my-bucket/0/test.txt')]
+    path /= S3Path('1/')
+    assert list(path.glob('*.txt')) == [S3Path('/my-bucket/0/1/test.txt')]
+    path /= S3Path('2/')
+    assert list(path.glob('*.txt')) == [S3Path('/my-bucket/0/1/2/test.txt')]
+    path /= S3Path('3/')
+    assert list(path.glob('*.txt')) == [S3Path('/my-bucket/0/1/2/3/test.txt')]
+    path /= S3Path('4/')
+    assert list(path.glob('*.txt')) == [S3Path('/my-bucket/0/1/2/3/4/test.txt')]
+
+    bucket = S3Path("/my-bucket/")
+    path = bucket
+    for index, folder in enumerate(range(6)):
+        assert sum(1 for _ in path.rglob('*.txt')) == 6 - index
+        path /= S3Path(f'{folder}/')
+
+
 def test_glob_old_algo(s3_mock, enable_old_glob):
     test_glob(s3_mock)
+
+
+def test_glog_nested_folders_issue_no_115_old_algo(s3_mock, enable_old_glob):
+    test_glog_nested_folders_issue_no_115(s3_mock)
 
 
 def test_rglob(s3_mock):
