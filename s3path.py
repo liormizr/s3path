@@ -22,7 +22,7 @@ import smart_open
 from packaging.version import Version
 from s3transfer.manager import TransferManager
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
