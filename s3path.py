@@ -15,12 +15,12 @@ from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
 from pathlib import _PosixFlavour, _is_wildcard_pattern, PurePath, Path
 
 import boto3
+from boto3.s3.transfer import TransferManager
 from botocore.exceptions import ClientError
 from botocore.docs.docstring import LazyLoadedDocstring
 
 import smart_open
 from packaging.version import Version
-from s3transfer.manager import TransferManager
 
 __version__ = '0.4.1'
 __all__ = (
