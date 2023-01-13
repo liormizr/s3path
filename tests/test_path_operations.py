@@ -603,6 +603,15 @@ def test_rmdir(s3_mock):
     assert not path.exists()
 
 
+def test_rmdir_can_remove_bucket(s3_mock):
+    s3 = boto3.resource('s3')
+    bucket = S3Path('/test-bucket/')
+    bucket.mkdir()
+    assert bucket.exists()
+    bucket.rmdir()
+    assert not bucket.exists()
+
+
 def test_mkdir(s3_mock):
     s3 = boto3.resource('s3')
 
