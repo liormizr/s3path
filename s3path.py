@@ -775,6 +775,13 @@ class PureS3Path(PurePath):
         return ''
 
     @property
+    def is_bucket(self):
+        """
+        Check if Path is a bucket
+        """
+        return self.is_absolute() and self == PureS3Path(f"/{self.bucket}")
+
+    @property
     def key(self):
         """
         The AWS S3 Key name, or ''
