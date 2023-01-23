@@ -322,7 +322,7 @@ class _S3Accessor:
         for object_summary in bucket.objects.filter(Prefix=key_name):
             self._boto3_method_with_parameters(object_summary.delete, config=config)
         if path.is_bucket:
-            bucket.delete()
+            self._boto3_method_with_parameters(bucket.delete, config=config)
 
     def mkdir(self, path, mode):
         resource, config = self.configuration_map.get_configuration(path)
