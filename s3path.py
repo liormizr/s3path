@@ -321,6 +321,8 @@ class _S3Accessor:
         bucket = resource.Bucket(bucket_name)
         for object_summary in bucket.objects.filter(Prefix=key_name):
             self._boto3_method_with_parameters(object_summary.delete, config=config)
+        if path.is_bucket:
+            self._boto3_method_with_parameters(bucket.delete, config=config)
 
     def mkdir(self, path, mode):
         resource, config = self.configuration_map.get_configuration(path)
@@ -773,6 +775,13 @@ class PureS3Path(PurePath):
             _, bucket, *_ = self.parts
             return bucket
         return ''
+
+    @property
+    def is_bucket(self):
+        """
+        Check if Path is a bucket
+        """
+        return self.is_absolute() and self == PureS3Path(f"/{self.bucket}")
 
     @property
     def key(self):

@@ -63,6 +63,16 @@ def test_parts():
     assert PureS3Path('/foo/bar').parts == ('/', 'foo', 'bar')
 
 
+@pytest.mark.parametrize("path", ["/foo", "/foo/"])
+def test_is_bucket_with_valid_bucket_paths(path):
+    assert PureS3Path(path).is_bucket
+
+
+@pytest.mark.parametrize("path", ["//foo", "foo/", "foo", "", "/foo/bar"])
+def test_is_bucket_with_invalid_bucket_paths(path):
+    assert not PureS3Path(path).is_bucket
+
+
 def test_drive():
     assert PureS3Path('foo//bar').drive == ''
     assert PureS3Path('foo/./bar').drive == ''
