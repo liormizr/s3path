@@ -637,23 +637,24 @@ class _Selector:
                 yield type(self._path)(target)
 
     def _prefix_splitter(self, pattern):
+        if not _is_wildcard_pattern(pattern):
+            if self._path.key:
+                return f'{self._path.key}{self._path._flavour.sep}{pattern}', ''
+            return pattern, ''
+
         *_, pattern_parts = self._path._flavour.parse_parts((pattern,))
         prefix = ''
-        key_prefix = self._path.key
-        for part in pattern_parts:
+        for index, part in enumerate(pattern_parts):
             if _is_wildcard_pattern(part):
                 break
-            if prefix:
-                prefix += f'{self._path._flavour.sep}{part}'
-            else:
-                prefix = part
-        prefix_folder = f'{prefix}{self._path._flavour.sep}'
-        if prefix_folder == pattern:
-            prefix = prefix_folder
-        if key_prefix:
-            prefix = f'{key_prefix}{self._path._flavour.sep}{prefix}'
+            prefix += f'{part}{self._path._flavour.sep}'
+
         if pattern.startswith(prefix):
             pattern = pattern.replace(prefix, '', 1)
+
+        key_prefix = self._path.key
+        if key_prefix:
+            prefix = self._path._flavour.sep.join((key_prefix, prefix))
         return prefix, pattern
 
     def _calculate_pattern_level(self, pattern):
@@ -679,7 +680,6 @@ class _Selector:
         for key in self._path._accessor.iter_keys(self._path, prefix=self._prefix, full_keys=self._full_keys):
             key_sep_count = key.count(self._path._flavour.sep) + 1
             key_parts = key.rsplit(self._path._flavour.sep, maxsplit=key_sep_count - prefix_sep_count)
-            key_parts_count = sum(1 for _ in key.split(self._path._flavour.sep) if _)
             target_path_parts = key_parts[:self._target_level]
             target_path = (self._path._flavour.sep).join(target_path_parts)
             if cache.in_cache(target_path):
