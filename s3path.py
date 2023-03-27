@@ -106,6 +106,7 @@ class _S3ConfigurationMap:
             self.resources[path] = resource
         if glob_new_algorithm is not None:
             self.general_options[path] = {'glob_new_algorithm': glob_new_algorithm}
+        self.get_configuration.cache_clear()
 
     @lru_cache()
     def get_configuration(self, path):
