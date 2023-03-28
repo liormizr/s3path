@@ -120,3 +120,16 @@ def test_open_method_with_custom_endpoint_url():
         assert file_object._object.meta.client._endpoint.host == 'http://localhost'
     else:
         assert file_object._client.client._endpoint.host == 'http://localhost'
+
+
+def test_issue_123():
+    path = S3Path('/bucket')
+    old_resource, _ = path._accessor.configuration_map.get_configuration(path)
+
+    boto3.setup_default_session()
+    s3 = boto3.resource('s3')
+    register_configuration_parameter(path, resource=s3)
+
+    new_resource, _ = path._accessor.configuration_map.get_configuration(path)
+    assert new_resource is s3
+    assert new_resource is not old_resource
