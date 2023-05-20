@@ -245,6 +245,8 @@ class _S3Accessor:
             'newline': newline,
         }
         transport_params = {'defer_seek': True}
+        if path.version_id is not None:
+            transport_params['version_id'] = path.version_id
         dummy_object = resource.Object('bucket', 'key')
         if smart_open.__version__ >= '5.1.0':
             self._smart_open_new_version_kwargs(
@@ -754,7 +756,7 @@ class PureS3Path(PurePath):
     __slots__ = ()
 
     @classmethod
-    def from_uri(cls, uri):
+    def from_uri(cls, uri, version_id=None):
         """
         from_uri class method create a class instance from url
 
@@ -764,7 +766,9 @@ class PureS3Path(PurePath):
         """
         if not uri.startswith('s3://'):
             raise ValueError('Provided uri seems to be no S3 URI!')
-        return cls(uri[4:])
+        self = cls(uri[4:])
+        self.version_id = version_id
+        return self
 
     @property
     def bucket(self):
@@ -794,7 +798,7 @@ class PureS3Path(PurePath):
         return key
 
     @classmethod
-    def from_bucket_key(cls, bucket, key):
+    def from_bucket_key(cls, bucket, key, version_id=None):
         """
         from_bucket_key class method create a class instance from bucket, key pair's
 
@@ -808,7 +812,9 @@ class PureS3Path(PurePath):
         key = cls(key)
         if key.is_absolute():
             key = key.relative_to('/')
-        return bucket / key
+        self = bucket / key
+        self.version_id = version_id
+        return self
 
     def as_uri(self):
         """
@@ -832,6 +838,11 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     """
     _accessor = _s3_accessor
     __slots__ = ()
+
+    def __new__(cls, *args, version_id=None, **kwargs):
+        self = super().__new__(cls, *args, **kwargs)
+        self.version_id = version_id
+        return self
 
     def _init(self, template=None):
         super()._init(template)
