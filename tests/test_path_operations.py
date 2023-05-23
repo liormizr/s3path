@@ -1,9 +1,12 @@
 import sys
+import time
+from datetime import timedelta
 from pathlib import Path
 from io import UnsupportedOperation
 from tempfile import NamedTemporaryFile
 
 import boto3
+import requests
 from botocore.exceptions import ClientError
 import pytest
 
@@ -424,6 +427,39 @@ def test_open_for_reading(s3_mock):
     path = S3Path('/test-bucket/directory/Test.test')
     file_obj = path.open()
     assert file_obj.read() == 'test data'
+
+
+def test_presigned_url(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    presigned_url = path.get_presigned_url()
+    assert requests.get(presigned_url).content == b'test data'
+
+
+def test_presigned_url_expire(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    presigned_url = path.get_presigned_url(expire_in=123)
+    assert requests.get(presigned_url).content == b'test data'
+
+
+def test_presigned_url_expire_with_timedelta(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'directory/Test.test')
+    object_summary.put(Body=b'test data')
+
+    path = S3Path('/test-bucket/directory/Test.test')
+    presigned_url = path.get_presigned_url(expire_in=timedelta(seconds=123))
+    assert requests.get(presigned_url).content == b'test data'
 
 
 def test_open_for_write(s3_mock):
