@@ -20,7 +20,6 @@ def test_repr():
     assert PureS3Path('/usr/bin').as_posix() == '/usr/bin'
 
 
-@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires python3.6 or higher")
 def test_fspath():
     assert os.fspath(PureS3Path('/usr/bin')) == '/usr/bin'
 
