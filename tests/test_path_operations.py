@@ -462,6 +462,33 @@ def test_presigned_url_expire_with_timedelta(s3_mock):
     assert requests.get(presigned_url).content == b'test data'
 
 
+def test_presigned_url_expire_with_negative_timedelta(s3_mock):
+    path = S3Path('/test-bucket/directory/Test.test')
+    with pytest.raises(ValueError) as err:
+        path.get_presigned_url(expire_in=timedelta(seconds=-123))
+    assert str(err.value) == (
+        "The expire_in argument can't represent a negative or null time delta. "
+        "You provided expire_in = -123 seconds which is below or equal to 0 seconds."
+    )
+
+
+def test_presigned_url_expire_with_negative_seconds(s3_mock):
+    path = S3Path('/test-bucket/directory/Test.test')
+    with pytest.raises(ValueError) as err:
+        path.get_presigned_url(expire_in=-123)
+    assert str(err.value) == (
+        "The expire_in argument can't represent a negative or null time delta. "
+        "You provided expire_in = -123 seconds which is below or equal to 0 seconds."
+    )
+
+
+def test_presigned_url_malformed_path(s3_mock):
+    path = S3Path('Test.test')
+    with pytest.raises(ValueError) as err:
+        path.get_presigned_url(expire_in=timedelta(seconds=123))
+    assert str(err.value) == "relative path have no bucket, key specification"
+
+
 def test_open_for_write(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')

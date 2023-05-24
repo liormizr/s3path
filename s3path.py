@@ -1171,8 +1171,13 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         print(requests.get(presigned_url).content)
         b"hello world"
         """
+        self._absolute_path_validation()
         if isinstance(expire_in, timedelta):
-            expire_in = expire_in.total_seconds()
+            expire_in = int(expire_in.total_seconds())
+        if expire_in <= 0:
+            raise ValueError(
+                f"The expire_in argument can't represent a negative or null time delta. "
+                f"You provided expire_in = {expire_in} seconds which is below or equal to 0 seconds.")
         return self._accessor.get_presigned_url(self, expire_in)
 
 
