@@ -1043,7 +1043,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             raise FileNotFoundError()
         self._accessor.rmdir(self)
 
-    def samefile(self, other_path) -> bool:
+    def samefile(self, other_path: Union[str, "S3Path"]) -> bool:
         """
         Returns whether this path points to the same Bucket key as other_path,
         Which can be either a Path object, or a string
