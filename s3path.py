@@ -11,7 +11,6 @@ from threading import Lock
 from itertools import chain
 from functools import lru_cache
 from contextlib import suppress
-from platform import python_version
 from collections import namedtuple, deque
 from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
 from pathlib import _PosixFlavour, _is_wildcard_pattern, PurePath, Path
