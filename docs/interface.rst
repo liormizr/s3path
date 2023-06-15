@@ -350,6 +350,44 @@ if parents is true, mkdir will create the bucket even if the path have a Key pat
 
 mode argument is ignored.
 
+S3Path.get_presigned_url(expire_in: timedelta | int = 3600) -> str
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Returns a pre-signed url. Anyone with the url can make a GET request to get the file.
+You can set an expiration date with the expire_in argument (integer or timedelta object).
+
+Note that generating a presigned url may require more information or setup than to use other
+S3Path functions. It's because it needs to know the exact aws region and use s3v4 as signature
+version. Meaning you may have to do this:
+
+.. code:: python
+
+    >>> import boto3
+    >>> from botocore.config import Config
+    >>> from s3path import S3Path, register_configuration_parameter
+
+    >>> resource = boto3.resource(
+    ...     "s3",
+    ...     config=Config(signature_version="s3v4"),
+    ...     region_name="the aws region name"
+    ... )
+    >>> register_configuration_parameter(S3Path("/"), resource=resource)
+
+Here is an example of using a presigned url:
+
+.. code:: python
+
+    >>> from s3path import S3Path
+    >>> import requests
+
+    >>> file = S3Path("/my-bucket/toto.txt")
+    >>> file.write_text("hello world")
+
+    >>> presigned_url = file.get_presigned_url()
+    >>> print(requests.get(presigned_url).content)
+    b"hello world"
+
+
 Pure paths:
 ===========
 
