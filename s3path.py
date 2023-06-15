@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 """
 s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
 import re
 import sys
 import fnmatch
-from typing import Union
+from typing import Union, Generator
 from datetime import timedelta
 from os import stat_result
 from threading import Lock
@@ -15,7 +17,6 @@ from platform import python_version
 from collections import namedtuple, deque
 from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
 from pathlib import _PosixFlavour, _is_wildcard_pattern, PurePath, Path
-from typing import Iterator, Union
 
 import boto3
 from boto3.s3.transfer import TransferManager
@@ -809,7 +810,7 @@ class PureS3Path(PurePath):
         return key
 
     @classmethod
-    def from_bucket_key(cls, bucket: str, key: str):
+    def from_bucket_key(cls, bucket: str, key: str) -> PureS3Path:
         """
         from_bucket_key class method create a class instance from bucket, key pair's
 
@@ -853,7 +854,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         if template is None:
             self._accessor = _s3_accessor
 
-    def stat(self, *, follow_symlinks: bool = True):
+    def stat(self, *, follow_symlinks: bool = True) -> StatResult:
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
         For compatibility with pathlib, the returned object some similar attributes like os.stat_result.
@@ -902,7 +903,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         except ClientError:
             return False
 
-    def iterdir(self) -> Generator["S3Path", None, None]:
+    def iterdir(self) -> Generator[S3Path, None, None]:
         """
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
@@ -910,7 +911,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         for name in self._accessor.listdir(self):
             yield self._make_child_relpath(name)
 
-    def glob(self, pattern: str) -> Generator["S3Path", None, None]:
+    def glob(self, pattern: str) -> Generator[S3Path, None, None]:
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
@@ -944,7 +945,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         return self._accessor.scandir(self)
 
-    def rglob(self, pattern) -> Generator['S3Path', None, None]:
+    def rglob(self, pattern) -> Generator[S3Path, None, None]:
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
         """
@@ -997,7 +998,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             return KeyError('file not found')
         return self._accessor.owner(self)
 
-    def rename(self, target: Union[str, "S3Path"]) -> "S3Path":
+    def rename(self, target: Union[str, S3Path]) -> S3Path:
         """
         Renames this file or Bucket / key prefix / key to the given target.
         If target exists and is a file, it will be replaced silently if the user has permission.
@@ -1011,7 +1012,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         self._accessor.rename(self, target)
         return self.__class__(target)
 
-    def replace(self, target: Union[str, "S3Path"]) -> "S3Path":
+    def replace(self, target: Union[str, S3Path]) -> S3Path:
         """
         Renames this Bucket / key prefix / key to the given target.
         If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
@@ -1046,7 +1047,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             if not missing_ok:
                 raise
 
-    def rmdir(self):
+    def rmdir(self) -> None:
         """
         Removes this Bucket / key prefix. The Bucket / key prefix must be empty
         """
@@ -1057,7 +1058,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             raise FileNotFoundError()
         self._accessor.rmdir(self)
 
-    def samefile(self, other_path: Union[str, "S3Path"]) -> bool:
+    def samefile(self, other_path: Union[str, S3Path]) -> bool:
         """
         Returns whether this path points to the same Bucket key as other_path,
         Which can be either a Path object, or a string
