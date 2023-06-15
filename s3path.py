@@ -888,7 +888,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         except ClientError:
             return False
 
-    def iterdir(self) -> Iterator["S3Path"]:
+    def iterdir(self) -> Generator["S3Path", None, None]:
         """
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
