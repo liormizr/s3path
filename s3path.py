@@ -4,6 +4,8 @@ s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 import re
 import sys
 import fnmatch
+from typing import Union
+from datetime import timedelta
 from os import stat_result
 from threading import Lock
 from itertools import chain
@@ -23,7 +25,7 @@ from botocore.docs.docstring import LazyLoadedDocstring
 import smart_open
 from packaging.version import Version
 
-__version__ = '0.4.1'
+__version__ = '0.4.2'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
@@ -356,6 +358,18 @@ class _S3Accessor:
             )
         except ClientError:
             raise OSError(f'/{bucket_name}/{key_name}')
+
+    def get_presigned_url(self,path,  expire_in: int) -> str:
+        resource, config = self.configuration_map.get_configuration(path)
+        return self._boto3_method_with_parameters(
+            resource.meta.client.generate_presigned_url,
+            config=config,
+            kwargs=dict(
+                ClientMethod="get_object",
+                Params={"Bucket": path.bucket, "Key": path.key},
+                ExpiresIn=expire_in,
+            )
+        )
 
     def iter_keys(self, path, *, prefix=None, full_keys=True):
         resource, _ = self.configuration_map.get_configuration(path)
@@ -1123,6 +1137,49 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             return self
         # We can't compute the absolute path from a relative one
         raise ValueError("Absolute path can't be determined for relative S3Path objects")
+
+    def get_presigned_url(self, expire_in: Union[timedelta, int] = 3600) -> str:
+        """
+        Returns a pre-signed url. Anyone with the url can make a GET request to get the file.
+        You can set an expiration date with the expire_in argument (integer or timedelta object).
+
+        Note that generating a presigned url may require more information or setup than to use other
+        S3Path functions. It's because it needs to know the exact aws region and use s3v4 as signature
+        version. Meaning you may have to do this:
+
+        ```python
+        import boto3
+        from botocore.config import Config
+        from s3path import S3Path, register_configuration_parameter
+
+        resource = boto3.resource(
+            "s3",
+            config=Config(signature_version="s3v4"),
+            region_name="the aws region name"
+        )
+        register_configuration_parameter(S3Path("/"), resource=resource)
+        ```
+
+        A simple example:
+        ```python
+        from s3path import S3Path
+        import requests
+
+        file = S3Path("/my-bucket/toto.txt")
+        file.write_text("hello world")
+
+        presigned_url = file.get_presigned_url()
+        print(requests.get(presigned_url).content)
+        b"hello world"
+        """
+        self._absolute_path_validation()
+        if isinstance(expire_in, timedelta):
+            expire_in = int(expire_in.total_seconds())
+        if expire_in <= 0:
+            raise ValueError(
+                f"The expire_in argument can't represent a negative or null time delta. "
+                f"You provided expire_in = {expire_in} seconds which is below or equal to 0 seconds.")
+        return self._accessor.get_presigned_url(self, expire_in)
 
 
 class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
