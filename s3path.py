@@ -930,7 +930,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         return self._accessor.scandir(self)
 
-    def rglob(self, pattern) -> Iterator['S3Path']:
+    def rglob(self, pattern) -> Generator['S3Path', None, None]:
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
         """
