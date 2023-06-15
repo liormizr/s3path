@@ -896,7 +896,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         for name in self._accessor.listdir(self):
             yield self._make_child_relpath(name)
 
-    def glob(self, pattern: str) -> Iterator["S3Path"]:
+    def glob(self, pattern: str) -> Generator["S3Path", None, None]:
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
