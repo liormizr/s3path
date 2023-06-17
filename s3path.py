@@ -6,7 +6,7 @@ s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 import re
 import sys
 import fnmatch
-from typing import Union, Generator
+from typing import Union, Generator, Literal, TypeVar
 from datetime import timedelta
 from os import stat_result
 from threading import Lock
@@ -15,16 +15,22 @@ from functools import lru_cache
 from contextlib import suppress
 from platform import python_version
 from collections import namedtuple, deque
-from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation
+from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation, TextIOWrapper
 from pathlib import _PosixFlavour, _is_wildcard_pattern, PurePath, Path
 
 import boto3
 from boto3.s3.transfer import TransferManager
+from boto3.resources.factory import ServiceResource
 from botocore.exceptions import ClientError
 from botocore.docs.docstring import LazyLoadedDocstring
 
 import smart_open
+import smart_open.s3
 from packaging.version import Version
+
+# to be replaced in python 3.11 by "from typing import Self"
+Self = TypeVar('Self')
+
 
 __version__ = '0.4.2'
 __all__ = (
@@ -143,7 +149,7 @@ class _S3Scandir:
     def __exit__(self, exc_type, exc_val, exc_tb):
         return
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[S3DirEntry, None, None]:
         bucket_name = self._path.bucket
         resource, _ = self._s3_accessor.configuration_map.get_configuration(self._path)
         if not bucket_name:
@@ -230,7 +236,7 @@ class _S3Accessor:
                 return True
         return False
 
-    def scandir(self, path):
+    def scandir(self, path) -> _S3Scandir:
         return _S3Scandir(s3_accessor=self, path=path)
 
     def listdir(self, path):
@@ -746,7 +752,12 @@ _s3_flavour = _S3Flavour()
 _s3_accessor = _S3Accessor()
 
 
-def register_configuration_parameter(path, *, parameters=None, resource=None, glob_new_algorithm=None):
+def register_configuration_parameter(
+        path: PureS3Path,
+        *,
+        parameters: Optional[dict] = None,
+        resource: Optional[ServiceResource] = None,
+        glob_new_algorithm: Optional[bool] = None):
     if not isinstance(path, PureS3Path):
         raise TypeError(f'path argument have to be a {PurePath} type. got {type(path)}')
     if parameters and not isinstance(parameters, dict):
@@ -770,7 +781,7 @@ class PureS3Path(PurePath):
     __slots__ = ()
 
     @classmethod
-    def from_uri(cls, uri: str):
+    def from_uri(cls: type[Self], uri: str)   -> Self:
         """
         from_uri class method create a class instance from url
 
@@ -810,7 +821,7 @@ class PureS3Path(PurePath):
         return key
 
     @classmethod
-    def from_bucket_key(cls, bucket: str, key: str) -> PureS3Path:
+    def from_bucket_key(cls: type[Self], bucket: str, key: str) -> Self:
         """
         from_bucket_key class method create a class instance from bucket, key pair's
 
@@ -903,7 +914,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         except ClientError:
             return False
 
-    def iterdir(self) -> Generator[S3Path, None, None]:
+    def iterdir(self: Self) -> Generator[Self, None, None]:
         """
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
@@ -911,7 +922,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         for name in self._accessor.listdir(self):
             yield self._make_child_relpath(name)
 
-    def glob(self, pattern: str) -> Generator[S3Path, None, None]:
+    def glob(self: Self, pattern: str) -> Generator[Self, None, None]:
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
@@ -945,7 +956,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         return self._accessor.scandir(self)
 
-    def rglob(self, pattern) -> Generator[S3Path, None, None]:
+    def rglob(self: Self, pattern: str) -> Generator[Self, None, None]:
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
         """
@@ -973,7 +984,14 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         selector = _Selector(self, pattern=pattern)
         yield from selector.select()
 
-    def open(self, mode='r', buffering=DEFAULT_BUFFER_SIZE, encoding=None, errors=None, newline=None):
+    def open(
+            self,
+            mode: Literal["r", "w", "rb", "wb"] = 'r',
+             buffering: int = DEFAULT_BUFFER_SIZE,
+            encoding  : Optional[str] = None,
+            errors: Optional[str] = None,
+            newline: Optional[str] = None
+    ) -> Union[TextIOWrapper, smart_open.s3.Reader,   smart_open.s3.MultipartWriter]:
         """
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
         """
@@ -988,7 +1006,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             errors=errors,
             newline=newline)
 
-    def owner(self):
+    def owner(self)  -> str:
         """
         Returns the name of the user owning the Bucket or key.
         Similarly to boto3's ObjectSummary owner attribute
@@ -998,7 +1016,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             return KeyError('file not found')
         return self._accessor.owner(self)
 
-    def rename(self, target: Union[str, S3Path]) -> S3Path:
+    def rename(self: Self, target: Union[str, S3Path]) -> Self:
         """
         Renames this file or Bucket / key prefix / key to the given target.
         If target exists and is a file, it will be replaced silently if the user has permission.
@@ -1012,7 +1030,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         self._accessor.rename(self, target)
         return self.__class__(target)
 
-    def replace(self, target: Union[str, S3Path]) -> S3Path:
+    def replace(self: Self, target: Union[str, S3Path]) -> Self:
         """
         Renames this Bucket / key prefix / key to the given target.
         If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
@@ -1105,31 +1123,31 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             if not exist_ok:
                 raise
 
-    def is_mount(self):
+    def is_mount(self)  -> Literal[False]:
         """
         AWS S3 Service doesn't have mounting feature, There for this method will always return False
         """
         return False
 
-    def is_symlink(self):
+    def is_symlink(self) -> Literal[False]:
         """
         AWS S3 Service doesn't have symlink feature, There for this method will always return False
         """
         return False
 
-    def is_socket(self):
+    def is_socket(self) -> Literal[False]:
         """
         AWS S3 Service doesn't have sockets feature, There for this method will always return False
         """
         return False
 
-    def is_fifo(self):
+    def is_fifo(self) -> Literal[False]:
         """
         AWS S3 Service doesn't have fifo feature, There for this method will always return False
         """
         return False
 
-    def absolute(self):
+    def absolute(self: Self) -> Self:
         """
         Handle absolute method only if the path is already an absolute one
         since we have no way to compute an absolute path from a relative one in S3.
@@ -1194,11 +1212,11 @@ class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
         return super().__getattribute__(item)
 
     @property
-    def st_size(self):
+    def st_size(self) -> int:
         return self.size
 
     @property
-    def st_mtime(self):
+    def st_mtime(self)  -> float:
         return self.last_modified.timestamp()
 
 
