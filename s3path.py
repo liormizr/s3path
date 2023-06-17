@@ -13,7 +13,6 @@ from threading import Lock
 from itertools import chain
 from functools import lru_cache
 from contextlib import suppress
-from platform import python_version
 from collections import namedtuple, deque
 from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation, TextIOWrapper
 from pathlib import _PosixFlavour, _is_wildcard_pattern, PurePath, Path
@@ -23,10 +22,8 @@ from boto3.s3.transfer import TransferManager
 from boto3.resources.factory import ServiceResource
 from botocore.exceptions import ClientError
 from botocore.docs.docstring import LazyLoadedDocstring
-
 import smart_open
 import smart_open.s3
-from packaging.version import Version
 
 # to be replaced in python 3.11 by "from typing import Self"
 Self = TypeVar('Self')
@@ -937,8 +934,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def _glob(self, pattern):
         """ Glob with new Algorithm that better fit S3 API """
-        if Version(python_version()) >= Version('3.8'):
-            sys.audit("pathlib.Path.glob", self, pattern)
+        sys.audit("pathlib.Path.glob", self, pattern)
         if not pattern:
             raise ValueError(f'Unacceptable pattern: {pattern}')
         drv, root, pattern_parts = self._flavour.parse_parts((pattern,))
@@ -970,8 +966,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def _rglob(self, pattern):
         """ RGlob with new Algorithm that better fit S3 API """
-        if Version(python_version()) >= Version('3.8'):
-            sys.audit("pathlib.Path.rglob", self, pattern)
+        sys.audit("pathlib.Path.rglob", self, pattern)
         if not pattern:
             raise ValueError(f'Unacceptable pattern: {pattern}')
         drv, root, pattern_parts = self._flavour.parse_parts((pattern,))

@@ -12,13 +12,12 @@ setup(
     py_modules=['s3path'],
     install_requires=[
         'boto3>=1.16.35',
-        'packaging',
         'smart-open',
     ],
     license='Apache 2.0',
     long_description=long_description,
     long_description_content_type='text/x-rst',
-    python_requires='>=3.6',
+    python_requires='>=3.8',
     include_package_data=True,
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -27,8 +26,6 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
