@@ -138,6 +138,24 @@ Or Simply reading:
    </html>
    """
 
+Versioned S3 Objects:
+=====================
+
+\*New in S3Path version 0.5.0
+
+S3Path supports versioned objects for S3 buckets that have versioning enabled. ``VersionedS3Path`` is a subclass of ``S3Path`` that supports all of its features. The main difference is an additional ``version_id`` parameter in each of its constructor methods.
+
+.. code:: python
+
+   >>> from s3path import VersionedS3Path
+   >>> bucket, key, version_id = 'my-bucket', 'my-key', 'my-version-id'
+   >>> VersionedS3Path(f'/{bucket}/{key}', version_id=version_id)
+   VersionedS3Path('/my-bucket/my-key', version_id='my-version-id')
+   >>> VersionedS3Path.from_uri(f's3://{bucket}/{key}', version_id=version_id)
+   VersionedS3Path('/my-bucket/my-key', version_id='my-version-id')
+   >>> VersionedS3Path.from_bucket_key(bucket=bucket, key=key, version_id=version_id)
+   VersionedS3Path('/my-bucket/my-key', version_id='my-version-id')
+
 Requirements:
 =============
 
