@@ -1208,7 +1208,9 @@ class S3DirEntry:
     def inode(self, *args, **kwargs):
         return None
 
-    def is_dir(self):
+    def is_dir(self, follow_symlinks=False):
+        if follow_symlinks:
+            raise TypeError('AWS S3 Service does not have symlink feature')
         return self._is_dir
 
     def is_file(self):
