@@ -981,7 +981,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     def open(
             self,
             mode: Literal["r", "w", "rb", "wb"] = 'r',
-             buffering: int = DEFAULT_BUFFER_SIZE,
+            buffering: int = DEFAULT_BUFFER_SIZE,
             encoding  : Optional[str] = None,
             errors: Optional[str] = None,
             newline: Optional[str] = None
