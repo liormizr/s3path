@@ -28,7 +28,6 @@ __all__ = (
     'S3Path',
     'PureS3Path',
     'StatResult',
-    'S3DirEntry',
 )
 
 ALLOWED_COPY_ARGS = TransferManager.ALLOWED_COPY_ARGS
@@ -144,7 +143,7 @@ class _S3Scandir:
         resource, _ = self._s3_accessor.configuration_map.get_configuration(self._path)
         if not bucket_name:
             for bucket in resource.buckets.filter(Prefix=str(self._path)):
-                yield S3DirEntry(bucket.name, is_dir=True)
+                yield _S3DirEntry(bucket.name, is_dir=True)
             return
         bucket = resource.Bucket(bucket_name)
         sep = self._path._flavour.sep
@@ -162,12 +161,12 @@ class _S3Scandir:
             for folder in response.get('CommonPrefixes', ()):
                 full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
                 name = full_name.split(sep)[-1]
-                yield S3DirEntry(name, is_dir=True)
+                yield _S3DirEntry(name, is_dir=True)
             for file in response.get('Contents', ()):
                 if file['Key'] == response['Prefix']:
                     continue
                 name = file['Key'].split(sep)[-1]
-                yield S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
+                yield _S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
             if not response.get('IsTruncated'):
                 break
             continuation_token = response.get('NextContinuationToken')
@@ -1196,7 +1195,7 @@ class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
         return self.last_modified.timestamp()
 
 
-class S3DirEntry:
+class _S3DirEntry:
     def __init__(self, name, is_dir, size=None, last_modified=None):
         self.name = name
         self._is_dir = is_dir
