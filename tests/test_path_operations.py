@@ -10,7 +10,7 @@ import requests
 from botocore.exceptions import ClientError
 import pytest
 
-from s3path import PureS3Path, S3Path, StatResult
+from s3path import PureS3Path, S3Path, StatResult, VersionedS3Path
 
 # todo: test samefile/touch method
 # todo: test security and boto config changes
@@ -42,6 +42,7 @@ def test_stat(s3_mock):
     assert stat == StatResult(
         size=object_summary.size,
         last_modified=object_summary.last_modified,
+        version_id=None,
     )
 
     with NamedTemporaryFile() as local_file:
@@ -766,3 +767,49 @@ def test_absolute(s3_mock):
     relative_path = S3Path('./Test.test')
     with pytest.raises(ValueError):
         relative_path.absolute()
+
+
+def test_versioned_bucket(s3_mock):
+    bucket, key = 'test-versioned-bucket', 'versioned_file.txt'
+
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket=bucket)
+    s3.BucketVersioning(bucket).enable()
+
+    object_summary = s3.ObjectSummary(bucket, key)
+    file_contents_by_version = (b'Test', b'Test updated', b'Test', b'Test final')
+
+    version_id_to_file_content = {}
+    for file_content in file_contents_by_version:
+        version_id = object_summary.put(Body=file_content).get('VersionId')
+        version_id_to_file_content[version_id] = file_content
+
+    assert len(version_id_to_file_content) == len(file_contents_by_version)
+
+    # Test that we can read specific versions of the file
+    for version_id, expected_file_content in version_id_to_file_content.items():
+        versioned_paths = (
+            VersionedS3Path(f'/{bucket}/{key}', version_id=version_id),
+            VersionedS3Path(f'/{bucket}', f'{key}', version_id=version_id),
+            VersionedS3Path.from_uri(f's3://{bucket}/{key}', version_id=version_id),
+            VersionedS3Path.from_bucket_key(bucket=bucket, key=key, version_id=version_id),
+        )
+        for versioned_path in versioned_paths:
+            assert versioned_path.exists() and versioned_path.is_file()
+            assert versioned_path.stat().st_version_id == version_id
+            assert versioned_path.read_bytes() == expected_file_content
+
+    # Test that we receive the latest version of the file when S3Path is used or no version_id is specified
+    paths = (
+        S3Path(f'/{bucket}/{key}'),
+        S3Path(f'/{bucket}', f'{key}'),
+        S3Path.from_uri(f's3://{bucket}/{key}'),
+        S3Path.from_bucket_key(bucket=bucket, key=key),
+        VersionedS3Path(f'/{bucket}/{key}'),
+        VersionedS3Path(f'/{bucket}', f'{key}'),
+        VersionedS3Path.from_uri(f's3://{bucket}/{key}'),
+        VersionedS3Path.from_bucket_key(bucket=bucket, key=key),
+    )
+    for path in paths:
+        assert not isinstance(path, VersionedS3Path)
+        assert path.read_bytes() == file_contents_by_version[-1]

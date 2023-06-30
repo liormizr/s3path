@@ -4,7 +4,7 @@ s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 import re
 import sys
 import fnmatch
-from typing import Union
+from typing import Any, Union, Optional
 from datetime import timedelta
 from os import stat_result
 from threading import Lock
@@ -26,6 +26,7 @@ __version__ = '0.4.2'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
+    'VersionedS3Path',
     'PureS3Path',
     'StatResult',
 )
@@ -188,10 +189,16 @@ class _S3Accessor:
             raise NotImplementedError(
                 f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
         resource, _ = self.configuration_map.get_configuration(path)
-        object_summary = resource.ObjectSummary(path.bucket, path.key)
+
+        if hasattr(path, 'version_id'):
+            object_summary = resource.ObjectVersion(path.bucket, path.key, path.version_id).get()
+        else:
+            object_summary = resource.ObjectSummary(path.bucket, path.key).get()
+
         return StatResult(
-            size=object_summary.size,
-            last_modified=object_summary.last_modified,
+            size=object_summary.get('ContentLength'),
+            last_modified=object_summary.get('LastModified'),
+            version_id=object_summary.get('VersionId'),
         )
 
     def is_dir(self, path):
@@ -218,7 +225,11 @@ class _S3Accessor:
                 raise e
         bucket = resource.Bucket(bucket_name)
         key_name = str(path.key)
-        for object in bucket.objects.filter(Prefix=key_name):
+        for object in bucket.object_versions.filter(Prefix=key_name):
+            if hasattr(path, "version_id"):
+                if object.version_id == path.version_id:
+                    return True
+                continue
             if object.key == key_name:
                 return True
             if object.key.startswith(key_name + path._flavour.sep):
@@ -244,6 +255,8 @@ class _S3Accessor:
             'newline': newline,
         }
         transport_params = {'defer_seek': True}
+        if hasattr(path, 'version_id'):
+            transport_params.update(version_id=path.version_id)
         dummy_object = resource.Object('bucket', 'key')
         if smart_open.__version__ >= '5.1.0':
             self._smart_open_new_version_kwargs(
@@ -1176,7 +1189,71 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         return self._accessor.get_presigned_url(self, expire_in)
 
 
-class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
+class VersionedS3Path(S3Path):
+
+    def __new__(
+        cls, *args: Union[str, Path], version_id: Optional[str] = None
+    ) -> Union[S3Path, 'VersionedS3Path']:
+        if version_id is None:
+            return S3Path(*args)
+        else:
+            return super().__new__(cls, *args)
+
+    def __init__(self, *args: Union[str, Path], version_id: str) -> None:
+        """
+        __init__ instance method create a class instance from path and version id
+
+        >> from s3path import VersionedS3Path
+        >> VersionedS3Path('/<bucket>/<key>', '<version_id>')
+        << VersionedS3Path('/<bucket>/<key>', '<version_id>')
+        """
+
+        if not self.is_absolute():
+            raise ValueError(f"{type(self).__name__} doesn't support relative path")
+        if not self.key:
+            raise ValueError(f'{type(self).__name__} requires a key')
+        self.version_id = version_id
+
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}("/{self.bucket}/{self.key}", version_id="{self.version_id}")'
+
+    @classmethod
+    def from_uri(cls, uri: str, version_id: Optional[str] = None) -> Union[S3Path, 'VersionedS3Path']:
+        """
+        from_uri class method create a class instance from uri and version id
+
+        >> from s3path import VersionedS3Path
+        >> VersionedS3Path.from_uri('s3://<bucket>/<key>', '<version_id>')
+        << VersionedS3Path('/<bucket>/<key>', '<version_id>')
+        """
+
+        self = S3Path.from_uri(uri)
+        return cls._from_s3_path(s3_path=self, version_id=version_id)
+
+    @classmethod
+    def from_bucket_key(
+        cls, bucket: str, key: str, version_id: Optional[str] = None
+    ) -> Union[S3Path, 'VersionedS3Path']:
+        """
+        from_bucket_key class method create a class instance from bucket, key and version id
+
+        >> from s3path import VersionedS3Path
+        >> VersionedS3Path.from_bucket_key('<bucket>', '<key>', '<version_id>')
+        << VersionedS3Path('/<bucket>/<key>', '<version_id>')
+        """
+
+        self = S3Path.from_bucket_key(bucket, key)
+        return cls._from_s3_path(s3_path=self, version_id=version_id)
+
+    @classmethod
+    def _from_s3_path(cls, s3_path, version_id=None):
+        if version_id is None:
+            return s3_path
+        else:
+            return cls(s3_path, version_id=version_id)
+
+
+class StatResult(namedtuple('BaseStatResult', 'size, last_modified, version_id', defaults=(None,))):
     """
     Base of os.stat_result but with boto3 s3 features
     """
@@ -1193,6 +1270,10 @@ class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
     @property
     def st_mtime(self):
         return self.last_modified.timestamp()
+
+    @property
+    def st_version_id(self):
+        return self.version_id
 
 
 class _S3DirEntry:

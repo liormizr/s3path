@@ -55,17 +55,21 @@ The result is looked up at each call to this method:
 
    >>> path_stat = S3Path('/pypi-proxy/boto3/index.html').stat()
    >>> path_stat
-   StatResult(size=188, last_modified=datetime.datetime(2018, 4, 4, 12, 26, 3, tzinfo=tzutc()))
+   StatResult(size=188, last_modified=datetime.datetime(2018, 4, 4, 12, 26, 3, tzinfo=tzutc()), version_id=None)
    >>> path_stat.st_size
    188
    >>> path_stat.st_mtime
    1522833963.0
+   >>> path_stat.st_version_id
    >>> path_stat.st_atime
    Traceback (most recent call last):
    ...
    io.UnsupportedOperation: StatResult do not support st_atime attribute
 
-**NOTE:** ``follow_symlinks`` option must be always set to ``True``.
+**NOTES:**
+
+* ``follow_symlinks`` option must be always set to ``True``.
+* ``S3Path.stat()`` will contain an additional ``st_version_id`` attribute that is not part of ``os.stat_result``. If the object belongs to a versioned S3 bucket, this attribute will contain the version id of the object. Otherwise, it will be ``None``.
 
 S3Path.exists()
 ^^^^^^^^^^^^^^^
