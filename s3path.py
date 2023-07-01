@@ -6,7 +6,7 @@ s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 import re
 import sys
 import fnmatch
-from typing import Union, Generator, Literal, TypeVar
+from typing import Union, Generator, Literal, Optional
 from datetime import timedelta
 from os import stat_result
 from threading import Lock
@@ -24,9 +24,6 @@ from botocore.exceptions import ClientError
 from botocore.docs.docstring import LazyLoadedDocstring
 import smart_open
 import smart_open.s3
-
-# to be replaced in python 3.11 by "from typing import Self"
-Self = TypeVar('Self')
 
 
 __version__ = '0.4.2'
@@ -145,7 +142,7 @@ class _S3Scandir:
     def __exit__(self, exc_type, exc_val, exc_tb):
         return
 
-    def __iter__(self) -> Generator[S3DirEntry, None, None]:
+    def __iter__(self) -> Generator[_S3DirEntry, None, None]:
         bucket_name = self._path.bucket
         resource, _ = self._s3_accessor.configuration_map.get_configuration(self._path)
         if not bucket_name:
@@ -777,7 +774,7 @@ class PureS3Path(PurePath):
     __slots__ = ()
 
     @classmethod
-    def from_uri(cls: type[Self], uri: str)   -> Self:
+    def from_uri(cls, uri: str) -> PureS3Path:
         """
         from_uri class method create a class instance from url
 
@@ -817,7 +814,7 @@ class PureS3Path(PurePath):
         return key
 
     @classmethod
-    def from_bucket_key(cls: type[Self], bucket: str, key: str) -> Self:
+    def from_bucket_key(cls, bucket: str, key: str) -> PureS3Path:
         """
         from_bucket_key class method create a class instance from bucket, key pair's
 
@@ -910,7 +907,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         except ClientError:
             return False
 
-    def iterdir(self: Self) -> Generator[Self, None, None]:
+    def iterdir(self) -> Generator[S3Path, None, None]:
         """
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
@@ -918,7 +915,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         for name in self._accessor.listdir(self):
             yield self._make_child_relpath(name)
 
-    def glob(self: Self, pattern: str) -> Generator[Self, None, None]:
+    def glob(self, pattern: str) -> Generator[S3Path, None, None]:
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
@@ -951,7 +948,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         return self._accessor.scandir(self)
 
-    def rglob(self: Self, pattern: str) -> Generator[Self, None, None]:
+    def rglob(self, pattern: str) -> Generator[S3Path, None, None]:
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
         """
@@ -982,7 +979,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             self,
             mode: Literal["r", "w", "rb", "wb"] = 'r',
             buffering: int = DEFAULT_BUFFER_SIZE,
-            encoding  : Optional[str] = None,
+            encoding: Optional[str] = None,
             errors: Optional[str] = None,
             newline: Optional[str] = None
     ) -> Union[TextIOWrapper, smart_open.s3.Reader,   smart_open.s3.MultipartWriter]:
@@ -1010,7 +1007,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             return KeyError('file not found')
         return self._accessor.owner(self)
 
-    def rename(self: Self, target: Union[str, S3Path]) -> Self:
+    def rename(self, target: Union[str, S3Path]) -> S3Path:
         """
         Renames this file or Bucket / key prefix / key to the given target.
         If target exists and is a file, it will be replaced silently if the user has permission.
@@ -1024,7 +1021,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         self._accessor.rename(self, target)
         return self.__class__(target)
 
-    def replace(self: Self, target: Union[str, S3Path]) -> Self:
+    def replace(self, target: Union[str, S3Path]) -> S3Path:
         """
         Renames this Bucket / key prefix / key to the given target.
         If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
@@ -1141,7 +1138,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         return False
 
-    def absolute(self: Self) -> Self:
+    def absolute(self) -> S3Path:
         """
         Handle absolute method only if the path is already an absolute one
         since we have no way to compute an absolute path from a relative one in S3.
