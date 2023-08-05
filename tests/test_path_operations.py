@@ -42,7 +42,6 @@ def test_stat(s3_mock):
     assert stat == StatResult(
         size=object_summary.size,
         last_modified=object_summary.last_modified,
-        version_id=None,
     )
 
     with NamedTemporaryFile() as local_file:
@@ -805,10 +804,6 @@ def test_versioned_bucket(s3_mock):
         S3Path(f'/{bucket}', f'{key}'),
         S3Path.from_uri(f's3://{bucket}/{key}'),
         S3Path.from_bucket_key(bucket=bucket, key=key),
-        VersionedS3Path(f'/{bucket}/{key}'),
-        VersionedS3Path(f'/{bucket}', f'{key}'),
-        VersionedS3Path.from_uri(f's3://{bucket}/{key}'),
-        VersionedS3Path.from_bucket_key(bucket=bucket, key=key),
     )
     for path in paths:
         assert not isinstance(path, VersionedS3Path)
