@@ -1265,12 +1265,6 @@ class PureVersionedS3Path(PureS3Path):
     def __new__(cls, *args: Union[str, PurePath], version_id: str) -> PureVersionedS3Path:
 
         self = super().__new__(cls, *args)
-
-        if not self.is_absolute():
-            raise ValueError(f"{type(self).__name__} doesn't support relative path")
-        if not self.key:
-            raise ValueError(f'{type(self).__name__} requires a key')
-
         self.version_id = version_id
         return self
 
@@ -1299,6 +1293,23 @@ class PureVersionedS3Path(PureS3Path):
 
         self = PureS3Path.from_bucket_key(bucket=bucket, key=key)
         return cls(self, version_id=version_id)
+
+    def __truediv__(self, key):
+
+        if not isinstance(key, (PureS3Path, str)):
+            return NotImplemented
+
+        key = S3Path(key) if isinstance(key, str) else key
+        return key.__rtruediv__(self)
+
+    def __rtruediv__(self, key):
+
+        if not isinstance(key, (PureS3Path, str)):
+            return NotImplemented
+
+        new_path = super().__rtruediv__(key)
+        new_path.version_id = self.version_id
+        return new_path
 
 
 class VersionedS3Path(PureVersionedS3Path, S3Path):
