@@ -30,7 +30,9 @@ __version__ = '0.4.2'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
+    'VersionedS3Path',
     'PureS3Path',
+    'PureVersionedS3Path',
     'StatResult',
 )
 
@@ -528,6 +530,66 @@ class _S3Accessor:
         )
 
 
+class _VersionedS3Accessor(_S3Accessor):
+
+    def stat(self, path, *, follow_symlinks=True):
+        if not follow_symlinks:
+            raise NotImplementedError(
+                f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
+        resource, _ = self.configuration_map.get_configuration(path)
+
+        object_summary = resource.ObjectVersion(path.bucket, path.key, path.version_id).get()
+
+        return StatResult(
+            size=object_summary.get('ContentLength'),
+            last_modified=object_summary.get('LastModified'),
+            version_id=object_summary.get('VersionId'),
+        )
+
+    def exists(self, path):
+        resource, _ = self.configuration_map.get_configuration(path)
+        bucket = resource.Bucket(path.bucket)
+        key = path.key
+
+        for obj in bucket.object_versions.filter(Prefix=key):
+            key_match = (obj.key == key) or obj.key.startswith(key + path._flavour.sep)
+            if key_match and (obj.version_id == path.version_id):
+                return True
+
+        return False
+
+    def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
+        resource, config = self.configuration_map.get_configuration(path)
+
+        smart_open_kwargs = {
+            'uri': "s3:/" + str(path),
+            'mode': mode,
+            'buffering': buffering,
+            'encoding': encoding,
+            'errors': errors,
+            'newline': newline,
+        }
+        transport_params = {'defer_seek': True, "version_id": path.version_id}
+        dummy_object = resource.Object('bucket', 'key')
+        if smart_open.__version__ >= '5.1.0':
+            self._smart_open_new_version_kwargs(
+                dummy_object,
+                resource,
+                config,
+                transport_params,
+                smart_open_kwargs)
+        else:
+            self._smart_open_old_version_kwargs(
+                dummy_object,
+                resource,
+                config,
+                transport_params,
+                smart_open_kwargs)
+
+        file_object = smart_open.open(**smart_open_kwargs)
+        return file_object
+
+
 class _PathNotSupportedMixin:
     _NOT_SUPPORTED_MESSAGE = '{method} is unsupported on S3 service'
 
@@ -743,6 +805,7 @@ class _DeepDirCache:
 
 _s3_flavour = _S3Flavour()
 _s3_accessor = _S3Accessor()
+_versioned_s3_accessor = _VersionedS3Accessor()
 
 
 def register_configuration_parameter(
@@ -1192,7 +1255,84 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         return self._accessor.get_presigned_url(self, expire_in)
 
 
-class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
+class PureVersionedS3Path(PureS3Path):
+    """
+    PurePath subclass for AWS S3 service Keys with Versions.
+
+    S3 is not a file-system, but we can look at it like a POSIX system.
+    """
+
+    def __new__(cls, *args: Union[str, PurePath], version_id: str) -> PureVersionedS3Path:
+
+        self = super().__new__(cls, *args)
+        self.version_id = version_id
+        return self
+
+    @classmethod
+    def from_uri(cls, uri: str, *, version_id: str) -> PureVersionedS3Path:
+        """
+        from_uri class method creates a class instance from uri and version id
+
+        >> from s3path import VersionedS3Path
+        >> VersionedS3Path.from_uri('s3://<bucket>/<key>', version_id='<version_id>')
+        << VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+        """
+
+        self = PureS3Path.from_uri(uri)
+        return cls(self, version_id=version_id)
+
+    @classmethod
+    def from_bucket_key(cls, bucket: str, key: str, *, version_id: str) -> PureVersionedS3Path:
+        """
+        from_bucket_key class method creates a class instance from bucket, key and version id
+
+        >> from s3path import VersionedS3Path
+        >> VersionedS3Path.from_bucket_key('<bucket>', '<key>', version_id='<version_id>')
+        << VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+        """
+
+        self = PureS3Path.from_bucket_key(bucket=bucket, key=key)
+        return cls(self, version_id=version_id)
+
+    def __truediv__(self, key):
+
+        if not isinstance(key, (PureS3Path, str)):
+            return NotImplemented
+
+        key = S3Path(key) if isinstance(key, str) else key
+        return key.__rtruediv__(self)
+
+    def __rtruediv__(self, key):
+
+        if not isinstance(key, (PureS3Path, str)):
+            return NotImplemented
+
+        new_path = super().__rtruediv__(key)
+        new_path.version_id = self.version_id
+        return new_path
+
+
+class VersionedS3Path(PureVersionedS3Path, S3Path):
+    """
+    S3Path subclass for AWS S3 service Keys with Versions.
+
+    >> from s3path import VersionedS3Path
+    >> VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+    << VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+    """
+
+    _accessor = _versioned_s3_accessor
+
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}("{self.as_posix()}", version_id="{self.version_id}")'
+
+    def _init(self, template=None):
+        super()._init(template)
+        if template is None:
+            self._accessor = _versioned_s3_accessor
+
+
+class StatResult(namedtuple('BaseStatResult', 'size, last_modified, version_id', defaults=(None,))):
     """
     Base of os.stat_result but with boto3 s3 features
     """
@@ -1209,6 +1349,10 @@ class StatResult(namedtuple('BaseStatResult', 'size, last_modified')):
     @property
     def st_mtime(self)  -> float:
         return self.last_modified.timestamp()
+
+    @property
+    def st_version_id(self):
+        return self.version_id
 
 
 class _S3DirEntry:
