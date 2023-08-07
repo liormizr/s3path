@@ -141,9 +141,9 @@ Or Simply reading:
 Versioned S3 Objects:
 =====================
 
-\*New in S3Path version 0.5.0
+\*New in s3path version 0.5.0
 
-S3Path supports versioned objects for S3 buckets that have versioning enabled. ``VersionedS3Path`` is a subclass of ``S3Path`` that supports all of its features. The main difference is an additional ``version_id`` parameter in each of its constructor methods.
+s3path supports versioned objects for S3 buckets that have versioning enabled. ``VersionedS3Path`` is a subclass of ``S3Path`` that supports all of its features. The main difference is an additional required ``version_id`` keyword parameter in each of its constructor methods.
 
 .. code:: python
 

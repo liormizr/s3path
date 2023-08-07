@@ -899,6 +899,20 @@ class PureS3Path(PurePath):
         """
         return super().as_uri()
 
+    def joinpath(self, *args):
+
+        if not args:
+            return self
+
+        new_path = super().joinpath(*args)
+
+        if isinstance(args[-1], PureVersionedS3Path):
+            new_path = VersionedS3Path(new_path, version_id=args[-1].version_id)
+        elif isinstance(new_path, PureVersionedS3Path):
+            new_path = S3Path(new_path)
+
+        return new_path
+
     def _absolute_path_validation(self):
         if not self.is_absolute():
             raise ValueError('relative path have no bucket, key specification')
@@ -1294,6 +1308,9 @@ class PureVersionedS3Path(PureS3Path):
         self = PureS3Path.from_bucket_key(bucket=bucket, key=key)
         return cls(self, version_id=version_id)
 
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}("{self.as_posix()}", version_id="{self.version_id}")'
+
     def __truediv__(self, key):
 
         if not isinstance(key, (PureS3Path, str)):
@@ -1322,9 +1339,6 @@ class VersionedS3Path(PureVersionedS3Path, S3Path):
     """
 
     _accessor = _versioned_s3_accessor
-
-    def __repr__(self) -> str:
-        return f'{type(self).__name__}("{self.as_posix()}", version_id="{self.version_id}")'
 
     def _init(self, template=None):
         super()._init(template)
