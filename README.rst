@@ -141,8 +141,6 @@ Or Simply reading:
 Versioned S3 Objects:
 =====================
 
-\*New in s3path version 0.5.0
-
 s3path supports versioned objects for S3 buckets that have versioning enabled. ``VersionedS3Path`` is a subclass of ``S3Path`` that supports all of its features. The main difference is an additional required ``version_id`` keyword parameter in each of its constructor methods.
 
 .. code:: python
@@ -155,6 +153,8 @@ s3path supports versioned objects for S3 buckets that have versioning enabled. `
    VersionedS3Path('/my-bucket/my-key', version_id='my-version-id')
    >>> VersionedS3Path.from_bucket_key(bucket=bucket, key=key, version_id=version_id)
    VersionedS3Path('/my-bucket/my-key', version_id='my-version-id')
+
+New in version 0.5.0
 
 Requirements:
 =============

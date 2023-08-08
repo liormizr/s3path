@@ -41,9 +41,9 @@ You can't use S3Path if you doesn't have boto3 installed in your environment:
 VersionedS3Path(\*pathsegments, version_id)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-\*New in s3path version 0.5.0
-
-A subclass of `S3Path`_ and `PureVersionedS3Path`_, this class represents a concrete path of the AWS S3 Service for buckets in which `S3 versioning`_ is enabled. All actions use `boto3`_ as the SKD for AWS S3 Service:
+A subclass of `S3Path`_ and `PureVersionedS3Path`_, this class represents a concrete path of the AWS
+S3 Service for buckets in which `S3 versioning`_ is enabled. All actions use `boto3`_ as the SKD for
+AWS S3 Service:
 
 .. code:: python
 
@@ -51,8 +51,10 @@ A subclass of `S3Path`_ and `PureVersionedS3Path`_, this class represents a conc
    >>> VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
    VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
 
-* ``pathsegments`` are specified similarly to `Path`_
-* ``version_id`` is a ``str`` that can be any valid `AWS S3 version identifier`_
+| pathsegments are specified similarly to `Path`_
+| version_id is a string that can be any valid `AWS S3 version identifier`_
+
+New in version 0.5.0
 
 Methods:
 ========
@@ -62,7 +64,13 @@ All the methods below will raise a `ValueError`_ if the path isn't absolute.
 Many of these methods can raise a `botocore.exceptions.ClientError` if `boto3`_ call fails
 (for example because the path doesn't exist).
 
-**NOTE:** The following signatures are shown for `S3Path`_ but are equally valid for `VersionedS3Path`_ as well.
+**NOTE:** The following signatures are shown for `S3Path`_ but are equally valid for
+`VersionedS3Path`_ as well. Any behavioral differences between `S3Path`_ methods and their
+`VersionedS3Path`_ equivalents are explicitly detailed below (i.e. if a given `VersionedS3Path`_
+method signature is not listed below, it is assumed that it behaves identically to its `S3Path`_
+equivalent).
+
+.. _S3Path.stat:
 
 S3Path.stat(*, follow_symlinks=True)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -90,7 +98,16 @@ The result is looked up at each call to this method:
 **NOTES:**
 
 * ``follow_symlinks`` option must be always set to ``True``.
-* Both ``S3Path.stat()`` and ``VersionedS3Path.stat()`` will contain an additional ``st_version_id`` attribute that is not part of the `os.stat_result`_ API. For ``S3Path`` instances, the value of ``st_version_id`` will be ``None``, but for ``VersionedS3Path`` instances, ``st_version_id`` will contain the version id of the object.
+* The returned object will contain an additional ``st_version_id`` attribute that is not part of the
+`os.stat_result`_ API. The value of ``st_version_id`` will be ``None``.
+
+VersionedS3Path.stat(*, follow_symlinks=True)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Behaves the same as `S3Path.stat`_ with the exception that the ``st_version_id`` attribute of the
+returned object will contain the version ID of the underlying S3 object.
+
+.. _S3Path.exists:
 
 S3Path.exists()
 ^^^^^^^^^^^^^^^
@@ -106,7 +123,11 @@ Whether the path points to an existing Bucket, key or key prefix:
    >>> S3Path('/fake-bucket/').exists()
    False
 
-**NOTE:** For `VersionedS3Path`_ instances, this will check the existence of bucket, key, and version ID.
+VersionedS3Path.exists()
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Behaves the same as `S3Path.exists`_ except that the version ID must match in addition to the bucket
+and key.
 
 .. _S3Path.glob:
 
@@ -211,6 +232,8 @@ yield path objects of the directory contents:
    >>> [path for path in bucket_path.boto3_path()]
    [S3Path('/pypi-proxy/boto3/boto3-1.4.1.tar.gz'), S3Path('/pypi-proxy/boto3/index.html')]
 
+.. _S3Path.open:
+
 S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -233,7 +256,11 @@ returns a file like object that you can read or write with:
    </body>
    </html>'
 
-**NOTE:** For `VersionedS3Path`_ instances, ``open`` will attempt to open the specified version of the object pointed to by bucket and key.
+VersionedS3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Behaves the same as `S3Path.open`_ except that ``VersionedS3Path.version_id`` will be used to open
+the specified version of the object pointed to by the `VersionedS3Path`_ object.
 
 S3Path.owner()
 ^^^^^^^^^^^^^^
@@ -435,6 +462,24 @@ A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics
 
 pathsegments are specified similarly to `PurePath`_.
 
+.. _PureVersionedS3Path:
+
+PureVersionedS3Path(\*pathsegments, version_id)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A subclass of `PureS3Path`_, this path flavour represents AWS S3 Service semantics for buckets in which `S3 versioning`_ is enabled.
+
+.. code:: python
+
+   >>> from s3path import PureVersionedS3Path
+   >>> PureVersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+   PureVersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+
+| pathsegments are specified similarly to `PurePath`_.
+| version_id is a string that can be any valid `AWS S3 version identifier`_
+
+New in version 0.5.0
+
 PureS3Path has a similar behavior to `PurePosixPath`_, except for the below changes:
 ------------------------------------------------------------------------------------
 
@@ -524,24 +569,6 @@ A string representing the AWS S3 Key name, if any:
    ''
 
 This is a new property.
-
-.. _PureVersionedS3Path:
-
-PureVersionedS3Path(\*pathsegments, version_id)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-\*New in s3path version 0.5.0
-
-A subclass of `PureS3Path`_, this path flavour represents AWS S3 Service semantics for buckets in which `S3 versioning`_ is enabled.
-
-.. code:: python
-
-   >>> from s3path import PureVersionedS3Path
-   >>> PureVersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
-   PureVersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
-
-* ``pathsegments`` are specified similarly to `Path`_
-* ``version_id`` is a ``str`` that can be any valid `AWS S3 version identifier`_
 
 PureVersionedS3Path has a similar behavior to `PureS3Path`_, except for the below changes:
 ------------------------------------------------------------------------------------------
