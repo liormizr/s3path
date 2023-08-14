@@ -36,13 +36,41 @@ You can't use S3Path if you doesn't have boto3 installed in your environment:
      % (cls.__name__,))
    NotImplementedError: cannot instantiate 'S3Path' on your system
 
+.. _VersionedS3Path:
+
+VersionedS3Path(\*pathsegments, version_id)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A subclass of `S3Path`_ and `PureVersionedS3Path`_, this class represents a concrete path of the AWS
+S3 Service for buckets in which `S3 versioning`_ is enabled. All actions use `boto3`_ as the SKD for
+AWS S3 Service:
+
+.. code:: python
+
+   >>> from s3path import VersionedS3Path
+   >>> VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+   VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+
+| pathsegments are specified similarly to `Path`_
+| version_id is a string that can be any valid `AWS S3 version identifier`_
+|
+| New in version 0.5.0
+
 Methods:
 ========
 
-S3Path provides the following methods in addition to pure paths methods.
+S3Path and VersionedS3Path provide the following methods in addition to pure paths methods.
 All the methods below will raise a `ValueError`_ if the path isn't absolute.
 Many of these methods can raise a `botocore.exceptions.ClientError` if `boto3`_ call fails
 (for example because the path doesn't exist).
+
+**NOTE:** The following signatures are shown for `S3Path`_ but are equally valid for
+`VersionedS3Path`_ as well. Any behavioral differences between `S3Path`_ methods and their
+`VersionedS3Path`_ equivalents are explicitly detailed below (i.e. if a given `VersionedS3Path`_
+method signature is not listed below, it is assumed that it behaves identically to its `S3Path`_
+equivalent).
+
+.. _S3Path.stat:
 
 S3Path.stat(*, follow_symlinks=True)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -60,7 +88,8 @@ The result is looked up at each call to this method:
    188
    >>> path_stat.st_mtime
    1522833963.0
-   >>> path_stat.st_version_id
+   >>> print(path_stat.st_version_id)
+   None
    >>> path_stat.st_atime
    Traceback (most recent call last):
    ...
@@ -69,7 +98,16 @@ The result is looked up at each call to this method:
 **NOTES:**
 
 * ``follow_symlinks`` option must be always set to ``True``.
-* ``S3Path.stat()`` will contain an additional ``st_version_id`` attribute that is not part of ``os.stat_result``. If the object belongs to a versioned S3 bucket, this attribute will contain the version id of the object. Otherwise, it will be ``None``.
+* The returned object will contain an additional ``st_version_id`` attribute that is not part of the
+`os.stat_result`_ API. The value of ``st_version_id`` will be ``None``.
+
+VersionedS3Path.stat(*, follow_symlinks=True)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Behaves the same as `S3Path.stat`_ with the exception that the ``st_version_id`` attribute of the
+returned object will contain the version ID of the underlying S3 object.
+
+.. _S3Path.exists:
 
 S3Path.exists()
 ^^^^^^^^^^^^^^^
@@ -85,6 +123,11 @@ Whether the path points to an existing Bucket, key or key prefix:
    >>> S3Path('/fake-bucket/').exists()
    False
 
+VersionedS3Path.exists()
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Behaves the same as `S3Path.exists`_ except that the version ID must match in addition to the bucket
+and key.
 
 .. _S3Path.glob:
 
@@ -189,6 +232,8 @@ yield path objects of the directory contents:
    >>> [path for path in bucket_path.boto3_path()]
    [S3Path('/pypi-proxy/boto3/boto3-1.4.1.tar.gz'), S3Path('/pypi-proxy/boto3/index.html')]
 
+.. _S3Path.open:
+
 S3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -210,6 +255,12 @@ returns a file like object that you can read or write with:
        <a href="botocore-1.4.93.tar.gz">botocore-1.4.93.tar.gz</a><br>
    </body>
    </html>'
+
+VersionedS3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Behaves the same as `S3Path.open`_ except that ``VersionedS3Path.version_id`` will be used to open
+the specified version of the object pointed to by the `VersionedS3Path`_ object.
 
 S3Path.owner()
 ^^^^^^^^^^^^^^
@@ -411,6 +462,24 @@ A subclass of `PurePath`_, this path flavour represents AWS S3 Service semantics
 
 pathsegments are specified similarly to `PurePath`_.
 
+.. _PureVersionedS3Path:
+
+PureVersionedS3Path(\*pathsegments, version_id)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A subclass of `PureS3Path`_, this path flavour represents AWS S3 Service semantics for buckets in which `S3 versioning`_ is enabled.
+
+.. code:: python
+
+   >>> from s3path import PureVersionedS3Path
+   >>> PureVersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+   PureVersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
+
+| pathsegments are specified similarly to `PurePath`_.
+| version_id is a string that can be any valid `AWS S3 version identifier`_
+|
+| New in version 0.5.0
+
 PureS3Path has a similar behavior to `PurePosixPath`_, except for the below changes:
 ------------------------------------------------------------------------------------
 
@@ -423,6 +492,13 @@ This is different then PurePath since AWS S3 Service doesn't support symbolic li
    PureS3Path('bar')
 
 **NOTE:** All The methods below will raise `ValueError`_ if the path isn't absolute.
+
+PureS3Path.joinpath(*other)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If the final element of ``other`` is a `PureVersionedS3Path`_ instance, the resulting object will
+also be a `PureVersionedS3Path`_ instance with ``version_id`` set to ``other[-1].version_id``.
+Otherwise, the resulting object will be a `PureS3Path`_ instance.
 
 PureS3Path.as_uri()
 ^^^^^^^^^^^^^^^^^^^
@@ -494,6 +570,63 @@ A string representing the AWS S3 Key name, if any:
 
 This is a new property.
 
+PureVersionedS3Path has a similar behavior to `PureS3Path`_, except for the below changes:
+------------------------------------------------------------------------------------------
+
+PureVersionedS3Path.from_uri(uri, *, version_id)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Represents a versioned AWS S3 URI as a `PureVersionedS3Path`_:
+
+.. code:: python
+
+   >>> from s3path import PureVersionedS3Path
+   >>> PureVersionedS3Path.from_uri('s3://pypi-proxy/boto3/index.html', version_id='<version_id>')
+   PureVersionedS3Path('/pypi-proxy/boto3/index.html', version_id='<version_id>')
+
+This is a new class method.
+
+PureVersionedS3Path.from_bucket_key(bucket, key, *, version_id)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Represents a versioned AWS S3 Bucket and Key pairs as a `PureVersionedS3Path`_:
+
+.. code:: python
+
+   >>> from s3path import PureVersionedS3Path
+   >>> PureVersionedS3Path.from_bucket_key('pypi-proxy', 'boto3/index.html', version_id='<version_id>')
+   PureVersionedS3Path('/pypi-proxy/boto3/index.html', version_id='<version_id>')
+
+This is a new class method.
+
+Division Operator with PureVersionedS3Path
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The division of `PureVersionedS3Path`_ instances with other objects will yield the following types:
+
+* ``PureVersionedS3Path / PureVersionedS3Path -> PureVersionedS3Path``
+* ``PureS3Path / PureVersionedS3Path -> PureVersionedS3Path``
+* ``str / PureVersionedS3Path -> PureVersionedS3Path``
+* ``PureVersionedS3Path / PureS3Path -> PureS3Path``
+* ``PureVersionedS3Path / str -> PureS3Path``
+
+.. code:: python
+
+   >>> from s3path import S3Path, VersionedS3Path
+   >>> str_path = "example/path"
+   >>> s3_path = S3Path("example/path")
+   >>> versioned_s3_path = VersionedS3Path("example/path", version_id="<version_id>")
+   >>> type(versioned_s3_path / versioned_s3_path)
+   <<< s3path.VersionedS3Path
+   >>> type(s3_path / versioned_s3_path)
+   <<< s3path.VersionedS3Path
+   >>> type(str_path / versioned_s3_path)
+   <<< s3path.VersionedS3Path
+   >>> type(versioned_s3_path / s3_path)
+   <<< s3path.S3Path
+   >>> type(versioned_s3_path / str_path)
+   <<< s3path.S3Path
+
 Unsupported Methods:
 ====================
 
@@ -526,6 +659,11 @@ Here is a list of all unsupported methods:
 - S3Path.symlink_to(target, target_is_directory=False)
 
 
+Changed in version 0.5.0:
+=========================
+
+* Added `VersionedS3Path`_ and `PureVersionedS3Path`_
+
 Changed in version 0.3.0:
 =========================
 
@@ -550,3 +688,5 @@ Changes in PureS3Path:
 .. _NotImplementedError : https://docs.python.org/3/library/exceptions.html#NotImplementedError
 .. _ObjectSummary : https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#objectsummary
 .. _Abstract pathlib interface: https://github.com/liormizr/s3path/blob/master/docs/interface.rst
+.. _S3 versioning : https://docs.aws.amazon.com/AmazonS3/latest/userguide/versioning-workflows.html
+.. _AWS S3 version identifier : https://docs.aws.amazon.com/AmazonS3/latest/userguide/versioning-workflows.html#version-ids
