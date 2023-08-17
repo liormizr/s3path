@@ -26,7 +26,7 @@ import smart_open
 import smart_open.s3
 
 
-__version__ = '0.4.2'
+__version__ = '0.5.0'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
@@ -1060,7 +1060,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             errors=errors,
             newline=newline)
 
-    def owner(self)  -> str:
+    def owner(self) -> str:
         """
         Returns the name of the user owning the Bucket or key.
         Similarly to boto3's ObjectSummary owner attribute
@@ -1091,7 +1091,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         """
         return self.rename(target)
 
-    def unlink(self, missing_ok: bool = False) -> None:
+    def unlink(self, missing_ok: bool = False):
         """
         Remove this key from its bucket.
         """
@@ -1119,7 +1119,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             if not missing_ok:
                 raise
 
-    def rmdir(self) -> None:
+    def rmdir(self):
         """
         Removes this Bucket / key prefix. The Bucket / key prefix must be empty
         """
@@ -1140,7 +1140,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             other_path = type(self)(other_path)
         return self.bucket == other_path.bucket and self.key == other_path.key and self.is_file()
 
-    def touch(self, mode: int = 0o666, exist_ok: bool = True) -> None:
+    def touch(self, mode: int = 0o666, exist_ok: bool = True):
         """
         Creates a key at this given path.
         If the key already exists,
@@ -1151,7 +1151,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             raise FileExistsError()
         self.write_text('')
 
-    def mkdir(self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False) -> None:
+    def mkdir(self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False):
         """
         Create a path bucket.
         AWS S3 Service doesn't support folders, therefore the mkdir method will only create the current bucket.
@@ -1177,7 +1177,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             if not exist_ok:
                 raise
 
-    def is_mount(self)  -> Literal[False]:
+    def is_mount(self) -> Literal[False]:
         """
         AWS S3 Service doesn't have mounting feature, There for this method will always return False
         """
@@ -1262,7 +1262,7 @@ class PureVersionedS3Path(PureS3Path):
     S3 is not a file-system, but we can look at it like a POSIX system.
     """
 
-    def __new__(cls, *args: Union[str, PurePath], version_id: str) -> PureVersionedS3Path:
+    def __new__(cls, *args, version_id: str):
 
         self = super().__new__(cls, *args)
         self.version_id = version_id
@@ -1295,7 +1295,7 @@ class PureVersionedS3Path(PureS3Path):
         return cls(self, version_id=version_id)
 
     def __repr__(self) -> str:
-        return f'{type(self).__name__}("{self.as_posix()}", version_id="{self.version_id}")'
+        return f'{type(self).__name__}({self.as_posix()}, version_id={self.version_id})'
 
     def joinpath(self, *args):
 
@@ -1361,11 +1361,11 @@ class StatResult(namedtuple('BaseStatResult', 'size, last_modified, version_id',
         return self.size
 
     @property
-    def st_mtime(self)  -> float:
+    def st_mtime(self) -> float:
         return self.last_modified.timestamp()
 
     @property
-    def st_version_id(self):
+    def st_version_id(self) -> str:
         return self.version_id
 
 
