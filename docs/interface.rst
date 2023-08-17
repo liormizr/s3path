@@ -659,21 +659,6 @@ Here is a list of all unsupported methods:
 - S3Path.symlink_to(target, target_is_directory=False)
 
 
-Changed in version 0.5.0:
-=========================
-
-* Added `VersionedS3Path`_ and `PureVersionedS3Path`_
-
-Changed in version 0.3.0:
-=========================
-
-Changes in PureS3Path:
-^^^^^^^^^^^^^^^^^^^^^^
-
-*  bucket property return a string instead of an S3Path object
-*  key property return a string instead of an S3Path object
-
-
 .. _pathlib : https://docs.python.org/3/library/pathlib.html
 .. _os.stat_result : https://docs.python.org/3/library/os.html#os.stat_result
 .. _PurePathDocs : https://docs.python.org/3/library/pathlib.html#pure-paths
