@@ -6,7 +6,7 @@ s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 import re
 import sys
 import fnmatch
-from typing import Union, Generator, Literal, Optional
+from typing import TypeVar, Union, Generator, Literal, Optional
 from datetime import timedelta
 from os import stat_result
 from threading import Lock
@@ -37,6 +37,8 @@ __all__ = (
 )
 
 ALLOWED_COPY_ARGS = TransferManager.ALLOWED_COPY_ARGS
+
+Self = TypeVar("Self")
 
 
 class _S3Flavour(_PosixFlavour):
@@ -837,7 +839,7 @@ class PureS3Path(PurePath):
     __slots__ = ()
 
     @classmethod
-    def from_uri(cls, uri: str) -> PureS3Path:
+    def from_uri(cls: type[Self], uri: str) -> Self:
         """
         from_uri class method create a class instance from url
 
@@ -877,7 +879,7 @@ class PureS3Path(PurePath):
         return key
 
     @classmethod
-    def from_bucket_key(cls, bucket: str, key: str) -> PureS3Path:
+    def from_bucket_key(cls: type[Self], bucket: str, key: str) -> Self:
         """
         from_bucket_key class method create a class instance from bucket, key pair's
 
@@ -1269,7 +1271,7 @@ class PureVersionedS3Path(PureS3Path):
         return self
 
     @classmethod
-    def from_uri(cls, uri: str, *, version_id: str) -> PureVersionedS3Path:
+    def from_uri(cls: Self, uri: str, *, version_id: str) -> Self:
         """
         from_uri class method creates a class instance from uri and version id
 
@@ -1282,7 +1284,7 @@ class PureVersionedS3Path(PureS3Path):
         return cls(self, version_id=version_id)
 
     @classmethod
-    def from_bucket_key(cls, bucket: str, key: str, *, version_id: str) -> PureVersionedS3Path:
+    def from_bucket_key(cls: Self, bucket: str, key: str, *, version_id: str) -> Self:
         """
         from_bucket_key class method creates a class instance from bucket, key and version id
 
