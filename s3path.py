@@ -1271,7 +1271,7 @@ class PureVersionedS3Path(PureS3Path):
         return self
 
     @classmethod
-    def from_uri(cls: Self, uri: str, *, version_id: str) -> Self:
+    def from_uri(cls: type[Self], uri: str, *, version_id: str) -> Self:
         """
         from_uri class method creates a class instance from uri and version id
 
