@@ -1284,7 +1284,7 @@ class PureVersionedS3Path(PureS3Path):
         return cls(self, version_id=version_id)
 
     @classmethod
-    def from_bucket_key(cls: Self, bucket: str, key: str, *, version_id: str) -> Self:
+    def from_bucket_key(cls: type[Self], bucket: str, key: str, *, version_id: str) -> Self:
         """
         from_bucket_key class method creates a class instance from bucket, key and version id
 
