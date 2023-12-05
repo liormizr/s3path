@@ -24,6 +24,14 @@ def test_fspath():
     assert os.fspath(PureS3Path('/usr/bin')) == '/usr/bin'
 
 
+def test_from_uri_issue_150():
+    uri = 's3://bucket/test/2023-09-10T00%3A00%3A00.000Z.txt'
+    string = '/bucket/test/2023-09-10T00:00:00.000Z.txt'
+    path = PureS3Path.from_uri(uri)
+    assert path.as_uri() == uri
+    assert str(path) == string
+
+
 def test_join_strs():
     assert PureS3Path('foo', 'some/path', 'bar') == PureS3Path('foo/some/path/bar')
 
