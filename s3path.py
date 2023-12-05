@@ -837,7 +837,7 @@ class PureS3Path(PurePath):
     __slots__ = ()
 
     @classmethod
-    def from_uri(cls, uri: str) -> PureS3Path:
+    def from_uri(cls, uri: str):
         """
         from_uri class method create a class instance from url
 
@@ -877,7 +877,7 @@ class PureS3Path(PurePath):
         return key
 
     @classmethod
-    def from_bucket_key(cls, bucket: str, key: str) -> PureS3Path:
+    def from_bucket_key(cls, bucket: str, key: str):
         """
         from_bucket_key class method create a class instance from bucket, key pair's
 
@@ -1269,7 +1269,7 @@ class PureVersionedS3Path(PureS3Path):
         return self
 
     @classmethod
-    def from_uri(cls, uri: str, *, version_id: str) -> PureVersionedS3Path:
+    def from_uri(cls, uri: str, *, version_id: str):
         """
         from_uri class method creates a class instance from uri and version id
 
@@ -1282,7 +1282,7 @@ class PureVersionedS3Path(PureS3Path):
         return cls(self, version_id=version_id)
 
     @classmethod
-    def from_bucket_key(cls, bucket: str, key: str, *, version_id: str) -> PureVersionedS3Path:
+    def from_bucket_key(cls, bucket: str, key: str, *, version_id: str):
         """
         from_bucket_key class method creates a class instance from bucket, key and version id
 
