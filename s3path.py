@@ -1,20 +1,22 @@
-from __future__ import annotations
-
 """
 s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
+from __future__ import annotations
+
 import re
 import sys
 import fnmatch
-from typing import Union, Generator, Literal, Optional
-from datetime import timedelta
 from os import stat_result
 from threading import Lock
 from itertools import chain
+from datetime import timedelta
 from functools import lru_cache
 from contextlib import suppress
+from urllib.parse import unquote
 from collections import namedtuple, deque
+from typing import Union, Generator, Literal, Optional
 from io import DEFAULT_BUFFER_SIZE, UnsupportedOperation, TextIOWrapper
+
 from pathlib import _PosixFlavour, _is_wildcard_pattern, PurePath, Path
 
 import boto3
@@ -847,7 +849,8 @@ class PureS3Path(PurePath):
         """
         if not uri.startswith('s3://'):
             raise ValueError('Provided uri seems to be no S3 URI!')
-        return cls(uri[4:])
+        unquoted_uri = unquote(uri)
+        return cls(unquoted_uri[4:])
 
     @property
     def bucket(self) -> str:
