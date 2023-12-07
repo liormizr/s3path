@@ -9,7 +9,8 @@ setup(
     url='https://github.com/liormizr/s3path',
     author='Lior Mizrahi',
     author_email='li.mizr@gmail.com',
-    py_modules=['s3path'],
+    # py_modules=['s3path'],
+    packages=['s3path'],
     install_requires=[
         'boto3>=1.16.35',
         'smart-open',
