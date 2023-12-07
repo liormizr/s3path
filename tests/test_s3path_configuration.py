@@ -1,13 +1,22 @@
-from pathlib import Path
 
+import sys
 import pytest
 import smart_open
+from pathlib import Path
 from packaging.version import Version
 
 import boto3
 from botocore.client import Config
 
-from s3path import S3Path, PureS3Path, register_configuration_parameter, accessor
+from s3path import S3Path, PureS3Path, register_configuration_parameter
+
+
+if sys.version_info >= (3, 12):
+    from s3path import accessor
+    _config_key_parser = str
+else:
+    accessor = S3Path._accessor
+    _config_key_parser = lambda path: path
 
 
 def test_s3_configuration_map_repr():
@@ -19,8 +28,8 @@ def test_basic_configuration(reset_configuration_cache):
 
     accessor.configuration_map.arguments = accessor.configuration_map.resources = None
 
-    assert str(path) not in (accessor.configuration_map.arguments or ())
-    assert str(path) not in (accessor.configuration_map.resources or ())
+    assert _config_key_parser(path) not in (accessor.configuration_map.arguments or ())
+    assert _config_key_parser(path) not in (accessor.configuration_map.resources or ())
     assert accessor.configuration_map.get_configuration(path) == (
         accessor.configuration_map.default_resource, {})
 
@@ -42,8 +51,8 @@ def test_register_configuration_exceptions(reset_configuration_cache):
 def test_hierarchical_configuration(reset_configuration_cache):
     path = S3Path('/foo/')
     register_configuration_parameter(path, parameters={'ContentType': 'text/html'})
-    assert str(path) in accessor.configuration_map.arguments
-    assert str(path) not in accessor.configuration_map.resources
+    assert _config_key_parser(path) in accessor.configuration_map.arguments
+    assert _config_key_parser(path) not in accessor.configuration_map.resources
     assert accessor.configuration_map.get_configuration(path) == (
         accessor.configuration_map.default_resource, {'ContentType': 'text/html'})
 
