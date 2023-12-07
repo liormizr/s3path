@@ -23,7 +23,6 @@ else:
     def __getattr__(name):
         return getattr(_posix_flavour, name)
 
-
     def parse_parts(parts):
         drv, root, parsed = _posix_flavour.parse_parts(parts)
         for part in parsed[1:]:
