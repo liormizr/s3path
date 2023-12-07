@@ -7,25 +7,25 @@ from packaging.version import Version
 import boto3
 from botocore.client import Config
 
-from s3path import S3Path, PureS3Path, register_configuration_parameter, _s3_accessor
+from s3path import S3Path, PureS3Path, register_configuration_parameter, accessor
 
 
 def test_s3_configuration_map_repr():
-    assert repr(_s3_accessor.configuration_map)
+    assert repr(accessor.configuration_map)
 
 
 def test_basic_configuration(reset_configuration_cache):
     path = S3Path('/foo/')
 
-    _s3_accessor.configuration_map.arguments = _s3_accessor.configuration_map.resources = None
+    accessor.configuration_map.arguments = accessor.configuration_map.resources = None
 
-    assert path not in (_s3_accessor.configuration_map.arguments or ())
-    assert path not in (_s3_accessor.configuration_map.resources or ())
-    assert _s3_accessor.configuration_map.get_configuration(path) == (
-        _s3_accessor.configuration_map.default_resource, {})
+    assert str(path) not in (accessor.configuration_map.arguments or ())
+    assert str(path) not in (accessor.configuration_map.resources or ())
+    assert accessor.configuration_map.get_configuration(path) == (
+        accessor.configuration_map.default_resource, {})
 
-    assert (_s3_accessor.configuration_map.get_configuration(S3Path('/foo/'))
-            == _s3_accessor.configuration_map.get_configuration(PureS3Path('/foo/')))
+    assert (accessor.configuration_map.get_configuration(S3Path('/foo/'))
+            == accessor.configuration_map.get_configuration(PureS3Path('/foo/')))
 
 
 def test_register_configuration_exceptions(reset_configuration_cache):
@@ -42,13 +42,13 @@ def test_register_configuration_exceptions(reset_configuration_cache):
 def test_hierarchical_configuration(reset_configuration_cache):
     path = S3Path('/foo/')
     register_configuration_parameter(path, parameters={'ContentType': 'text/html'})
-    assert path in _s3_accessor.configuration_map.arguments
-    assert path not in _s3_accessor.configuration_map.resources
-    assert _s3_accessor.configuration_map.get_configuration(path) == (
-        _s3_accessor.configuration_map.default_resource, {'ContentType': 'text/html'})
+    assert str(path) in accessor.configuration_map.arguments
+    assert str(path) not in accessor.configuration_map.resources
+    assert accessor.configuration_map.get_configuration(path) == (
+        accessor.configuration_map.default_resource, {'ContentType': 'text/html'})
 
-    assert (_s3_accessor.configuration_map.get_configuration(S3Path('/foo/'))
-            == _s3_accessor.configuration_map.get_configuration(PureS3Path('/foo/')))
+    assert (accessor.configuration_map.get_configuration(S3Path('/foo/'))
+            == accessor.configuration_map.get_configuration(PureS3Path('/foo/')))
 
 
 def test_boto_methods_with_configuration(s3_mock, reset_configuration_cache):
@@ -84,26 +84,26 @@ def test_configuration_per_bucket(reset_configuration_cache):
             config=Config(signature_version='s3v4'),
             region_name='us-east-1'))
 
-    assert _s3_accessor.configuration_map.get_configuration(PureS3Path('/')) == (
-        _s3_accessor.configuration_map.default_resource, {'ContentType': 'text/html'})
-    assert _s3_accessor.configuration_map.get_configuration(PureS3Path('/some_bucket')) == (
-        _s3_accessor.configuration_map.default_resource, {'ContentType': 'text/html'})
-    assert _s3_accessor.configuration_map.get_configuration(PureS3Path('/some_bucket')) == (
-        _s3_accessor.configuration_map.default_resource, {'ContentType': 'text/html'})
+    assert accessor.configuration_map.get_configuration(PureS3Path('/')) == (
+        accessor.configuration_map.default_resource, {'ContentType': 'text/html'})
+    assert accessor.configuration_map.get_configuration(PureS3Path('/some_bucket')) == (
+        accessor.configuration_map.default_resource, {'ContentType': 'text/html'})
+    assert accessor.configuration_map.get_configuration(PureS3Path('/some_bucket')) == (
+        accessor.configuration_map.default_resource, {'ContentType': 'text/html'})
 
-    resources, arguments = _s3_accessor.configuration_map.get_configuration(minio_bucket_path)
+    resources, arguments = accessor.configuration_map.get_configuration(minio_bucket_path)
     assert arguments == {'OutputSerialization': {'CSV': {}}}
     assert resources.meta.client._endpoint.host == 'http://localhost:9000'
 
-    resources, arguments = _s3_accessor.configuration_map.get_configuration(minio_bucket_path / 'some_key')
+    resources, arguments = accessor.configuration_map.get_configuration(minio_bucket_path / 'some_key')
     assert arguments == {'OutputSerialization': {'CSV': {}}}
     assert resources.meta.client._endpoint.host == 'http://localhost:9000'
 
-    resources, arguments = _s3_accessor.configuration_map.get_configuration(local_stack_bucket_path)
+    resources, arguments = accessor.configuration_map.get_configuration(local_stack_bucket_path)
     assert arguments == {}
     assert resources.meta.client._endpoint.host == 'http://localhost:4566'
 
-    resources, arguments = _s3_accessor.configuration_map.get_configuration(local_stack_bucket_path / 'some_key')
+    resources, arguments = accessor.configuration_map.get_configuration(local_stack_bucket_path / 'some_key')
     assert arguments == {}
     assert resources.meta.client._endpoint.host == 'http://localhost:4566'
 
@@ -124,12 +124,12 @@ def test_open_method_with_custom_endpoint_url():
 
 def test_issue_123():
     path = S3Path('/bucket')
-    old_resource, _ = path._accessor.configuration_map.get_configuration(path)
+    old_resource, _ = accessor.configuration_map.get_configuration(path)
 
     boto3.setup_default_session()
     s3 = boto3.resource('s3')
     register_configuration_parameter(path, resource=s3)
 
-    new_resource, _ = path._accessor.configuration_map.get_configuration(path)
+    new_resource, _ = accessor.configuration_map.get_configuration(path)
     assert new_resource is s3
     assert new_resource is not old_resource

@@ -1,5 +1,4 @@
 import os
-import sys
 import pytest
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from s3path import PureS3Path

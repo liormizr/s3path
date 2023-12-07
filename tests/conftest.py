@@ -2,13 +2,13 @@ import boto3
 import pytest
 from moto import mock_s3
 
-from s3path import register_configuration_parameter, PureS3Path, _s3_accessor
+from s3path import register_configuration_parameter, PureS3Path, accessor
 
 
 def _cleanup():
-    _s3_accessor.configuration_map.get_configuration.cache_clear()
-    _s3_accessor.configuration_map.get_general_options.cache_clear()
-    _s3_accessor.configuration_map.is_setup = False
+    accessor.configuration_map.get_configuration.cache_clear()
+    accessor.configuration_map.get_general_options.cache_clear()
+    accessor.configuration_map.is_setup = False
 
 
 @pytest.fixture()

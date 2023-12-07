@@ -1,0 +1,494 @@
+from os import stat_result
+from functools import lru_cache
+from collections import namedtuple
+from io import UnsupportedOperation
+
+import boto3
+from boto3.s3.transfer import TransferManager
+from botocore.exceptions import ClientError
+from botocore.docs.docstring import LazyLoadedDocstring
+import smart_open
+
+from .config import S3ConfigurationMap
+
+
+class StatResult(namedtuple('BaseStatResult', 'size, last_modified, version_id', defaults=(None,))):
+    """
+    Base of os.stat_result but with boto3 s3 features
+    """
+
+    def __getattr__(self, item):
+        if item in vars(stat_result):
+            raise UnsupportedOperation(f'{type(self).__name__} do not support {item} attribute')
+        return super().__getattribute__(item)
+
+    @property
+    def st_size(self) -> int:
+        return self.size
+
+    @property
+    def st_mtime(self) -> float:
+        return self.last_modified.timestamp()
+
+    @property
+    def st_version_id(self) -> str:
+        return self.version_id
+
+
+configuration_map = S3ConfigurationMap()
+
+
+def stat(path, *, follow_symlinks=True):
+    if not follow_symlinks:
+        raise NotImplementedError(
+            f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
+    resource, _ = configuration_map.get_configuration(path)
+    if _is_versioned_path(path):
+        object_summary = resource.ObjectVersion(path.bucket, path.key, path.version_id).get()
+        return StatResult(
+            size=object_summary.get('ContentLength'),
+            last_modified=object_summary.get('LastModified'),
+            version_id=object_summary.get('VersionId'),
+        )
+    object_summary = resource.ObjectSummary(path.bucket, path.key)
+    return StatResult(
+        size=object_summary.size,
+        last_modified=object_summary.last_modified,
+    )
+
+
+def owner(path):
+    bucket_name = path.bucket
+    key_name = path.key
+    resource, _ = configuration_map.get_configuration(path)
+    object_summary = resource.ObjectSummary(bucket_name, key_name)
+    # return object_summary.owner['DisplayName']
+    # This is a hack till boto3 resolve this issue:
+    # https://github.com/boto/boto3/issues/1950
+    responce = object_summary.meta.client.list_objects_v2(
+        Bucket=object_summary.bucket_name,
+        Prefix=object_summary.key,
+        FetchOwner=True)
+    return responce['Contents'][0]['Owner']['DisplayName']
+
+
+def rename(path, target):
+    source_bucket_name = path.bucket
+    source_key_name = path.key
+    target_bucket_name = target.bucket
+    target_key_name = target.key
+
+    resource, config = configuration_map.get_configuration(path)
+
+    if not is_dir(path):
+        target_bucket = resource.Bucket(target_bucket_name)
+        object_summary = resource.ObjectSummary(source_bucket_name, source_key_name)
+        old_source = {'Bucket': object_summary.bucket_name, 'Key': object_summary.key}
+        _boto3_method_with_extraargs(
+            target_bucket.copy,
+            config=config,
+            args=(old_source, target_key_name),
+            allowed_extra_args=TransferManager.ALLOWED_COPY_ARGS,
+        )
+        _boto3_method_with_parameters(object_summary.delete)
+        return
+    bucket = resource.Bucket(source_bucket_name)
+    target_bucket = resource.Bucket(target_bucket_name)
+    for object_summary in bucket.objects.filter(Prefix=source_key_name):
+        old_source = {'Bucket': object_summary.bucket_name, 'Key': object_summary.key}
+        new_key = object_summary.key.replace(source_key_name, target_key_name)
+        _, config = configuration_map.get_configuration(type(path)(target_bucket_name, new_key))
+        _boto3_method_with_extraargs(
+            target_bucket.copy,
+            config=config,
+            args=(old_source, new_key),
+            allowed_extra_args=TransferManager.ALLOWED_COPY_ARGS,
+        )
+        _boto3_method_with_parameters(object_summary.delete)
+
+
+replace = rename
+
+
+def rmdir(path):
+    bucket_name = path.bucket
+    key_name = path.key
+    resource, config = configuration_map.get_configuration(path)
+    bucket = resource.Bucket(bucket_name)
+    for object_summary in bucket.objects.filter(Prefix=key_name):
+        _boto3_method_with_parameters(object_summary.delete, config=config)
+    if path.is_bucket:
+        _boto3_method_with_parameters(bucket.delete, config=config)
+
+
+def mkdir(path, mode):
+    resource, config = configuration_map.get_configuration(path)
+    _boto3_method_with_parameters(
+        resource.create_bucket,
+        config=config,
+        kwargs={'Bucket': path.bucket},
+    )
+
+
+def is_dir(path):
+    if str(path) == path.root:
+        return True
+    resource, _ = configuration_map.get_configuration(path)
+    bucket = resource.Bucket(path.bucket)
+    return any(bucket.objects.filter(Prefix=generate_prefix(path)))
+
+
+def exists(path):
+    bucket_name = path.bucket
+    resource, _ = configuration_map.get_configuration(path)
+
+    if not path.key:
+        # Check whether or not the bucket exists.
+        # See https://stackoverflow.com/questions/26871884
+        try:
+            resource.meta.client.head_bucket(Bucket=bucket_name)
+            return True
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            if error_code == '404':
+                # Not found
+                return False
+            raise e
+
+    bucket = resource.Bucket(bucket_name)
+    key_name = str(path.key)
+
+    if _is_versioned_path(path):
+        for object in bucket.object_versions.filter(Prefix=key_name):
+            if object.version_id != path.version_id:
+                continue
+            if object.key == key_name:
+                return True
+            if object.key.startswith(key_name + path._flavour.sep):
+                return True
+        return False
+
+    for object in bucket.objects.filter(Prefix=key_name):
+        if object.key == key_name:
+            return True
+        if object.key.startswith(key_name + path._flavour.sep):
+            return True
+    return False
+
+
+def iter_keys(path, *, prefix=None, full_keys=True):
+    resource, _ = configuration_map.get_configuration(path)
+    bucket_name = path.bucket
+
+    def get_keys():
+        continuation_token = None
+        while True:
+            if continuation_token:
+                kwargs['ContinuationToken'] = continuation_token
+            response = resource.meta.client.list_objects_v2(**kwargs)
+            for file in response.get('Contents', ()):
+                yield file['Key']
+            for folder in response.get('CommonPrefixes', ()):
+                yield folder['Prefix']
+            if not response.get('IsTruncated'):
+                break
+            continuation_token = response.get('NextContinuationToken')
+
+    # get buckets
+    if not bucket_name and not full_keys:
+        for bucket in resource.buckets.filter():
+            yield bucket.name
+        return
+    # get keys in buckets
+    if not bucket_name:
+        for bucket in resource.buckets.filter():
+            kwargs = {'Bucket': bucket.name}
+            yield from get_keys()
+        return
+    # get keys or part of keys in buckets
+    kwargs = {'Bucket': bucket_name}
+    if prefix:
+        kwargs['Prefix'] = prefix
+    if not full_keys:
+        kwargs['Delimiter'] = path._flavour.sep
+    yield from get_keys()
+
+
+def scandir(path):
+    return _S3Scandir(path=path)
+
+
+def listdir(path):
+    with scandir(path) as scandir_iter:
+        return [entry.name for entry in scandir_iter]
+
+
+def open(path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
+    resource, config = configuration_map.get_configuration(path)
+
+    if smart_open.__version__ < '4.0.0' and mode.startswith('b'):
+        mode = ''.join(reversed(mode))
+    smart_open_kwargs = {
+        'uri': "s3:/" + str(path),
+        'mode': mode,
+        'buffering': buffering,
+        'encoding': encoding,
+        'errors': errors,
+        'newline': newline,
+    }
+    transport_params = {'defer_seek': True}
+    if _is_versioned_path(path):
+        transport_params['version_id'] = path.version_id
+    dummy_object = resource.Object('bucket', 'key')
+
+    if smart_open.__version__ >= '5.1.0':
+        _smart_open_new_version_kwargs(
+            dummy_object,
+            resource,
+            config,
+            transport_params,
+            smart_open_kwargs)
+    else:
+        _smart_open_old_version_kwargs(
+            dummy_object,
+            resource,
+            config,
+            transport_params,
+            smart_open_kwargs)
+
+    file_object = smart_open.open(**smart_open_kwargs)
+    return file_object
+
+
+def get_presigned_url(path, expire_in: int) -> str:
+    resource, config = configuration_map.get_configuration(path)
+    return _boto3_method_with_parameters(
+        resource.meta.client.generate_presigned_url,
+        config=config,
+        kwargs={
+            'ClientMethod': 'get_object',
+            'Params': {'Bucket': path.bucket, 'Key': path.key},
+            'ExpiresIn': expire_in,
+        }
+    )
+
+
+def generate_prefix(path):
+    sep = path._flavour.sep
+    if not path.key:
+        return ''
+    key_name = path.key
+    if not key_name.endswith(sep):
+        return key_name + sep
+    return key_name
+
+
+def unlink(path, *args, **kwargs):
+    bucket_name = path.bucket
+    key_name = path.key
+    resource, config = configuration_map.get_configuration(path)
+    bucket = resource.Bucket(bucket_name)
+    try:
+        _boto3_method_with_parameters(
+            bucket.meta.client.delete_object,
+            config=config,
+            kwargs={"Bucket": bucket_name, "Key": key_name}
+        )
+    except ClientError:
+        raise OSError(f'/{bucket_name}/{key_name}')
+
+
+def _is_versioned_path(path):
+    return hasattr(path, 'version_id') and bool(path.version_id)
+
+
+def _smart_open_new_version_kwargs(
+        dummy_object,
+        resource,
+        config,
+        transport_params,
+        smart_open_kwargs):
+    """
+    New Smart-Open api
+    Doc: https://github.com/RaRe-Technologies/smart_open/blob/develop/MIGRATING_FROM_OLDER_VERSIONS.rst
+    """
+    get_object_kwargs = _update_kwargs_with_config(
+        dummy_object.meta.client.get_object, config=config)
+    create_multipart_upload_kwargs = _update_kwargs_with_config(
+        dummy_object.meta.client.create_multipart_upload, config=config)
+    transport_params.update(
+        client=resource.meta.client,
+        client_kwargs={
+            'S3.Client.create_multipart_upload': create_multipart_upload_kwargs,
+            'S3.Client.get_object': get_object_kwargs
+        },
+    )
+    smart_open_kwargs.update(
+        compression='disable',
+        transport_params=transport_params,
+    )
+
+
+def _smart_open_old_version_kwargs(
+        dummy_object,
+        resource,
+        config,
+        transport_params,
+        smart_open_kwargs):
+    """
+    Old Smart-Open api
+    <5.0.0
+    """
+    def get_resource_kwargs():
+        # This is a good example of the complicity of boto3 and botocore
+        # resource arguments from the resource object :-/
+        # very annoying...
+
+        try:
+            access_key = resource.meta.client._request_signer._credentials.access_key
+            secret_key = resource.meta.client._request_signer._credentials.secret_key
+            token = resource.meta.client._request_signer._credentials.token
+        except AttributeError:
+            access_key = secret_key = token = None
+        return {
+            'endpoint_url': resource.meta.client.meta._endpoint_url,
+            'config': resource.meta.client._client_config,
+            'region_name': resource.meta.client._client_config.region_name,
+            'use_ssl': resource.meta.client._endpoint.host.startswith('https'),
+            'verify': resource.meta.client._endpoint.http_session._verify,
+            'aws_access_key_id': access_key,
+            'aws_secret_access_key': secret_key,
+            'aws_session_token': token,
+        }
+
+    initiate_multipart_upload_kwargs = _update_kwargs_with_config(
+        dummy_object.initiate_multipart_upload, config=config)
+    object_kwargs = _update_kwargs_with_config(dummy_object.get, config=config)
+    transport_params.update(
+        multipart_upload_kwargs=initiate_multipart_upload_kwargs,
+        object_kwargs=object_kwargs,
+        resource_kwargs=get_resource_kwargs(),
+        session=boto3.DEFAULT_SESSION,
+    )
+    smart_open_kwargs.update(
+        ignore_ext=True,
+        transport_params=transport_params,
+    )
+
+
+def _update_kwargs_with_config(boto3_method, config, kwargs=None):
+    kwargs = kwargs or {}
+    if config is not None:
+        kwargs.update({
+            key: value
+            for key, value in config.items()
+            if key in _get_action_arguments(boto3_method)
+        })
+    return kwargs
+
+
+def _boto3_method_with_parameters(boto3_method, config=None, args=(), kwargs=None):
+    kwargs = _update_kwargs_with_config(boto3_method, config, kwargs)
+    return boto3_method(*args, **kwargs)
+
+
+def _boto3_method_with_extraargs(
+        boto3_method,
+        config=None,
+        args=(),
+        kwargs=None,
+        extra_args=None,
+        allowed_extra_args=()):
+    kwargs = kwargs or {}
+    extra_args = extra_args or {}
+    if config is not None:
+        extra_args.update({
+            key: value
+            for key, value in config.items()
+            if key in allowed_extra_args
+        })
+    kwargs["ExtraArgs"] = extra_args
+    return boto3_method(*args, **kwargs)
+
+@lru_cache()
+def _get_action_arguments(action):
+    if isinstance(action.__doc__, LazyLoadedDocstring):
+        docs = action.__doc__._generate()
+    else:
+        docs = action.__doc__
+    return set(
+        line.replace(':param ', '').strip().strip(':')
+        for line in docs.splitlines()
+        if line.startswith(':param ')
+    )
+
+
+class _S3Scandir:
+    def __init__(self, *, path):
+        self._path = path
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return
+
+    def __iter__(self):
+        bucket_name = self._path.bucket
+        resource, _ = configuration_map.get_configuration(self._path)
+        if not bucket_name:
+            for bucket in resource.buckets.filter(Prefix=str(self._path)):
+                yield _S3DirEntry(bucket.name, is_dir=True)
+            return
+        bucket = resource.Bucket(bucket_name)
+        sep = self._path._flavour.sep
+
+        kwargs = {
+            'Bucket': bucket.name,
+            'Prefix': generate_prefix(self._path),
+            'Delimiter': sep}
+
+        continuation_token = None
+        while True:
+            if continuation_token:
+                kwargs['ContinuationToken'] = continuation_token
+            response = bucket.meta.client.list_objects_v2(**kwargs)
+            for folder in response.get('CommonPrefixes', ()):
+                full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
+                name = full_name.split(sep)[-1]
+                yield _S3DirEntry(name, is_dir=True)
+            for file in response.get('Contents', ()):
+                if file['Key'] == response['Prefix']:
+                    continue
+                name = file['Key'].split(sep)[-1]
+                yield _S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
+            if not response.get('IsTruncated'):
+                break
+            continuation_token = response.get('NextContinuationToken')
+
+
+class _S3DirEntry:
+    def __init__(self, name, is_dir, size=None, last_modified=None):
+        self.name = name
+        self._is_dir = is_dir
+        self._stat = StatResult(size=size, last_modified=last_modified)
+
+    def __repr__(self):
+        return f'{type(self).__name__}(name={self.name}, is_dir={self._is_dir}, stat={self._stat})'
+
+    def inode(self, *args, **kwargs):
+        return None
+
+    def is_dir(self, follow_symlinks=False):
+        if follow_symlinks:
+            raise TypeError('AWS S3 Service does not have symlink feature')
+        return self._is_dir
+
+    def is_file(self):
+        return not self._is_dir
+
+    def is_symlink(self, *args, **kwargs):
+        return False
+
+    def stat(self):
+        return self._stat
