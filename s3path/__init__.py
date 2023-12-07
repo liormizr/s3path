@@ -8,6 +8,7 @@ import sys
 from collections import deque
 from datetime import timedelta
 from contextlib import suppress
+from urllib.parse import unquote
 from pathlib import PurePath, Path
 from typing import Union, Literal, Optional
 from io import DEFAULT_BUFFER_SIZE, TextIOWrapper
@@ -83,7 +84,8 @@ class PureS3Path(PurePath):
         """
         if not uri.startswith('s3://'):
             raise ValueError('Provided uri seems to be no S3 URI!')
-        return cls(uri[4:])
+        unquoted_uri = unquote(uri)
+        return cls(unquoted_uri[4:])
 
     @classmethod
     def from_bucket_key(cls, bucket: str, key: str):
