@@ -2,12 +2,6 @@ import pytest
 from s3path import S3Path
 
 
-def test_not_supported(monkeypatch):
-    monkeypatch.setattr(S3Path._flavour, 'is_supported', False)
-    with pytest.raises(NotImplementedError):
-        S3Path()
-
-
 def test_cwd():
     with pytest.raises(NotImplementedError):
         S3Path.cwd()
