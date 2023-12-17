@@ -39,34 +39,41 @@ def stat(path, *, follow_symlinks=True):
     if not follow_symlinks:
         raise NotImplementedError(
             f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
-    resource, _ = configuration_map.get_configuration(path)
+    resource, config = configuration_map.get_configuration(path)
     if _is_versioned_path(path):
-        object_summary = resource.ObjectVersion(path.bucket, path.key, path.version_id).get()
+        object_summary = _boto3_method_with_parameters(
+            resource.ObjectVersion(path.bucket, path.key, path.version_id).get,
+            config=config,
+        )
         return StatResult(
             size=object_summary.get('ContentLength'),
             last_modified=object_summary.get('LastModified'),
-            version_id=object_summary.get('VersionId'),
-        )
+            version_id=object_summary.get('VersionId'))
     object_summary = resource.ObjectSummary(path.bucket, path.key)
     return StatResult(
         size=object_summary.size,
         last_modified=object_summary.last_modified,
-    )
+        version_id=None)
 
 
 def owner(path):
     bucket_name = path.bucket
     key_name = path.key
-    resource, _ = configuration_map.get_configuration(path)
+    resource, config = configuration_map.get_configuration(path)
     object_summary = resource.ObjectSummary(bucket_name, key_name)
     # return object_summary.owner['DisplayName']
     # This is a hack till boto3 resolve this issue:
     # https://github.com/boto/boto3/issues/1950
-    responce = object_summary.meta.client.list_objects_v2(
-        Bucket=object_summary.bucket_name,
-        Prefix=object_summary.key,
-        FetchOwner=True)
-    return responce['Contents'][0]['Owner']['DisplayName']
+    response = _boto3_method_with_parameters(
+        object_summary.meta.client.list_objects_v2,
+        kwargs={
+            'Bucket': object_summary.bucket_name,
+            'Prefix': object_summary.key,
+            'FetchOwner': True,
+        },
+        config=config,
+    )
+    return response['Contents'][0]['Owner']['DisplayName']
 
 
 def rename(path, target):
@@ -130,20 +137,27 @@ def mkdir(path, mode):
 def is_dir(path):
     if str(path) == path.root:
         return True
-    resource, _ = configuration_map.get_configuration(path)
+    resource, config = configuration_map.get_configuration(path)
     bucket = resource.Bucket(path.bucket)
-    return any(bucket.objects.filter(Prefix=generate_prefix(path)))
+    query = _boto3_method_with_parameters(
+        bucket.objects.filter,
+        kwargs={'Prefix': _generate_prefix(path)},
+        config=config)
+    return any(query)
 
 
 def exists(path):
     bucket_name = path.bucket
-    resource, _ = configuration_map.get_configuration(path)
+    resource, config = configuration_map.get_configuration(path)
 
     if not path.key:
         # Check whether or not the bucket exists.
         # See https://stackoverflow.com/questions/26871884
         try:
-            resource.meta.client.head_bucket(Bucket=bucket_name)
+            _boto3_method_with_parameters(
+                resource.meta.client.head_bucket,
+                kwargs={'Bucket': bucket_name},
+                config=config)
             return True
         except ClientError as e:
             error_code = e.response['Error']['Code']
@@ -155,8 +169,14 @@ def exists(path):
     bucket = resource.Bucket(bucket_name)
     key_name = str(path.key)
 
+    def query_method():
+        return _boto3_method_with_parameters(
+            bucket.object_versions.filter,
+            kwargs={'Prefix': key_name},
+            config=config)
+
     if _is_versioned_path(path):
-        for object in bucket.object_versions.filter(Prefix=key_name):
+        for object in query_method():
             if object.version_id != path.version_id:
                 continue
             if object.key == key_name:
@@ -165,7 +185,7 @@ def exists(path):
                 return True
         return False
 
-    for object in bucket.objects.filter(Prefix=key_name):
+    for object in query_method():
         if object.key == key_name:
             return True
         if object.key.startswith(key_name + path._flavour.sep):
@@ -174,7 +194,7 @@ def exists(path):
 
 
 def iter_keys(path, *, prefix=None, full_keys=True):
-    resource, _ = configuration_map.get_configuration(path)
+    resource, config = configuration_map.get_configuration(path)
     bucket_name = path.bucket
 
     def get_keys():
@@ -182,7 +202,11 @@ def iter_keys(path, *, prefix=None, full_keys=True):
         while True:
             if continuation_token:
                 kwargs['ContinuationToken'] = continuation_token
-            response = resource.meta.client.list_objects_v2(**kwargs)
+            response = _boto3_method_with_parameters(
+                resource.meta.client.list_objects_v2,
+                kwargs=kwargs,
+                config=config,
+            )
             for file in response.get('Contents', ()):
                 yield file['Key']
             for folder in response.get('CommonPrefixes', ()):
@@ -193,12 +217,18 @@ def iter_keys(path, *, prefix=None, full_keys=True):
 
     # get buckets
     if not bucket_name and not full_keys:
-        for bucket in resource.buckets.filter():
+        query = _boto3_method_with_parameters(
+            resource.buckets.filter,
+            config=config)
+        for bucket in query:
             yield bucket.name
         return
     # get keys in buckets
     if not bucket_name:
-        for bucket in resource.buckets.filter():
+        query = _boto3_method_with_parameters(
+            resource.buckets.filter,
+            config=config)
+        for bucket in query:
             kwargs = {'Bucket': bucket.name}
             yield from get_keys()
         return
@@ -270,7 +300,7 @@ def get_presigned_url(path, expire_in: int) -> str:
     )
 
 
-def generate_prefix(path):
+def _generate_prefix(path):
     sep = path._flavour.sep
     if not path.key:
         return ''
@@ -407,6 +437,7 @@ def _boto3_method_with_extraargs(
     kwargs["ExtraArgs"] = extra_args
     return boto3_method(*args, **kwargs)
 
+
 @lru_cache()
 def _get_action_arguments(action):
     if isinstance(action.__doc__, LazyLoadedDocstring):
@@ -432,9 +463,13 @@ class _S3Scandir:
 
     def __iter__(self):
         bucket_name = self._path.bucket
-        resource, _ = configuration_map.get_configuration(self._path)
+        resource, config = configuration_map.get_configuration(self._path)
         if not bucket_name:
-            for bucket in resource.buckets.filter(Prefix=str(self._path)):
+            query = _boto3_method_with_parameters(
+                resource.buckets.filter,
+                kwargs={'Prefix': str(self._path)},
+                config=config)
+            for bucket in query:
                 yield _S3DirEntry(bucket.name, is_dir=True)
             return
         bucket = resource.Bucket(bucket_name)
@@ -442,23 +477,29 @@ class _S3Scandir:
 
         kwargs = {
             'Bucket': bucket.name,
-            'Prefix': generate_prefix(self._path),
+            'Prefix': _generate_prefix(self._path),
             'Delimiter': sep}
 
         continuation_token = None
         while True:
             if continuation_token:
                 kwargs['ContinuationToken'] = continuation_token
-            response = bucket.meta.client.list_objects_v2(**kwargs)
+            response = _boto3_method_with_parameters(
+                    bucket.meta.client.list_objects_v2,
+                    kwargs=kwargs,
+                    config=config)
+
             for folder in response.get('CommonPrefixes', ()):
                 full_name = folder['Prefix'][:-1] if folder['Prefix'].endswith(sep) else folder['Prefix']
                 name = full_name.split(sep)[-1]
                 yield _S3DirEntry(name, is_dir=True)
+
             for file in response.get('Contents', ()):
                 if file['Key'] == response['Prefix']:
                     continue
                 name = file['Key'].split(sep)[-1]
                 yield _S3DirEntry(name=name, is_dir=False, size=file['Size'], last_modified=file['LastModified'])
+
             if not response.get('IsTruncated'):
                 break
             continuation_token = response.get('NextContinuationToken')
