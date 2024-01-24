@@ -39,7 +39,7 @@ S3Path Example:
    >>> from s3path import S3Path
    >>> S3Path('/my-bucket/').mkdir()
 
-boro3 Example:
+boto3 Example:
 
 .. code:: python
 
