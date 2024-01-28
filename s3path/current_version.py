@@ -759,7 +759,7 @@ class _Selector:
                 new_regex_pattern += f'{self._path._flavour.sep}*(?s:{part.replace("**", ".*")})'
                 continue
             new_regex_pattern += f'{self._path._flavour.sep}{fnmatch.translate(part)[:-2]}'
-        new_regex_pattern += '/*\Z'
+        new_regex_pattern += r'/*\Z'
 
         return re.compile(new_regex_pattern).fullmatch
 
