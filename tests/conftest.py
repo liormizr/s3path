@@ -1,7 +1,7 @@
 import sys
 import boto3
 import pytest
-from moto import mock_s3
+from moto import mock_aws
 
 from s3path import register_configuration_parameter, PureS3Path
 
@@ -33,7 +33,7 @@ def reset_configuration_cache():
 
 @pytest.fixture()
 def s3_mock(reset_configuration_cache):
-    with mock_s3():
+    with mock_aws():
         register_configuration_parameter(PureS3Path('/'), resource=boto3.resource('s3'))
         yield
 
