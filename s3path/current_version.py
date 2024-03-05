@@ -4,7 +4,6 @@ import re
 import sys
 import fnmatch
 import posixpath
-from collections import deque
 from datetime import timedelta
 from contextlib import suppress
 from urllib.parse import unquote
@@ -687,7 +686,7 @@ class _Selector:
 
     def select(self):
         for target in self._deep_cached_dir_scan():
-            target = self._path._flavour.sep.join(('', self._path.bucket, target))
+            target = f'{self._path._flavour.sep}{self._path.bucket}{target}'
             if self.match(target):
                 yield type(self._path)(target)
 
@@ -730,17 +729,19 @@ class _Selector:
         return False
 
     def _deep_cached_dir_scan(self):
-        cache = _DeepDirCache()
+        cache = set()
         prefix_sep_count = self._prefix.count(self._path._flavour.sep)
         for key in accessor.iter_keys(self._path, prefix=self._prefix, full_keys=self._full_keys):
             key_sep_count = key.count(self._path._flavour.sep) + 1
             key_parts = key.rsplit(self._path._flavour.sep, maxsplit=key_sep_count - prefix_sep_count)
             target_path_parts = key_parts[:self._target_level]
-            target_path = (self._path._flavour.sep).join(target_path_parts)
-            if cache.in_cache(target_path):
-                continue
-            yield target_path
-            cache.add(target_path_parts)
+            target_path = ''
+            for part in target_path_parts:
+                target_path += f'{self._path._flavour.sep}{part}'
+                if target_path in cache:
+                    continue
+                yield target_path
+                cache.add(target_path)
 
     def _compile_pattern_parts(self, prefix, pattern, bucket):
         pattern = self._path._flavour.sep.join((
@@ -760,42 +761,4 @@ class _Selector:
                 continue
             new_regex_pattern += f'{self._path._flavour.sep}{fnmatch.translate(part)[:-2]}'
         new_regex_pattern += r'/*\Z'
-
         return re.compile(new_regex_pattern).fullmatch
-
-
-class _DeepDirCache:
-    def __init__(self):
-        self._queue = deque()
-        self._tree = {}
-
-    def __repr__(self):
-        return f'{type(self).__name__}({self._tree, self._queue})'
-
-    def in_cache(self, target_path: str) -> bool:
-        return target_path in self._queue
-
-    def add(self, directory_parts):
-        tree = self._tree
-        for part in directory_parts:
-            if part in tree:
-                tree = tree[part]
-                continue
-            if tree:
-                deep_count = self._deep_count(tree)
-                tree.clear()
-                for _ in range(deep_count):
-                    with suppress(IndexError):
-                        self._queue.pop()
-            tree[part] = {}
-        directory = '/'.join(directory_parts)
-        self._queue.append(directory)
-
-    def _deep_count(self, tree):
-        count = 0
-        while True:
-            try:
-                tree = next(iter(tree.values()))
-            except StopIteration:
-                return count
-            count += 1

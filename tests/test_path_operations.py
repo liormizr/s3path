@@ -172,6 +172,41 @@ def test_glog_nested_folders_issue_no_115_old_algo(s3_mock, enable_old_glob):
     test_glog_nested_folders_issue_no_115(s3_mock)
 
 
+def test_glob_issue_160(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='my-bucket')
+    example_paths = [
+        's3path/output',
+        's3path/1/output',
+        's3path/2/output',
+        's3path/3/output',
+    ]
+    for example_path in example_paths:
+        object_summary = s3.ObjectSummary('my-bucket', f'{example_path}/test.txt')
+        object_summary.put(Body=b'test data')
+
+    path = S3Path.from_uri("s3://my-bucket/s3path")
+    assert set(path.glob('**/output/')) == {
+        S3Path('/my-bucket/s3path/output'),
+        S3Path('/my-bucket/s3path/1/output'),
+        S3Path('/my-bucket/s3path/2/output'),
+        S3Path('/my-bucket/s3path/3/output'),
+    }
+    assert sum(1 for _ in path.glob('**/output/')) == 4
+
+    assert set(path.rglob('output/')) == {
+        S3Path('/my-bucket/s3path/output'),
+        S3Path('/my-bucket/s3path/1/output'),
+        S3Path('/my-bucket/s3path/2/output'),
+        S3Path('/my-bucket/s3path/3/output'),
+    }
+    assert sum(1 for _ in path.rglob('output/')) == 4
+
+
+def test_glob_issue_160_old_algo(s3_mock, enable_old_glob):
+    test_glob_issue_160(s3_mock)
+
+
 def test_rglob(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
