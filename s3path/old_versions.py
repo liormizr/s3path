@@ -712,7 +712,7 @@ class _Selector:
 
     def select(self):
         for target in self._deep_cached_dir_scan():
-            target = self._path._flavour.sep.join(('', self._path.bucket, target))
+            target = f'{self._path._flavour.sep}{self._path.bucket}{target}'
             if self.match(target):
                 yield type(self._path)(target)
 
