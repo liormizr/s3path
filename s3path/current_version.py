@@ -4,7 +4,6 @@ import re
 import sys
 import fnmatch
 import posixpath
-from collections import deque
 from datetime import timedelta
 from contextlib import suppress
 from urllib.parse import unquote
@@ -12,7 +11,6 @@ from pathlib import PurePath, Path
 from typing import Union, Literal, Optional
 from io import DEFAULT_BUFFER_SIZE, TextIOWrapper
 
-import ipdb
 import smart_open
 from botocore.exceptions import ClientError
 from boto3.resources.factory import ServiceResource
