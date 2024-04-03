@@ -21,7 +21,7 @@ def _lazy_import_resources(name):
 
 boto3 = _lazy_import_resources('boto3')
 smart_open = _lazy_import_resources('smart_open')
-# For Development with Cli or in general application that require fast startup
+# For Development on Cli, or in general application that require fast startup
 # This will lazy load boto3 resources
 # boto3 increase startup time by X10!
 
