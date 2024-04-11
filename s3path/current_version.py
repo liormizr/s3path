@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import sys
+import typing
 import fnmatch
 import posixpath
 from datetime import timedelta
@@ -11,9 +12,12 @@ from pathlib import PurePath, Path
 from typing import Union, Literal, Optional
 from io import DEFAULT_BUFFER_SIZE, TextIOWrapper
 
-import smart_open
 from botocore.exceptions import ClientError
-from boto3.resources.factory import ServiceResource
+
+if typing.TYPE_CHECKING:
+    import smart_open
+    from boto3.resources.factory import ServiceResource
+    KeyFileObjectType = Union[TextIOWrapper, smart_open.s3.Reader, smart_open.s3.MultipartWriter]
 
 from . import accessor
 
@@ -431,18 +435,15 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def open(
             self,
-            mode: Literal["r", "w", "rb", "wb"] = 'r',
+            mode: Literal['r', 'w', 'rb', 'wb'] = 'r',
             buffering: int = DEFAULT_BUFFER_SIZE,
             encoding: Optional[str] = None,
             errors: Optional[str] = None,
-            newline: Optional[str] = None
-    ) -> Union[TextIOWrapper, smart_open.s3.Reader,   smart_open.s3.MultipartWriter]:
+            newline: Optional[str] = None) -> KeyFileObjectType:
         """
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
         """
         self._absolute_path_validation()
-        if smart_open.__version__ < '4.0.0' and mode.startswith('b'):
-            mode = ''.join(reversed(mode))
         return accessor.open(
             self,
             mode=mode,
