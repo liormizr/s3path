@@ -5,14 +5,14 @@ with open("README.rst", "r") as fh:
     long_description = fh.read()
 setup(
     name='s3path',
-    version='0.5.3',
+    version='0.5.4',
     url='https://github.com/liormizr/s3path',
     author='Lior Mizrahi',
     author_email='li.mizr@gmail.com',
     packages=['s3path'],
     install_requires=[
         'boto3>=1.16.35',
-        'smart-open',
+        'smart-open>=5.1.0',
     ],
     license='Apache 2.0',
     long_description=long_description,
