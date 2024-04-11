@@ -10,6 +10,8 @@ from io import UnsupportedOperation
 
 
 def _lazy_import_resources(name):
+    if name in sys.modules:
+        return sys.modules[name]
     spec = importlib.util.find_spec(name)
     loader = importlib.util.LazyLoader(spec.loader)
     spec.loader = loader
