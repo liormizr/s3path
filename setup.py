@@ -5,11 +5,10 @@ with open("README.rst", "r") as fh:
     long_description = fh.read()
 setup(
     name='s3path',
-    version='0.5.2',
+    version='0.5.3',
     url='https://github.com/liormizr/s3path',
     author='Lior Mizrahi',
     author_email='li.mizr@gmail.com',
-    # py_modules=['s3path'],
     packages=['s3path'],
     install_requires=[
         'boto3>=1.16.35',

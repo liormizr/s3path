@@ -28,7 +28,6 @@ import smart_open
 import smart_open.s3
 
 
-__version__ = '0.5.0'
 __all__ = (
     'register_configuration_parameter',
     'S3Path',
