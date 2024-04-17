@@ -203,8 +203,38 @@ def test_glob_issue_160(s3_mock):
     assert sum(1 for _ in path.rglob('output/')) == 4
 
 
+def test_glob_issue_160_weird_behavior(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='my-bucket')
+
+    first_dir = S3Path.from_uri(f"s3://my-bucket/first_dir/")
+    new_file = first_dir / "some_dir" / "empty.txt"
+    new_file.touch()
+    print()
+    print(f'Globing: {first_dir=}, pattern: "*"')
+    assert list(first_dir.glob("*")) == [S3Path('/my-bucket/first_dir/some_dir/')]
+
+    second_dir = S3Path.from_uri(f"s3://my-bucket/first_dir/second_dir/")
+    new_file = second_dir / "some_dir" / "empty.txt"
+    new_file.touch()
+    print()
+    print(f'Globing: {second_dir=}, pattern: "*"')
+    assert list(second_dir.glob("*")) == [S3Path('/my-bucket/first_dir/second_dir/some_dir/')]
+
+    third_dir = S3Path.from_uri(f"s3://my-bucket/first_dir/second_dir/third_dir/")
+    new_file = third_dir / "some_dir" / "empty.txt"
+    new_file.touch()
+    print()
+    print(f'Globing: {third_dir=}, pattern: "*"')
+    assert list(third_dir.glob("*")) == [S3Path('/my-bucket/first_dir/second_dir/third_dir/some_dir/')]
+
+
 def test_glob_issue_160_old_algo(s3_mock, enable_old_glob):
     test_glob_issue_160(s3_mock)
+
+
+def test_glob_issue_160_weird_behavior_old_algo(s3_mock, enable_old_glob):
+    test_glob_issue_160_weird_behavior(s3_mock)
 
 
 def test_rglob(s3_mock):

@@ -762,6 +762,8 @@ class _Selector:
             target_path_parts = key_parts[:self._target_level]
             target_path = ''
             for part in target_path_parts:
+                if not part:
+                    continue
                 target_path += f'{self._path._flavour.sep}{part}'
                 if target_path in cache:
                     continue
