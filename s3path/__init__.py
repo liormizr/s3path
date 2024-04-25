@@ -8,6 +8,7 @@ from . import accessor
 __version__ = '0.5.6'
 __all__ = (
     'register_configuration_parameter',
+    'configuration_map',
     'StatResult',
     'PureS3Path',
     'S3Path',
@@ -29,8 +30,9 @@ else:
         StatResult,
         S3Path,
         PureS3Path,
+        _s3_accessor,
         VersionedS3Path,
         PureVersionedS3Path,
-        configuration_map,
         register_configuration_parameter,
     )
+    configuration_map = _s3_accessor.configuration_map
