@@ -16,20 +16,21 @@ __all__ = (
 )
 
 if sys.version_info >= (3, 12):
-    from .accessor import StatResult
+    from .accessor import StatResult, configuration_map
     from .current_version import (
         S3Path,
         PureS3Path,
-        register_configuration_parameter,
         VersionedS3Path,
         PureVersionedS3Path,
+        register_configuration_parameter,
     )
 else:
     from .old_versions import (
         StatResult,
         S3Path,
         PureS3Path,
-        register_configuration_parameter,
         VersionedS3Path,
         PureVersionedS3Path,
+        configuration_map,
+        register_configuration_parameter,
     )
