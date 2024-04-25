@@ -8,6 +8,7 @@ from . import accessor
 __version__ = '0.5.6'
 __all__ = (
     'register_configuration_parameter',
+    'configuration_map',
     'StatResult',
     'PureS3Path',
     'S3Path',
@@ -16,20 +17,22 @@ __all__ = (
 )
 
 if sys.version_info >= (3, 12):
-    from .accessor import StatResult
+    from .accessor import StatResult, configuration_map
     from .current_version import (
         S3Path,
         PureS3Path,
-        register_configuration_parameter,
         VersionedS3Path,
         PureVersionedS3Path,
+        register_configuration_parameter,
     )
 else:
     from .old_versions import (
         StatResult,
         S3Path,
         PureS3Path,
-        register_configuration_parameter,
+        _s3_accessor,
         VersionedS3Path,
         PureVersionedS3Path,
+        register_configuration_parameter,
     )
+    configuration_map = _s3_accessor.configuration_map
