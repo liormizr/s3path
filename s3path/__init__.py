@@ -5,7 +5,7 @@ import sys
 
 from . import accessor
 
-__version__ = '0.5.6'
+__version__ = '0.5.7'
 __all__ = (
     'register_configuration_parameter',
     'configuration_map',
