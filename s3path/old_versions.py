@@ -73,7 +73,7 @@ class _S3Flavour(_PosixFlavour):
                 new_regex_pattern += f'{self.sep}*(?s:{part.replace("**", ".*")})'
                 continue
             new_regex_pattern += f'{self.sep}{fnmatch.translate(part)[:-2]}'
-        new_regex_pattern += '/*\Z'
+        new_regex_pattern += r'/*\Z'
         return re.compile(new_regex_pattern).fullmatch
 
 
