@@ -54,7 +54,8 @@ S3Path Example:
 
 .. code:: python
 
-   >>> from s3path import S3Path, Path
+   >>> from pathlib import Path
+   >>> from s3path import S3Path
    >>> local_path = Path('/tmp/hello.txt')
    >>> S3Path('/my-bucket/hello.txt').write_text(local_path.read_text())
 
@@ -74,7 +75,8 @@ S3Path Example:
 
 .. code:: python
 
-   >>> from s3path import S3Path, Path
+   >>> from pathlib import Path
+   >>> from s3path import S3Path
    >>> local_path = Path('./my_local_image.jpg')
    >>> local_path.write_text(S3Path('/my-bucket/my_image_in_s3.jpg').read_text())
 
