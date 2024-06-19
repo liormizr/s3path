@@ -59,6 +59,18 @@ S3Path Example:
    >>> local_path = Path('/tmp/hello.txt')
    >>> S3Path('/my-bucket/hello.txt').write_text(local_path.read_text())
 
+S3Path Example (buffered, to avoid loading large files into memory):
+
+.. code:: python
+
+   >>> import shutil
+   >>> from pathlib import Path
+   >>> from s3path import S3Path
+   >>> local_path = Path('/tmp/hello.txt')
+   >>> remote_path = S3Path('/my-bucket/hello.txt')
+   >>> with local_path.open('rb') as src, remote_path.open('wb') as dst:
+   >>>     shutil.copyfileobj(src, dst)
+
 boto3 Example:
 
 .. code:: python
