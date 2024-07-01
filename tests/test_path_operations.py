@@ -122,7 +122,7 @@ def test_glob(s3_mock):
     assert sorted(S3Path.from_uri('s3://test-bucket/').glob('docs/')) == [S3Path('/test-bucket/docs/')]
 
 
-def test_glog_nested_folders_issue_no_115(s3_mock):
+def test_glob_nested_folders_issue_no_115(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='my-bucket')
     full_folder_tree = ''
@@ -154,7 +154,7 @@ def test_glog_nested_folders_issue_no_115(s3_mock):
         path /= S3Path(f'{folder}/')
 
 
-def test_glog_nested_folders_issue_no_120(s3_mock):
+def test_glob_nested_folders_issue_no_120(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='my-bucket')
     object_summary = s3.ObjectSummary('my-bucket', 's3path-test/nested/further/test.txt')
@@ -183,8 +183,8 @@ def test_glob_old_algo(s3_mock, enable_old_glob):
     test_glob(s3_mock)
 
 
-def test_glog_nested_folders_issue_no_115_old_algo(s3_mock, enable_old_glob):
-    test_glog_nested_folders_issue_no_115(s3_mock)
+def test_glob_nested_folders_issue_no_115_old_algo(s3_mock, enable_old_glob):
+    test_glob_nested_folders_issue_no_115(s3_mock)
 
 
 def test_glob_issue_160(s3_mock):
