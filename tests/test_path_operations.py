@@ -164,6 +164,21 @@ def test_glog_nested_folders_issue_no_120(s3_mock):
     assert list(path.glob("further/*")) == [S3Path('/my-bucket/s3path-test/nested/further/test.txt')]
 
 
+def test_glob_nested_folders_issue_no_179(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='my-bucket')
+    example_paths = [
+        's3path/nested/further/andfurther/too_far_1.txt',
+        's3path/nested/further/andfurther/too_far_2.txt',
+    ]
+    for example_path in example_paths:
+        object_summary = s3.ObjectSummary('my-bucket', f'{example_path}/test.txt')
+        object_summary.put(Body=b'test data')
+
+    path = S3Path.from_uri("s3://my-bucket/s3path/nested")
+    assert list(path.glob("*/*")) == [S3Path('/my-bucket/s3path/nested/further/andfurther')]
+
+
 def test_glob_old_algo(s3_mock, enable_old_glob):
     test_glob(s3_mock)
 
