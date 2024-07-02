@@ -1,5 +1,4 @@
 import sys
-import time
 from datetime import timedelta
 from pathlib import Path
 from io import UnsupportedOperation
@@ -122,7 +121,7 @@ def test_glob(s3_mock):
     assert sorted(S3Path.from_uri('s3://test-bucket/').glob('docs/')) == [S3Path('/test-bucket/docs/')]
 
 
-def test_glog_nested_folders_issue_no_115(s3_mock):
+def test_glob_nested_folders_issue_no_115(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='my-bucket')
     full_folder_tree = ''
@@ -154,7 +153,7 @@ def test_glog_nested_folders_issue_no_115(s3_mock):
         path /= S3Path(f'{folder}/')
 
 
-def test_glog_nested_folders_issue_no_120(s3_mock):
+def test_glob_nested_folders_issue_no_120(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='my-bucket')
     object_summary = s3.ObjectSummary('my-bucket', 's3path-test/nested/further/test.txt')
@@ -168,8 +167,8 @@ def test_glob_old_algo(s3_mock, enable_old_glob):
     test_glob(s3_mock)
 
 
-def test_glog_nested_folders_issue_no_115_old_algo(s3_mock, enable_old_glob):
-    test_glog_nested_folders_issue_no_115(s3_mock)
+def test_glob_nested_folders_issue_no_115_old_algo(s3_mock, enable_old_glob):
+    test_glob_nested_folders_issue_no_115(s3_mock)
 
 
 def test_glob_issue_160(s3_mock):
@@ -229,12 +228,32 @@ def test_glob_issue_160_weird_behavior(s3_mock):
     assert list(third_dir.glob("*")) == [S3Path('/my-bucket/first_dir/second_dir/third_dir/some_dir/')]
 
 
+def test_glob_nested_folders_issue_no_179(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='my-bucket')
+    example_paths = [
+        's3path/nested/further/andfurther/too_far_1.txt',
+        's3path/nested/further/andfurther/too_far_2.txt',
+    ]
+    for example_path in example_paths:
+        object_summary = s3.ObjectSummary('my-bucket', f'{example_path}/test.txt')
+        object_summary.put(Body=b'test data')
+
+    path = S3Path.from_uri("s3://my-bucket/s3path/nested")
+    assert list(path.glob("*/*")) == [
+        S3Path('/my-bucket/s3path/nested/further/andfurther')]
+
+
 def test_glob_issue_160_old_algo(s3_mock, enable_old_glob):
     test_glob_issue_160(s3_mock)
 
 
 def test_glob_issue_160_weird_behavior_old_algo(s3_mock, enable_old_glob):
     test_glob_issue_160_weird_behavior(s3_mock)
+
+
+def test_glob_nested_folders_issue_no_179_old_algo(s3_mock, enable_old_glob):
+    test_glob_nested_folders_issue_no_179(s3_mock)
 
 
 def test_rglob(s3_mock):
