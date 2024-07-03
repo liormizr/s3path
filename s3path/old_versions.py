@@ -56,7 +56,7 @@ class _S3Flavour(_PosixFlavour):
         uri = super().make_uri(path)
         return uri.replace('file:///', 's3://')
 
-    def compile_pattern_parts(self, prefix, pattern, bucket):
+    def compile_pattern_parts(self, path, prefix, pattern, bucket):
         pattern = self.sep.join((
             '',
             bucket,
@@ -73,7 +73,7 @@ class _S3Flavour(_PosixFlavour):
                 new_regex_pattern += f'{self.sep}*(?s:{part.replace("**", ".*")})'
                 continue
             if '*' == part:
-                new_regex_pattern += f'{self._path._flavour.sep}(?s:[^/]+)'
+                new_regex_pattern += f'{path._flavour.sep}(?s:[^/]+)'
                 continue
             new_regex_pattern += f'{self.sep}{fnmatch.translate(part)[:-2]}'
         new_regex_pattern += r'/*\Z'
@@ -710,7 +710,7 @@ class _Selector:
         self._prefix, pattern = self._prefix_splitter(pattern)
         self._full_keys = self._calculate_full_or_just_folder(pattern)
         self._target_level = self._calculate_pattern_level(pattern)
-        self.match = self._path._flavour.compile_pattern_parts(self._prefix, pattern, path.bucket)
+        self.match = self._path._flavour.compile_pattern_parts(self._path, self._prefix, pattern, path.bucket)
 
     def select(self):
         for target in self._deep_cached_dir_scan():
