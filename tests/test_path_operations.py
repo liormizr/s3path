@@ -1,3 +1,4 @@
+import shutil
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -892,3 +893,15 @@ def test_versioned_bucket(s3_mock):
     for path in paths:
         assert not isinstance(path, VersionedS3Path)
         assert path.read_bytes() == file_contents_by_version[-1]
+
+
+def test_buffered_copy(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    data = b'test data' * 10_000_000
+    source_path = S3Path('/test-bucket/source')
+    source_path.write_bytes(data)
+    target_path = S3Path('/test-bucket/target')
+    with source_path.open('rb') as source, target_path.open('wb') as target:
+        shutil.copyfileobj(source, target)
+    assert target_path.read_bytes() == data
