@@ -404,8 +404,7 @@ class _S3Scandir:
         resource, config = configuration_map.get_configuration(self._path)
         if not bucket_name:
             query = _boto3_method_with_parameters(
-                resource.buckets.filter,
-                kwargs={'Prefix': str(self._path)},
+                resource.buckets.all,
                 config=config)
             for bucket in query:
                 yield _S3DirEntry(bucket.name, is_dir=True)
