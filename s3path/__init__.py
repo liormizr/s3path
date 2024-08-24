@@ -2,11 +2,12 @@
 s3path provides a Pythonic API to S3 by wrapping boto3 with pathlib interface
 """
 import sys
-
+from pathlib import Path
 from . import accessor
 
-__version__ = '0.5.7'
+__version__ = '0.5.8'
 __all__ = (
+    'Path',
     'register_configuration_parameter',
     'configuration_map',
     'StatResult',
