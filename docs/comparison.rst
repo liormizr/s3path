@@ -54,9 +54,22 @@ S3Path Example:
 
 .. code:: python
 
-   >>> from s3path import S3Path, Path
+   >>> from pathlib import Path
+   >>> from s3path import S3Path
    >>> local_path = Path('/tmp/hello.txt')
    >>> S3Path('/my-bucket/hello.txt').write_text(local_path.read_text())
+
+S3Path Example (buffered, to avoid loading large files into memory):
+
+.. code:: python
+
+   >>> import shutil
+   >>> from pathlib import Path
+   >>> from s3path import S3Path
+   >>> local_path = Path('/tmp/hello.txt')
+   >>> remote_path = S3Path('/my-bucket/hello.txt')
+   >>> with local_path.open('rb') as src, remote_path.open('wb') as dst:
+   >>>     shutil.copyfileobj(src, dst)
 
 boto3 Example:
 
@@ -74,7 +87,8 @@ S3Path Example:
 
 .. code:: python
 
-   >>> from s3path import S3Path, Path
+   >>> from pathlib import Path
+   >>> from s3path import S3Path
    >>> local_path = Path('./my_local_image.jpg')
    >>> local_path.write_text(S3Path('/my-bucket/my_image_in_s3.jpg').read_text())
 
