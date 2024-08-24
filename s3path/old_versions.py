@@ -152,7 +152,7 @@ class _S3Scandir:
         bucket_name = self._path.bucket
         resource, _ = self._s3_accessor.configuration_map.get_configuration(self._path)
         if not bucket_name:
-            for bucket in resource.buckets.filter(Prefix=str(self._path)):
+            for bucket in resource.buckets.all():
                 yield _S3DirEntry(bucket.name, is_dir=True)
             return
         bucket = resource.Bucket(bucket_name)
