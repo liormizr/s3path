@@ -471,13 +471,13 @@ def test_iterdir(s3_mock):
 
     s3_path = S3Path('/test-bucket/docs')
     assert sorted(s3_path.iterdir()) == [
-        S3Path('/test-bucket/docs/Makefile'),
         S3Path('/test-bucket/docs/_build'),
         S3Path('/test-bucket/docs/_static'),
         S3Path('/test-bucket/docs/_templates'),
         S3Path('/test-bucket/docs/conf.py'),
         S3Path('/test-bucket/docs/index.rst'),
         S3Path('/test-bucket/docs/make.bat'),
+        S3Path('/test-bucket/docs/Makefile'),
     ]
 
 
