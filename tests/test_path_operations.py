@@ -477,7 +477,7 @@ def test_iterdir(s3_mock):
     object_summary.put(Body=b'test data')
 
     s3_path = S3Path('/test-bucket/docs')
-    assert sorted(s3_path.iterdir()) == [
+    assert sorted(s3_path.iterdir()) == sorted([
         S3Path('/test-bucket/docs/_build'),
         S3Path('/test-bucket/docs/_static'),
         S3Path('/test-bucket/docs/_templates'),
@@ -485,7 +485,7 @@ def test_iterdir(s3_mock):
         S3Path('/test-bucket/docs/index.rst'),
         S3Path('/test-bucket/docs/make.bat'),
         S3Path('/test-bucket/docs/Makefile'),
-    ]
+    ])
 
 
 def test_iterdir_on_buckets(s3_mock):
