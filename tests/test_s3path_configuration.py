@@ -142,3 +142,9 @@ def test_issue_123():
     new_resource, _ = accessor.configuration_map.get_configuration(path)
     assert new_resource is s3
     assert new_resource is not old_resource
+
+
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="requires python3.13 or higher")
+def test_register_configuration_parameter_old_algo():
+    with pytest.raises(ValueError):
+        register_configuration_parameter(PureS3Path('/'), glob_new_algorithm=False)

@@ -34,6 +34,8 @@ def register_configuration_parameter(
         raise TypeError(f'parameters argument have to be a dict type. got {type(path)}')
     if parameters is None and resource is None and glob_new_algorithm is None:
         raise ValueError('user have to specify parameters or resource arguments')
+    if glob_new_algorithm is False and sys.version_info >= (3, 13):
+        raise ValueError('old glob algorithm can only be used by python versions below 3.13')
     accessor.configuration_map.set_configuration(
         path,
         resource=resource,
@@ -57,11 +59,10 @@ class PureS3Path(PurePath):
     S3 is not a file-system but we can look at it like a POSIX system.
     """
     _flavour = flavour
+    __slots__ = ()
 
     if sys.version_info >= (3, 13):
-        parser = _S3Flavour()
-
-    __slots__ = ()
+        parser = _flavour
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -488,8 +489,10 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         self._absolute_path_validation()
         general_options = accessor.configuration_map.get_general_options(self)
         glob_new_algorithm = general_options['glob_new_algorithm']
+        if sys.version_info >= (3, 13):
+            glob_new_algorithm = True
         if not glob_new_algorithm:
-            yield from self._glob_py313(pattern)
+            yield from super().glob(pattern)
             return
         yield from self._glob(pattern)
 
@@ -500,6 +503,8 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         self._absolute_path_validation()
         general_options = accessor.configuration_map.get_general_options(self)
         glob_new_algorithm = general_options['glob_new_algorithm']
+        if sys.version_info >= (3, 13):
+            glob_new_algorithm = True
         if not glob_new_algorithm:
             yield from super().rglob(pattern)
             return
