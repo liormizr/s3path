@@ -34,8 +34,6 @@ def register_configuration_parameter(
         raise TypeError(f'parameters argument have to be a dict type. got {type(path)}')
     if parameters is None and resource is None and glob_new_algorithm is None:
         raise ValueError('user have to specify parameters or resource arguments')
-    if glob_new_algorithm is False and sys.version_info >= (3, 13):
-        raise ValueError('old glob algorithm can only be used by python versions below 3.13')
     accessor.configuration_map.set_configuration(
         path,
         resource=resource,
@@ -43,13 +41,9 @@ def register_configuration_parameter(
         glob_new_algorithm=glob_new_algorithm)
 
 
-
-class _S3Flavour:
+class _S3Parser:
     def __getattr__(self, name):
         return getattr(posixpath, name)
-
-
-flavour = _S3Flavour()
 
 
 class PureS3Path(PurePath):
@@ -58,11 +52,10 @@ class PureS3Path(PurePath):
 
     S3 is not a file-system but we can look at it like a POSIX system.
     """
-    _flavour = flavour
-    __slots__ = ()
 
-    if sys.version_info >= (3, 13):
-        parser = _flavour
+    parser = _flavour = _S3Parser()  # _flavour is not relevant after Python version 3.13
+
+    __slots__ = ()
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -103,7 +96,7 @@ class PureS3Path(PurePath):
         >> PureS3Path.from_bucket_key(bucket='<bucket>', key='<key>')
         << PureS3Path('/<bucket>/<key>')
         """
-        bucket = cls(cls._flavour.sep, bucket)
+        bucket = cls(cls.parser.sep, bucket)
         if len(bucket.parts) != 2:
             raise ValueError(f'bucket argument contains more then one path element: {bucket}')
         key = cls(key)
@@ -135,7 +128,7 @@ class PureS3Path(PurePath):
         The AWS S3 Key name, or ''
         """
         self._absolute_path_validation()
-        key = self._flavour.sep.join(self.parts[2:])
+        key = self.parser.sep.join(self.parts[2:])
         return key
 
     def as_uri(self) -> str:
@@ -320,7 +313,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             raise KeyError('file not found')
         return accessor.owner(self)
 
-    def rename(self, target):  # todo: Union[str, S3Path]) -> S3Path:
+    def rename(self, target):
         """
         Renames this file or Bucket / key prefix / key to the given target.
         If target exists and is a file, it will be replaced silently if the user has permission.
@@ -334,7 +327,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         accessor.rename(self, target)
         return type(self)(target)
 
-    def replace(self, target):  # todo: Union[str, S3Path]) -> S3Path:
+    def replace(self, target):
         """
         Renames this Bucket / key prefix / key to the given target.
         If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
@@ -392,7 +385,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
                 raise FileNotFoundError(f'No bucket in {type(self)} {self}')
             if self.key and not parents:
                 raise FileNotFoundError(f'Only bucket path can be created, got {self}')
-            if type(self)(self._flavour.sep, self.bucket).exists():
+            if type(self)(self.parser.sep, self.bucket).exists():
                 raise FileExistsError(f'Bucket {self.bucket} already exists')
             accessor.mkdir(self, mode)
         except OSError:
@@ -433,34 +426,13 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             return True
         return accessor.exists(self)
 
-    def iterdir(self): # todo: -> Generator[S3Path, None, None]:
+    def iterdir(self):
         """
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
         self._absolute_path_validation()
         for name in accessor.listdir(self):
-            yield self._make_child_relpath(name)
-
-    def _make_child_relpath(self, name):
-        # _make_child_relpath was removed from Python 3.13 in
-        # 30f0643e36d2c9a5849c76ca0b27b748448d0567
-        if sys.version_info < (3, 13):
-            return super()._make_child_relpath(name)
-
-        path_str = str(self)
-        tail = self._tail
-        if tail:
-            path_str = f'{path_str}{self._flavour.sep}{name}'
-        elif path_str != '.':
-            path_str = f'{path_str}{name}'
-        else:
-            path_str = name
-        path = self.with_segments(path_str)
-        path._str = path_str
-        path._drv = self.drive
-        path._root = self.root
-        path._tail_cached = tail + [name]
-        return path
+            yield self / name
 
     def open(
             self,
@@ -481,34 +453,49 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             errors=errors,
             newline=newline)
 
-    def glob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):  # todo: -> Generator[S3Path, None, None]:
+    def glob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
+
+        The glob method is using a new Algorithm that better fit S3 API
         """
         self._absolute_path_validation()
-        general_options = accessor.configuration_map.get_general_options(self)
-        glob_new_algorithm = general_options['glob_new_algorithm']
-        if sys.version_info >= (3, 13):
-            glob_new_algorithm = True
-        if not glob_new_algorithm:
-            yield from super().glob(pattern)
-            return
-        yield from self._glob(pattern)
+        if case_sensitive is False or recurse_symlinks is True:
+            raise ValueError('Glob is case-sensitive and no symbolic links are allowed')
 
-    def rglob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):  # todo: -> Generator[S3Path, None, None]:
+        sys.audit("pathlib.Path.glob", self, pattern)
+        if not pattern:
+            raise ValueError(f'Unacceptable pattern: {pattern}')
+        drv, root, pattern_parts = self._parse_path(pattern)
+        if drv or root:
+            raise NotImplementedError("Non-relative patterns are unsupported")
+        for part in pattern_parts:
+            if part != '**' and '**' in part:
+                raise ValueError("Invalid pattern: '**' can only be an entire path component")
+        selector = _Selector(self, pattern=pattern)
+        yield from selector.select()
+
+    def rglob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
+
+        The rglob method is using a new Algorithm that better fit S3 API
         """
         self._absolute_path_validation()
-        general_options = accessor.configuration_map.get_general_options(self)
-        glob_new_algorithm = general_options['glob_new_algorithm']
-        if sys.version_info >= (3, 13):
-            glob_new_algorithm = True
-        if not glob_new_algorithm:
-            yield from super().rglob(pattern)
-            return
-        yield from self._rglob(pattern)
+
+        sys.audit("pathlib.Path.rglob", self, pattern)
+        if not pattern:
+            raise ValueError(f'Unacceptable pattern: {pattern}')
+        drv, root, pattern_parts = self._parse_path(pattern)
+        if drv or root:
+            raise NotImplementedError("Non-relative patterns are unsupported")
+        for part in pattern_parts:
+            if part != '**' and '**' in part:
+                raise ValueError("Invalid pattern: '**' can only be an entire path component")
+        pattern = f'**{self.parser.sep}{pattern}'
+        selector = _Selector(self, pattern=pattern)
+        yield from selector.select()
 
     def get_presigned_url(self, expire_in: Union[timedelta, int] = 3600) -> str:
         """
@@ -586,35 +573,6 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         Override _scandir so _Selector will rely on an S3 compliant implementation
         """
         return accessor.scandir(self)
-
-    def _glob(self, pattern):
-        """ Glob with new Algorithm that better fit S3 API """
-        sys.audit("pathlib.Path.glob", self, pattern)
-        if not pattern:
-            raise ValueError(f'Unacceptable pattern: {pattern}')
-        drv, root, pattern_parts = self._parse_path(pattern)
-        if drv or root:
-            raise NotImplementedError("Non-relative patterns are unsupported")
-        for part in pattern_parts:
-            if part != '**' and '**' in part:
-                raise ValueError("Invalid pattern: '**' can only be an entire path component")
-        selector = _Selector(self, pattern=pattern)
-        yield from selector.select()
-
-    def _rglob(self, pattern):
-        """ RGlob with new Algorithm that better fit S3 API """
-        sys.audit("pathlib.Path.rglob", self, pattern)
-        if not pattern:
-            raise ValueError(f'Unacceptable pattern: {pattern}')
-        drv, root, pattern_parts = self._parse_path(pattern)
-        if drv or root:
-            raise NotImplementedError("Non-relative patterns are unsupported")
-        for part in pattern_parts:
-            if part != '**' and '**' in part:
-                raise ValueError("Invalid pattern: '**' can only be an entire path component")
-        pattern = f'**{self._flavour.sep}{pattern}'
-        selector = _Selector(self, pattern=pattern)
-        yield from selector.select()
 
 
 class PureVersionedS3Path(PureS3Path):
@@ -723,14 +681,14 @@ class _Selector:
 
     def select(self):
         for target in self._deep_cached_dir_scan():
-            target = f'{self._path._flavour.sep}{self._path.bucket}{target}'
+            target = f'{self._path.parser.sep}{self._path.bucket}{target}'
             if self.match(target):
                 yield type(self._path)(target)
 
     def _prefix_splitter(self, pattern):
         if not _is_wildcard_pattern(pattern):
             if self._path.key:
-                return f'{self._path.key}{self._path._flavour.sep}{pattern}', ''
+                return f'{self._path.key}{self._path.parser.sep}{pattern}', ''
             return pattern, ''
 
         *_, pattern_parts = self._path._parse_path(pattern)
@@ -738,21 +696,21 @@ class _Selector:
         for index, part in enumerate(pattern_parts):
             if _is_wildcard_pattern(part):
                 break
-            prefix += f'{part}{self._path._flavour.sep}'
+            prefix += f'{part}{self._path.parser.sep}'
 
         if pattern.startswith(prefix):
             pattern = pattern.replace(prefix, '', 1)
 
         key_prefix = self._path.key
         if key_prefix:
-            prefix = self._path._flavour.sep.join((key_prefix, prefix))
+            prefix = self._path.parser.sep.join((key_prefix, prefix))
         return prefix, pattern
 
     def _calculate_pattern_level(self, pattern):
         if '**' in pattern:
             return None
         if self._prefix:
-            pattern = f'{self._prefix}{self._path._flavour.sep}{pattern}'
+            pattern = f'{self._prefix}{self._path.parser.sep}{pattern}'
         *_, pattern_parts = self._path._parse_path(pattern)
         return len(pattern_parts)
 
@@ -767,23 +725,23 @@ class _Selector:
 
     def _deep_cached_dir_scan(self):
         cache = set()
-        prefix_sep_count = self._prefix.count(self._path._flavour.sep)
+        prefix_sep_count = self._prefix.count(self._path.parser.sep)
         for key in accessor.iter_keys(self._path, prefix=self._prefix, full_keys=self._full_keys):
-            key_sep_count = key.count(self._path._flavour.sep) + 1
-            key_parts = key.rsplit(self._path._flavour.sep, maxsplit=key_sep_count - prefix_sep_count)
+            key_sep_count = key.count(self._path.parser.sep) + 1
+            key_parts = key.rsplit(self._path.parser.sep, maxsplit=key_sep_count - prefix_sep_count)
             target_path_parts = key_parts[:self._target_level]
             target_path = ''
             for part in target_path_parts:
                 if not part:
                     continue
-                target_path += f'{self._path._flavour.sep}{part}'
+                target_path += f'{self._path.parser.sep}{part}'
                 if target_path in cache:
                     continue
                 yield target_path
                 cache.add(target_path)
 
     def _compile_pattern_parts(self, prefix, pattern, bucket):
-        pattern = self._path._flavour.sep.join((
+        pattern = self._path.parser.sep.join((
             '',
             bucket,
             prefix,
@@ -793,14 +751,14 @@ class _Selector:
 
         new_regex_pattern = ''
         for part in pattern_parts:
-            if part == self._path._flavour.sep:
+            if part == self._path.parser.sep:
                 continue
             if '**' in part:
-                new_regex_pattern += f'{self._path._flavour.sep}*(?s:{part.replace("**", ".*")})'
+                new_regex_pattern += f'{self._path.parser.sep}*(?s:{part.replace("**", ".*")})'
                 continue
             if '*' == part:
-                new_regex_pattern += f'{self._path._flavour.sep}(?s:[^/]+)'
+                new_regex_pattern += f'{self._path.parser.sep}(?s:[^/]+)'
                 continue
-            new_regex_pattern += f'{self._path._flavour.sep}{fnmatch.translate(part)[:-2]}'
+            new_regex_pattern += f'{self._path.parser.sep}{fnmatch.translate(part)[:-2]}'
         new_regex_pattern += r'/*\Z'
         return re.compile(new_regex_pattern).fullmatch
