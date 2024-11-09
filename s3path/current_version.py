@@ -41,14 +41,20 @@ def register_configuration_parameter(
         glob_new_algorithm=glob_new_algorithm)
 
 
+class _S3Parser:
+    def __getattr__(self, name):
+        return getattr(posixpath, name)
+
+
 class PureS3Path(PurePath):
     """
     PurePath subclass for AWS S3 service.
 
     S3 is not a file-system but we can look at it like a POSIX system.
     """
-    _flavour = posixpath  # not relevant after Python version 3.13
-    parser = posixpath
+
+    parser = _flavour = _S3Parser()  # _flavour is not relevant after Python version 3.13
+
     __slots__ = ()
 
     def __init__(self, *args):
@@ -90,7 +96,7 @@ class PureS3Path(PurePath):
         >> PureS3Path.from_bucket_key(bucket='<bucket>', key='<key>')
         << PureS3Path('/<bucket>/<key>')
         """
-        bucket = cls(cls._flavour.sep, bucket)
+        bucket = cls(cls.parser.sep, bucket)
         if len(bucket.parts) != 2:
             raise ValueError(f'bucket argument contains more then one path element: {bucket}')
         key = cls(key)
@@ -122,7 +128,7 @@ class PureS3Path(PurePath):
         The AWS S3 Key name, or ''
         """
         self._absolute_path_validation()
-        key = self._flavour.sep.join(self.parts[2:])
+        key = self.parser.sep.join(self.parts[2:])
         return key
 
     def as_uri(self) -> str:
@@ -379,7 +385,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
                 raise FileNotFoundError(f'No bucket in {type(self)} {self}')
             if self.key and not parents:
                 raise FileNotFoundError(f'Only bucket path can be created, got {self}')
-            if type(self)(self._flavour.sep, self.bucket).exists():
+            if type(self)(self.parser.sep, self.bucket).exists():
                 raise FileExistsError(f'Bucket {self.bucket} already exists')
             accessor.mkdir(self, mode)
         except OSError:
@@ -487,7 +493,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         for part in pattern_parts:
             if part != '**' and '**' in part:
                 raise ValueError("Invalid pattern: '**' can only be an entire path component")
-        pattern = f'**{self._flavour.sep}{pattern}'
+        pattern = f'**{self.parser.sep}{pattern}'
         selector = _Selector(self, pattern=pattern)
         yield from selector.select()
 
@@ -675,14 +681,14 @@ class _Selector:
 
     def select(self):
         for target in self._deep_cached_dir_scan():
-            target = f'{self._path._flavour.sep}{self._path.bucket}{target}'
+            target = f'{self._path.parser.sep}{self._path.bucket}{target}'
             if self.match(target):
                 yield type(self._path)(target)
 
     def _prefix_splitter(self, pattern):
         if not _is_wildcard_pattern(pattern):
             if self._path.key:
-                return f'{self._path.key}{self._path._flavour.sep}{pattern}', ''
+                return f'{self._path.key}{self._path.parser.sep}{pattern}', ''
             return pattern, ''
 
         *_, pattern_parts = self._path._parse_path(pattern)
@@ -690,21 +696,21 @@ class _Selector:
         for index, part in enumerate(pattern_parts):
             if _is_wildcard_pattern(part):
                 break
-            prefix += f'{part}{self._path._flavour.sep}'
+            prefix += f'{part}{self._path.parser.sep}'
 
         if pattern.startswith(prefix):
             pattern = pattern.replace(prefix, '', 1)
 
         key_prefix = self._path.key
         if key_prefix:
-            prefix = self._path._flavour.sep.join((key_prefix, prefix))
+            prefix = self._path.parser.sep.join((key_prefix, prefix))
         return prefix, pattern
 
     def _calculate_pattern_level(self, pattern):
         if '**' in pattern:
             return None
         if self._prefix:
-            pattern = f'{self._prefix}{self._path._flavour.sep}{pattern}'
+            pattern = f'{self._prefix}{self._path.parser.sep}{pattern}'
         *_, pattern_parts = self._path._parse_path(pattern)
         return len(pattern_parts)
 
@@ -719,23 +725,23 @@ class _Selector:
 
     def _deep_cached_dir_scan(self):
         cache = set()
-        prefix_sep_count = self._prefix.count(self._path._flavour.sep)
+        prefix_sep_count = self._prefix.count(self._path.parser.sep)
         for key in accessor.iter_keys(self._path, prefix=self._prefix, full_keys=self._full_keys):
-            key_sep_count = key.count(self._path._flavour.sep) + 1
-            key_parts = key.rsplit(self._path._flavour.sep, maxsplit=key_sep_count - prefix_sep_count)
+            key_sep_count = key.count(self._path.parser.sep) + 1
+            key_parts = key.rsplit(self._path.parser.sep, maxsplit=key_sep_count - prefix_sep_count)
             target_path_parts = key_parts[:self._target_level]
             target_path = ''
             for part in target_path_parts:
                 if not part:
                     continue
-                target_path += f'{self._path._flavour.sep}{part}'
+                target_path += f'{self._path.parser.sep}{part}'
                 if target_path in cache:
                     continue
                 yield target_path
                 cache.add(target_path)
 
     def _compile_pattern_parts(self, prefix, pattern, bucket):
-        pattern = self._path._flavour.sep.join((
+        pattern = self._path.parser.sep.join((
             '',
             bucket,
             prefix,
@@ -745,14 +751,14 @@ class _Selector:
 
         new_regex_pattern = ''
         for part in pattern_parts:
-            if part == self._path._flavour.sep:
+            if part == self._path.parser.sep:
                 continue
             if '**' in part:
-                new_regex_pattern += f'{self._path._flavour.sep}*(?s:{part.replace("**", ".*")})'
+                new_regex_pattern += f'{self._path.parser.sep}*(?s:{part.replace("**", ".*")})'
                 continue
             if '*' == part:
-                new_regex_pattern += f'{self._path._flavour.sep}(?s:[^/]+)'
+                new_regex_pattern += f'{self._path.parser.sep}(?s:[^/]+)'
                 continue
-            new_regex_pattern += f'{self._path._flavour.sep}{fnmatch.translate(part)[:-2]}'
+            new_regex_pattern += f'{self._path.parser.sep}{fnmatch.translate(part)[:-2]}'
         new_regex_pattern += r'/*\Z'
         return re.compile(new_regex_pattern).fullmatch
