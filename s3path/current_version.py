@@ -47,7 +47,7 @@ class PureS3Path(PurePath):
 
     S3 is not a file-system but we can look at it like a POSIX system.
     """
-    _flavour = posixpath
+    _flavour = posixpath  # not relevant after Python version 3.13
     parser = posixpath
     __slots__ = ()
 
@@ -62,6 +62,10 @@ class PureS3Path(PurePath):
                 new_parts.remove(part)
 
         self._raw_paths = new_parts
+        if sys.version_info >= (3, 13):
+            self._drv, self._root, self._tail_cached = self._parse_path(self._raw_path)
+        else:
+            self._load_parts()
 
     @classmethod
     def from_uri(cls, uri: str):

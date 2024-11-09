@@ -165,7 +165,10 @@ def test_glob_nested_folders_issue_no_120(s3_mock):
 
 
 def test_glob_old_algo(s3_mock, enable_old_glob):
-    with pytest.deprecated_call():
+    if sys.version_info > (3, 12):
+        with pytest.deprecated_call():
+            test_glob(s3_mock)
+    else:
         test_glob(s3_mock)
 
 
@@ -271,7 +274,11 @@ def test_rglob(s3_mock):
 
 
 def test_rglob_old_algo(s3_mock, enable_old_glob):
-    test_rglob(s3_mock)
+    if sys.version_info > (3, 12):
+        with pytest.deprecated_call():
+            test_rglob(s3_mock)
+    else:
+        test_rglob(s3_mock)
 
 
 def test_accessor_scandir(s3_mock):
@@ -299,7 +306,10 @@ def test_accessor_scandir(s3_mock):
 
 
 def test_accessor_scandir_old_algo(s3_mock, enable_old_glob):
-    with pytest.deprecated_call():
+    if sys.version_info > (3, 12):
+        with pytest.deprecated_call():
+            test_accessor_scandir(s3_mock)
+    else:
         test_accessor_scandir(s3_mock)
 
 
@@ -827,6 +837,7 @@ def test_unlink(s3_mock):
     S3Path("/test-bucket/fake_subfolder/fake_subkey").unlink(missing_ok=True)
     S3Path("/test-bucket/fake_folder").unlink(missing_ok=True)
     S3Path("/fake-bucket/").unlink(missing_ok=True)
+
 
 def test_absolute(s3_mock):
     s3 = boto3.resource('s3')
