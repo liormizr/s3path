@@ -62,20 +62,6 @@ class PureS3Path(PurePath):
                 new_parts.remove(part)
 
         self._raw_paths = new_parts
-        self._drv, self._root, self._tail_cached = self._parse_path(self._raw_path)
-
-    def _load_parts(self):
-        paths = self._raw_paths
-        if len(paths) == 0:
-            path = ''
-        elif len(paths) == 1:
-            path = paths[0]
-        else:
-            path = self._flavour.join(*paths)
-        drv, root, tail = self._parse_path(path)
-        self._drv = drv
-        self._root = root
-        self._tail_cached = tail
 
     @classmethod
     def from_uri(cls, uri: str):
