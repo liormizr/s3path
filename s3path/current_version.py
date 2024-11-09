@@ -43,26 +43,15 @@ def register_configuration_parameter(
         glob_new_algorithm=glob_new_algorithm)
 
 
-
-class _S3Flavour:
-    def __getattr__(self, name):
-        return getattr(posixpath, name)
-
-
-flavour = _S3Flavour()
-
-
 class PureS3Path(PurePath):
     """
     PurePath subclass for AWS S3 service.
 
     S3 is not a file-system but we can look at it like a POSIX system.
     """
-    _flavour = flavour
+    _flavour = posixpath
+    parser = posixpath
     __slots__ = ()
-
-    if sys.version_info >= (3, 13):
-        parser = _flavour
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -75,10 +64,20 @@ class PureS3Path(PurePath):
                 new_parts.remove(part)
 
         self._raw_paths = new_parts
-        if sys.version_info >= (3, 13):
-            self._drv, self._root, self._tail_cached = self._parse_path(self._raw_path)
+        self._drv, self._root, self._tail_cached = self._parse_path(self._raw_path)
+
+    def _load_parts(self):
+        paths = self._raw_paths
+        if len(paths) == 0:
+            path = ''
+        elif len(paths) == 1:
+            path = paths[0]
         else:
-            self._load_parts()
+            path = self._flavour.join(*paths)
+        drv, root, tail = self._parse_path(path)
+        self._drv = drv
+        self._root = root
+        self._tail_cached = tail
 
     @classmethod
     def from_uri(cls, uri: str):
@@ -433,34 +432,13 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             return True
         return accessor.exists(self)
 
-    def iterdir(self): # todo: -> Generator[S3Path, None, None]:
+    def iterdir(self):
         """
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
         self._absolute_path_validation()
         for name in accessor.listdir(self):
-            yield self._make_child_relpath(name)
-
-    def _make_child_relpath(self, name):
-        # _make_child_relpath was removed from Python 3.13 in
-        # 30f0643e36d2c9a5849c76ca0b27b748448d0567
-        if sys.version_info < (3, 13):
-            return super()._make_child_relpath(name)
-
-        path_str = str(self)
-        tail = self._tail
-        if tail:
-            path_str = f'{path_str}{self._flavour.sep}{name}'
-        elif path_str != '.':
-            path_str = f'{path_str}{name}'
-        else:
-            path_str = name
-        path = self.with_segments(path_str)
-        path._str = path_str
-        path._drv = self.drive
-        path._root = self.root
-        path._tail_cached = tail + [name]
-        return path
+            yield self / name
 
     def open(
             self,
@@ -481,33 +459,23 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             errors=errors,
             newline=newline)
 
-    def glob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):  # todo: -> Generator[S3Path, None, None]:
+    def glob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
         """
         self._absolute_path_validation()
-        general_options = accessor.configuration_map.get_general_options(self)
-        glob_new_algorithm = general_options['glob_new_algorithm']
-        if sys.version_info >= (3, 13):
-            glob_new_algorithm = True
-        if not glob_new_algorithm:
-            yield from super().glob(pattern)
-            return
+        if case_sensitive is False or recurse_symlinks is True:
+            raise ValueError('Glob is case-sensitive and no symbolic links are allowed')
+
         yield from self._glob(pattern)
 
-    def rglob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):  # todo: -> Generator[S3Path, None, None]:
+    def rglob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
         """
         self._absolute_path_validation()
-        general_options = accessor.configuration_map.get_general_options(self)
-        glob_new_algorithm = general_options['glob_new_algorithm']
-        if sys.version_info >= (3, 13):
-            glob_new_algorithm = True
-        if not glob_new_algorithm:
-            yield from super().rglob(pattern)
-            return
+
         yield from self._rglob(pattern)
 
     def get_presigned_url(self, expire_in: Union[timedelta, int] = 3600) -> str:
@@ -703,8 +671,8 @@ class VersionedS3Path(PureVersionedS3Path, S3Path):
     << VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
     """
 
-    def __init__(self, *args, version_id):
-        super().__init__(*args)
+    # def __init__(self, *args, version_id):
+    #     super().__init__(*args)
 
 
 def _is_wildcard_pattern(pat):

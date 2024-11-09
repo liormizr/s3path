@@ -4,29 +4,25 @@ from setuptools import setup
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 setup(
-    name='s3path',
-    version='0.5.8',
-    url='https://github.com/liormizr/s3path',
-    author='Lior Mizrahi',
-    author_email='li.mizr@gmail.com',
-    packages=['s3path'],
-    install_requires=[
-        'boto3>=1.16.35',
-        'smart-open>=5.1.0',
-    ],
-    license='Apache 2.0',
+    name='s3path',                                          # V
+    version='0.5.8',                                        # V
+    url='https://github.com/liormizr/s3path',               # V
+    author='Lior Mizrahi',                                  # V
+    author_email='li.mizr@gmail.com',                       # V
+    packages=['s3path'],                                    # V
+    install_requires=['boto3>=1.16.35','smart-open>=5.1.0',], # V
+    license='Apache 2.0',                                   # V
     long_description=long_description,
     long_description_content_type='text/x-rst',
-    python_requires='>=3.8',
+    python_requires='>=3.9',                                # V
     include_package_data=True,
-    classifiers=[
+    classifiers=[                                           # V
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
