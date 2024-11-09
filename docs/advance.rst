@@ -123,6 +123,7 @@ To enable the old (pathlib common) Algorithm you can configure it like this:
    >>> path = PureS3Path('/')
    >>> register_configuration_parameter(path, glob_new_algorithm=False)
 
+**Note: from version 0.6.0 glob implementation will work only with the new algorithm, there for the glob_new_algorithm arg is in depreciation cycle**
 
 .. _pathlib : https://docs.python.org/3/library/pathlib.html
 .. _boto3 : https://github.com/boto/boto3

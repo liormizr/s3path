@@ -159,7 +159,8 @@ In other words, it enables recursive globbing:
     S3Path('/pypi-proxy/boto3/index.html'),
     S3Path('/pypi-proxy/botocore/index.html')]
 
-New in version 0.4.0:
+
+In version 0.4.0:
 New Algorithm that better suited to s3 API.
 Especially for recursive searches.
 
@@ -168,6 +169,9 @@ To enable the old (pathlib common) Algorithm you can configure it like this:
 .. code:: python
 
         register_configuration_parameter(path, glob_new_algorithm=False)
+
+New version 0.6.0:
+glob implementation will work only with the new algorithm, there for the glob_new_algorithm arg is in depreciation cycle
 
 For more configuration details please see this `Advanced S3Path configuration`_
 
@@ -325,9 +329,12 @@ This is like calling S3Path.glob_ with ``"**/"`` added in front of the given rel
     S3Path('/pypi-proxy/index.html'),
     S3Path('/pypi-proxy/botocore/index.html')]
 
-New in version 0.4.0:
+Version 0.4.0:
 New Algorithm that better suited to s3 API.
 Especially for recursive searches.
+
+New version 0.6.0:
+glob implementation will work only with the new algorithm, there for the glob_new_algorithm arg is in depreciation cycle
 
 S3Path.rmdir()
 ^^^^^^^^^^^^^^
