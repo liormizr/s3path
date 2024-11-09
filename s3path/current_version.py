@@ -313,7 +313,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             raise KeyError('file not found')
         return accessor.owner(self)
 
-    def rename(self, target):  # todo: Union[str, S3Path]) -> S3Path:
+    def rename(self, target):
         """
         Renames this file or Bucket / key prefix / key to the given target.
         If target exists and is a file, it will be replaced silently if the user has permission.
@@ -327,7 +327,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         accessor.rename(self, target)
         return type(self)(target)
 
-    def replace(self, target):  # todo: Union[str, S3Path]) -> S3Path:
+    def replace(self, target):
         """
         Renames this Bucket / key prefix / key to the given target.
         If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
