@@ -6,6 +6,7 @@ from io import UnsupportedOperation
 from tempfile import NamedTemporaryFile
 
 import boto3
+import ipdb
 import requests
 from botocore.exceptions import ClientError
 import pytest
@@ -165,6 +166,7 @@ def test_glob_nested_folders_issue_no_120(s3_mock):
 
 
 def test_glob_old_algo(s3_mock, enable_old_glob):
+    # import ipdb; ipdb.set_trace()
     test_glob(s3_mock)
 
 

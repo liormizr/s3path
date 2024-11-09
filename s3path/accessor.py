@@ -1,5 +1,6 @@
 import sys
 import importlib.util
+from warnings import warn
 from os import stat_result
 from threading import Lock
 from itertools import chain
@@ -493,6 +494,8 @@ class _S3ConfigurationMap:
         if resource is not None:
             self.resources[path_name] = resource
         if glob_new_algorithm is not None:
+            warn(f'glob_new_algorithm Configuration is Deprecated, '
+                 f'in the new version we use only the new algorithm for Globing', category=DeprecationWarning)
             self.general_options[path_name] = {'glob_new_algorithm': glob_new_algorithm}
         self.get_configuration.cache_clear()
 

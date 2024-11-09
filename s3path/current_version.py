@@ -41,22 +41,14 @@ def register_configuration_parameter(
         glob_new_algorithm=glob_new_algorithm)
 
 
-
-class _S3Flavour:
-    def __getattr__(self, name):
-        return getattr(posixpath, name)
-
-
-flavour = _S3Flavour()
-
-
 class PureS3Path(PurePath):
     """
     PurePath subclass for AWS S3 service.
 
     S3 is not a file-system but we can look at it like a POSIX system.
     """
-    _flavour = flavour
+    _flavour = posixpath
+    parser = posixpath
     __slots__ = ()
 
     def __init__(self, *args):
@@ -70,7 +62,25 @@ class PureS3Path(PurePath):
                 new_parts.remove(part)
 
         self._raw_paths = new_parts
-        self._load_parts()
+        self._drv, self._root, self._tail_cached = self._parse_path(self._raw_path)
+        # self._load_parts()
+        # if sys.version_info >= (3, 13):
+        #     self._drv, self._root, self._tail_cached = self._parse_path(self._raw_path)
+        # else:
+        #     self._load_parts()
+
+    def _load_parts(self):
+        paths = self._raw_paths
+        if len(paths) == 0:
+            path = ''
+        elif len(paths) == 1:
+            path = paths[0]
+        else:
+            path = self._flavour.join(*paths)
+        drv, root, tail = self._parse_path(path)
+        self._drv = drv
+        self._root = root
+        self._tail_cached = tail
 
     @classmethod
     def from_uri(cls, uri: str):
@@ -277,6 +287,10 @@ class _PathNotSupportedMixin:
 
 
 class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
+    @classmethod
+    def from_uri(cls, uri):
+        return cls(PureS3Path.from_uri(uri))
+
     def stat(self, *, follow_symlinks: bool = True) -> accessor.StatResult:
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
@@ -425,13 +439,13 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             return True
         return accessor.exists(self)
 
-    def iterdir(self): # todo: -> Generator[S3Path, None, None]:
+    def iterdir(self):
         """
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
         self._absolute_path_validation()
         for name in accessor.listdir(self):
-            yield self._make_child_relpath(name)
+            yield self / name
 
     def open(
             self,
@@ -452,29 +466,33 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             errors=errors,
             newline=newline)
 
-    def glob(self, pattern: str):  # todo: -> Generator[S3Path, None, None]:
+    def glob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
         """
         self._absolute_path_validation()
-        general_options = accessor.configuration_map.get_general_options(self)
-        glob_new_algorithm = general_options['glob_new_algorithm']
-        if not glob_new_algorithm:
-            yield from super().glob(pattern)
-            return
+        if case_sensitive is False or recurse_symlinks is True:
+            raise ValueError('Glob is case-sensitive and no symbolic links are allowed')
+
+        # general_options = accessor.configuration_map.get_general_options(self)
+        # glob_new_algorithm = general_options['glob_new_algorithm']
+        # import ipdb; ipdb.set_trace()
+        # if not glob_new_algorithm:
+        #     yield from super().glob(pattern)
+        #     return
         yield from self._glob(pattern)
 
-    def rglob(self, pattern: str):  # todo: -> Generator[S3Path, None, None]:
+    def rglob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
         """
         self._absolute_path_validation()
-        general_options = accessor.configuration_map.get_general_options(self)
-        glob_new_algorithm = general_options['glob_new_algorithm']
-        if not glob_new_algorithm:
-            yield from super().rglob(pattern)
-            return
+        # general_options = accessor.configuration_map.get_general_options(self)
+        # glob_new_algorithm = general_options['glob_new_algorithm']
+        # if not glob_new_algorithm:
+        #     yield from super().rglob(pattern)
+        #     return
         yield from self._rglob(pattern)
 
     def get_presigned_url(self, expire_in: Union[timedelta, int] = 3600) -> str:
