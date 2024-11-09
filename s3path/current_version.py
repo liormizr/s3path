@@ -34,8 +34,6 @@ def register_configuration_parameter(
         raise TypeError(f'parameters argument have to be a dict type. got {type(path)}')
     if parameters is None and resource is None and glob_new_algorithm is None:
         raise ValueError('user have to specify parameters or resource arguments')
-    if glob_new_algorithm is False and sys.version_info >= (3, 13):
-        raise ValueError('old glob algorithm can only be used by python versions below 3.13')
     accessor.configuration_map.set_configuration(
         path,
         resource=resource,
@@ -463,20 +461,45 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
+
+        The glob method is using a new Algorithm that better fit S3 API
         """
         self._absolute_path_validation()
         if case_sensitive is False or recurse_symlinks is True:
             raise ValueError('Glob is case-sensitive and no symbolic links are allowed')
 
-        yield from self._glob(pattern)
+        sys.audit("pathlib.Path.glob", self, pattern)
+        if not pattern:
+            raise ValueError(f'Unacceptable pattern: {pattern}')
+        drv, root, pattern_parts = self._parse_path(pattern)
+        if drv or root:
+            raise NotImplementedError("Non-relative patterns are unsupported")
+        for part in pattern_parts:
+            if part != '**' and '**' in part:
+                raise ValueError("Invalid pattern: '**' can only be an entire path component")
+        selector = _Selector(self, pattern=pattern)
+        yield from selector.select()
 
     def rglob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
+
+        The rglob method is using a new Algorithm that better fit S3 API
         """
         self._absolute_path_validation()
 
-        yield from self._rglob(pattern)
+        sys.audit("pathlib.Path.rglob", self, pattern)
+        if not pattern:
+            raise ValueError(f'Unacceptable pattern: {pattern}')
+        drv, root, pattern_parts = self._parse_path(pattern)
+        if drv or root:
+            raise NotImplementedError("Non-relative patterns are unsupported")
+        for part in pattern_parts:
+            if part != '**' and '**' in part:
+                raise ValueError("Invalid pattern: '**' can only be an entire path component")
+        pattern = f'**{self._flavour.sep}{pattern}'
+        selector = _Selector(self, pattern=pattern)
+        yield from selector.select()
 
     def get_presigned_url(self, expire_in: Union[timedelta, int] = 3600) -> str:
         """
@@ -554,35 +577,6 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         Override _scandir so _Selector will rely on an S3 compliant implementation
         """
         return accessor.scandir(self)
-
-    def _glob(self, pattern):
-        """ Glob with new Algorithm that better fit S3 API """
-        sys.audit("pathlib.Path.glob", self, pattern)
-        if not pattern:
-            raise ValueError(f'Unacceptable pattern: {pattern}')
-        drv, root, pattern_parts = self._parse_path(pattern)
-        if drv or root:
-            raise NotImplementedError("Non-relative patterns are unsupported")
-        for part in pattern_parts:
-            if part != '**' and '**' in part:
-                raise ValueError("Invalid pattern: '**' can only be an entire path component")
-        selector = _Selector(self, pattern=pattern)
-        yield from selector.select()
-
-    def _rglob(self, pattern):
-        """ RGlob with new Algorithm that better fit S3 API """
-        sys.audit("pathlib.Path.rglob", self, pattern)
-        if not pattern:
-            raise ValueError(f'Unacceptable pattern: {pattern}')
-        drv, root, pattern_parts = self._parse_path(pattern)
-        if drv or root:
-            raise NotImplementedError("Non-relative patterns are unsupported")
-        for part in pattern_parts:
-            if part != '**' and '**' in part:
-                raise ValueError("Invalid pattern: '**' can only be an entire path component")
-        pattern = f'**{self._flavour.sep}{pattern}'
-        selector = _Selector(self, pattern=pattern)
-        yield from selector.select()
 
 
 class PureVersionedS3Path(PureS3Path):
@@ -671,8 +665,8 @@ class VersionedS3Path(PureVersionedS3Path, S3Path):
     << VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
     """
 
-    # def __init__(self, *args, version_id):
-    #     super().__init__(*args)
+    def __init__(self, *args, version_id):
+        super().__init__(*args)
 
 
 def _is_wildcard_pattern(pat):

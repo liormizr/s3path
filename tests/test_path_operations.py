@@ -6,7 +6,6 @@ from io import UnsupportedOperation
 from tempfile import NamedTemporaryFile
 
 import boto3
-import ipdb
 import requests
 from botocore.exceptions import ClientError
 import pytest
@@ -165,15 +164,9 @@ def test_glob_nested_folders_issue_no_120(s3_mock):
     assert list(path.glob("further/*")) == [S3Path('/my-bucket/s3path-test/nested/further/test.txt')]
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 13), reason="requires python3.12 or lower")
 def test_glob_old_algo(s3_mock, enable_old_glob):
-    # import ipdb; ipdb.set_trace()
-    test_glob(s3_mock)
-
-
-@pytest.mark.skipif(sys.version_info >= (3, 13), reason="requires python3.12 or lower")
-def test_glob_nested_folders_issue_no_115_old_algo(s3_mock, enable_old_glob):
-    test_glob_nested_folders_issue_no_115(s3_mock)
+    with pytest.deprecated_call():
+        test_glob(s3_mock)
 
 
 def test_glob_issue_160(s3_mock):
@@ -249,21 +242,6 @@ def test_glob_nested_folders_issue_no_179(s3_mock):
         S3Path('/my-bucket/s3path/nested/further/andfurther')]
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 13), reason="requires python3.12 or lower")
-def test_glob_issue_160_old_algo(s3_mock, enable_old_glob):
-    test_glob_issue_160(s3_mock)
-
-
-@pytest.mark.skipif(sys.version_info >= (3, 13), reason="requires python3.12 or lower")
-def test_glob_issue_160_weird_behavior_old_algo(s3_mock, enable_old_glob):
-    test_glob_issue_160_weird_behavior(s3_mock)
-
-
-@pytest.mark.skipif(sys.version_info >= (3, 13), reason="requires python3.12 or lower")
-def test_glob_nested_folders_issue_no_179_old_algo(s3_mock, enable_old_glob):
-    test_glob_nested_folders_issue_no_179(s3_mock)
-
-
 def test_rglob(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
@@ -292,7 +270,6 @@ def test_rglob(s3_mock):
         S3Path('/test-bucket/test_pathlib.py')]
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 13), reason="requires python3.12 or lower")
 def test_rglob_old_algo(s3_mock, enable_old_glob):
     test_rglob(s3_mock)
 
@@ -321,9 +298,9 @@ def test_accessor_scandir(s3_mock):
         S3Path('/test-bucket/test_pathlib.py')]
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 13), reason="requires python3.12 or lower")
 def test_accessor_scandir_old_algo(s3_mock, enable_old_glob):
-    test_accessor_scandir(s3_mock)
+    with pytest.deprecated_call():
+        test_accessor_scandir(s3_mock)
 
 
 def test_is_dir(s3_mock):
