@@ -34,6 +34,8 @@ def register_configuration_parameter(
         raise TypeError(f'parameters argument have to be a dict type. got {type(path)}')
     if parameters is None and resource is None and glob_new_algorithm is None:
         raise ValueError('user have to specify parameters or resource arguments')
+    if glob_new_algorithm is False and sys.version_info >= (3, 13):
+        raise ValueError('old glob algorithm can only be used by python versions below 3.13')
     accessor.configuration_map.set_configuration(
         path,
         resource=resource,
@@ -59,6 +61,9 @@ class PureS3Path(PurePath):
     _flavour = flavour
     __slots__ = ()
 
+    if sys.version_info >= (3, 13):
+        parser = _flavour
+
     def __init__(self, *args):
         super().__init__(*args)
 
@@ -70,7 +75,10 @@ class PureS3Path(PurePath):
                 new_parts.remove(part)
 
         self._raw_paths = new_parts
-        self._load_parts()
+        if sys.version_info >= (3, 13):
+            self._drv, self._root, self._tail_cached = self._parse_path(self._raw_path)
+        else:
+            self._load_parts()
 
     @classmethod
     def from_uri(cls, uri: str):
@@ -276,7 +284,7 @@ class _PathNotSupportedMixin:
         return False
 
 
-class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
+class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
     def stat(self, *, follow_symlinks: bool = True) -> accessor.StatResult:
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
@@ -433,6 +441,27 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         for name in accessor.listdir(self):
             yield self._make_child_relpath(name)
 
+    def _make_child_relpath(self, name):
+        # _make_child_relpath was removed from Python 3.13 in
+        # 30f0643e36d2c9a5849c76ca0b27b748448d0567
+        if sys.version_info < (3, 13):
+            return super()._make_child_relpath(name)
+
+        path_str = str(self)
+        tail = self._tail
+        if tail:
+            path_str = f'{path_str}{self._flavour.sep}{name}'
+        elif path_str != '.':
+            path_str = f'{path_str}{name}'
+        else:
+            path_str = name
+        path = self.with_segments(path_str)
+        path._str = path_str
+        path._drv = self.drive
+        path._root = self.root
+        path._tail_cached = tail + [name]
+        return path
+
     def open(
             self,
             mode: Literal['r', 'w', 'rb', 'wb'] = 'r',
@@ -452,7 +481,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
             errors=errors,
             newline=newline)
 
-    def glob(self, pattern: str):  # todo: -> Generator[S3Path, None, None]:
+    def glob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):  # todo: -> Generator[S3Path, None, None]:
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
@@ -460,18 +489,22 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         self._absolute_path_validation()
         general_options = accessor.configuration_map.get_general_options(self)
         glob_new_algorithm = general_options['glob_new_algorithm']
+        if sys.version_info >= (3, 13):
+            glob_new_algorithm = True
         if not glob_new_algorithm:
             yield from super().glob(pattern)
             return
         yield from self._glob(pattern)
 
-    def rglob(self, pattern: str):  # todo: -> Generator[S3Path, None, None]:
+    def rglob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):  # todo: -> Generator[S3Path, None, None]:
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
         """
         self._absolute_path_validation()
         general_options = accessor.configuration_map.get_general_options(self)
         glob_new_algorithm = general_options['glob_new_algorithm']
+        if sys.version_info >= (3, 13):
+            glob_new_algorithm = True
         if not glob_new_algorithm:
             yield from super().rglob(pattern)
             return
@@ -669,6 +702,9 @@ class VersionedS3Path(PureVersionedS3Path, S3Path):
     >> VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
     << VersionedS3Path('/<bucket>/<key>', version_id='<version_id>')
     """
+
+    def __init__(self, *args, version_id):
+        super().__init__(*args)
 
 
 def _is_wildcard_pattern(pat):
