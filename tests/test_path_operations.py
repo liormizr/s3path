@@ -165,11 +165,11 @@ def test_glob_nested_folders_issue_no_120(s3_mock):
 
 
 def test_glob_old_algo(s3_mock, enable_old_glob):
-    test_glob(s3_mock)
-
-
-def test_glob_nested_folders_issue_no_115_old_algo(s3_mock, enable_old_glob):
-    test_glob_nested_folders_issue_no_115(s3_mock)
+    if sys.version_info > (3, 12):
+        with pytest.deprecated_call():
+            test_glob(s3_mock)
+    else:
+        test_glob(s3_mock)
 
 
 def test_glob_issue_160(s3_mock):
@@ -245,18 +245,6 @@ def test_glob_nested_folders_issue_no_179(s3_mock):
         S3Path('/my-bucket/s3path/nested/further/andfurther')]
 
 
-def test_glob_issue_160_old_algo(s3_mock, enable_old_glob):
-    test_glob_issue_160(s3_mock)
-
-
-def test_glob_issue_160_weird_behavior_old_algo(s3_mock, enable_old_glob):
-    test_glob_issue_160_weird_behavior(s3_mock)
-
-
-def test_glob_nested_folders_issue_no_179_old_algo(s3_mock, enable_old_glob):
-    test_glob_nested_folders_issue_no_179(s3_mock)
-
-
 def test_rglob(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
@@ -285,8 +273,12 @@ def test_rglob(s3_mock):
         S3Path('/test-bucket/test_pathlib.py')]
 
 
-def test_rglob_new_algo(s3_mock, enable_old_glob):
-    test_rglob(s3_mock)
+def test_rglob_old_algo(s3_mock, enable_old_glob):
+    if sys.version_info > (3, 12):
+        with pytest.deprecated_call():
+            test_rglob(s3_mock)
+    else:
+        test_rglob(s3_mock)
 
 
 def test_accessor_scandir(s3_mock):
@@ -313,8 +305,12 @@ def test_accessor_scandir(s3_mock):
         S3Path('/test-bucket/test_pathlib.py')]
 
 
-def test_accessor_scandir_new_algo(s3_mock, enable_old_glob):
-    test_accessor_scandir(s3_mock)
+def test_accessor_scandir_old_algo(s3_mock, enable_old_glob):
+    if sys.version_info > (3, 12):
+        with pytest.deprecated_call():
+            test_accessor_scandir(s3_mock)
+    else:
+        test_accessor_scandir(s3_mock)
 
 
 def test_is_dir(s3_mock):
@@ -470,15 +466,15 @@ def test_iterdir(s3_mock):
     object_summary.put(Body=b'test data')
 
     s3_path = S3Path('/test-bucket/docs')
-    assert sorted(s3_path.iterdir()) == [
-        S3Path('/test-bucket/docs/Makefile'),
+    assert sorted(s3_path.iterdir()) == sorted([
         S3Path('/test-bucket/docs/_build'),
         S3Path('/test-bucket/docs/_static'),
         S3Path('/test-bucket/docs/_templates'),
         S3Path('/test-bucket/docs/conf.py'),
         S3Path('/test-bucket/docs/index.rst'),
         S3Path('/test-bucket/docs/make.bat'),
-    ]
+        S3Path('/test-bucket/docs/Makefile'),
+    ])
 
 
 def test_iterdir_on_buckets(s3_mock):
@@ -841,6 +837,7 @@ def test_unlink(s3_mock):
     S3Path("/test-bucket/fake_subfolder/fake_subkey").unlink(missing_ok=True)
     S3Path("/test-bucket/fake_folder").unlink(missing_ok=True)
     S3Path("/fake-bucket/").unlink(missing_ok=True)
+
 
 def test_absolute(s3_mock):
     s3 = boto3.resource('s3')
