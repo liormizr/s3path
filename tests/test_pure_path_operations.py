@@ -5,7 +5,6 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from s3path import PureS3Path
 
 
-@pytest.mark.skipif(sys.version_info > (3, 12), reason="Not supported on python3.13 or higher")
 def test_paths_of_a_different_flavour():
     with pytest.raises(TypeError):
         PureS3Path('/bucket/key') < PurePosixPath('/bucket/key')
