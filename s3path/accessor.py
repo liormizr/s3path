@@ -265,7 +265,8 @@ def scandir(path):
 
 def listdir(path):
     with scandir(path) as scandir_iter:
-        return [entry.name for entry in scandir_iter]
+        for entry in scandir_iter:
+            yield entry.name
 
 
 def open(path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
