@@ -60,7 +60,8 @@ def test_stat(s3_mock):
         path.stat().st_atime
 
     path = S3Path('/test-bucket')
-    assert path.stat() is None
+    with pytest.raises(ValueError):
+        path.stat()
 
 
 def test_exists(s3_mock):
