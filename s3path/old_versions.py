@@ -905,7 +905,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
         self._absolute_path_validation()
         if not self.key:
-            return None
+            raise ValueError('Key is required for stat')
         return self._accessor.stat(self, follow_symlinks=follow_symlinks)
 
     def exists(self) -> bool:
