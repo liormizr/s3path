@@ -493,6 +493,7 @@ def test_empty_directory(s3_mock):
     assert list(S3Path('/test-bucket/to/empty/dir/').iterdir()) == []
 
 
+@pytest.mark.skipif(sys.version_info < (3, 12), reason="requires python 3.12 or higher")
 def test_issue_193(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
