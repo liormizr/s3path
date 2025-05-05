@@ -1,7 +1,7 @@
 import shutil
 import sys
 from datetime import timedelta
-from pathlib import Path
+from pathlib import Path, PosixPath
 from io import UnsupportedOperation
 from tempfile import NamedTemporaryFile
 
@@ -210,22 +210,16 @@ def test_glob_issue_160_weird_behavior(s3_mock):
     first_dir = S3Path.from_uri(f"s3://my-bucket/first_dir/")
     new_file = first_dir / "some_dir" / "empty.txt"
     new_file.touch()
-    print()
-    print(f'Globing: {first_dir=}, pattern: "*"')
     assert list(first_dir.glob("*")) == [S3Path('/my-bucket/first_dir/some_dir/')]
 
     second_dir = S3Path.from_uri(f"s3://my-bucket/first_dir/second_dir/")
     new_file = second_dir / "some_dir" / "empty.txt"
     new_file.touch()
-    print()
-    print(f'Globing: {second_dir=}, pattern: "*"')
     assert list(second_dir.glob("*")) == [S3Path('/my-bucket/first_dir/second_dir/some_dir/')]
 
     third_dir = S3Path.from_uri(f"s3://my-bucket/first_dir/second_dir/third_dir/")
     new_file = third_dir / "some_dir" / "empty.txt"
     new_file.touch()
-    print()
-    print(f'Globing: {third_dir=}, pattern: "*"')
     assert list(third_dir.glob("*")) == [S3Path('/my-bucket/first_dir/second_dir/third_dir/some_dir/')]
 
 
@@ -497,6 +491,21 @@ def test_empty_directory(s3_mock):
 
     s3.meta.client.put_object(Bucket='test-bucket', Key='to/empty/dir/')
     assert list(S3Path('/test-bucket/to/empty/dir/').iterdir()) == []
+
+
+def test_issue_193(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    object_summary = s3.ObjectSummary('test-bucket', 'docs/conf.py')
+    object_summary.put(Body=b'test data')
+
+    s3_path = S3Path('/test-bucket/docs')
+    assert sorted(s3_path.iterdir()) == sorted([
+        S3Path('/test-bucket/docs/conf.py'),
+    ])
+    path = list(s3_path.iterdir())[0]
+    assert 'is_dir' in path._cache
+    assert not path._cache['is_dir']
 
 
 def test_open_for_reading(s3_mock):
@@ -902,3 +911,101 @@ def test_buffered_copy(s3_mock):
     with source_path.open('rb') as source, target_path.open('wb') as target:
         shutil.copyfileobj(source, target)
     assert target_path.read_bytes() == data
+
+
+def test_walk(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    walk_test_results = [
+        (PosixPath('.'),
+         ['.pytest_cache', 'tests', 'docs', 's3path', '.github', '.git', 's3path.egg-info', '.idea'],
+         ['LICENSE', 'Makefile', 'MANIFEST.in', 'Pipfile', 'setup.py', '.gitignore', 'setup.cfg', 'README.rst',
+                   'Pipfile.lock']),
+        (PosixPath('.pytest_cache'), ['v'], ['CACHEDIR.TAG', 'README.md', '.gitignore']),
+        (PosixPath('.pytest_cache/v'), ['cache'], []),
+        (PosixPath('.pytest_cache/v/cache'), [], ['nodeids', 'lastfailed', 'stepwise']),
+        (PosixPath('tests'), [],
+         ['test_not_supported.py', 'conftest.py', 'test_path_operations.py', '__init__.py',
+                   'test_s3path_configuration.py', 'test_pure_path_operations.py']),
+        (PosixPath('docs'), [],
+         ['advance.rst', 's3path_graph.jpg', 's3path_graph.svg', 'comparison.rst', 'interface.rst']),
+        (PosixPath('s3path'), [],
+         ['accessor.py', 'old_versions.py', '__init__.py', 'py.typed', 'current_version.py']),
+        (PosixPath('.github'), ['workflows'], []),
+        (PosixPath('.github/workflows'), [], ['deploying.yml', 'testing.yml']),
+        (PosixPath('.git'), ['objects', 'info', 'logs', 'hooks', 'refs'],
+         ['config', 'HEAD', 'description', 'index', 'packed-refs']),
+        (PosixPath('.git/objects'), ['pack'], []),
+        (PosixPath('.git/objects/pack'), [],
+         ['pack-746373b9d83ac407488288f60747a6de8ac71439.idx',
+                   'pack-746373b9d83ac407488288f60747a6de8ac71439.pack']),
+        (PosixPath('.git/info'), [], ['exclude']),
+        (PosixPath('.git/logs'), ['refs'], ['HEAD']),
+        (PosixPath('.git/logs/refs'), ['heads', 'remotes'], []),
+        (PosixPath('.git/logs/refs/heads'), [], ['master']),
+        (PosixPath('.git/logs/refs/remotes'), ['origin'], []),
+        (PosixPath('.git/logs/refs/remotes/origin'), [], ['HEAD']),
+        (PosixPath('.git/hooks'), [],
+         ['commit-msg.sample', 'pre-rebase.sample', 'pre-commit.sample', 'applypatch-msg.sample',
+                   'fsmonitor-watchman.sample', 'pre-receive.sample', 'prepare-commit-msg.sample', 'post-update.sample',
+                   'pre-merge-commit.sample', 'pre-applypatch.sample', 'pre-push.sample', 'update.sample',
+                   'push-to-checkout.sample']),
+        (PosixPath('.git/refs'), ['heads', 'remotes'], []),
+        (PosixPath('.git/refs/heads'), [], ['master']),
+        (PosixPath('.git/refs/remotes'), ['origin'], []),
+        (PosixPath('.git/refs/remotes/origin'), [], ['HEAD']),
+        (PosixPath('s3path.egg-info'), [],
+         ['PKG-INFO', 'SOURCES.txt', 'requires.txt', 'top_level.txt', 'dependency_links.txt']),
+        (PosixPath('.idea'), ['inspectionProfiles'],
+         ['s3path.iml', 'vcs.xml', '.gitignore', 'workspace.xml', 'modules.xml', 'misc.xml']),
+        (PosixPath('.idea/inspectionProfiles'), [], ['profiles_settings.xml']),
+    ]
+    for path, directories, files in walk_test_results:
+        for file in files:
+            key = str(path / file)
+            object_summary = s3.ObjectSummary('test-bucket', key)
+            object_summary.put(Body=b'test data')
+
+    compare = {}
+    for (local_path, local_directories, local_files), (s3_path, s3_directories, s3_files) in zip(walk_test_results, S3Path('/test-bucket').walk()):
+        compare.setdefault(s3_path.key or '.', {})['s3'] = {'files': set(s3_files), 'directories': set(s3_directories)}
+        compare.setdefault(str(local_path), {})['local'] = {'files': set(local_files), 'directories': set(local_directories)}
+
+    for root, location in compare.items():
+        assert 's3' in location and 'local' in location
+        assert location['s3']['files'] == location['local']['files']
+        assert location['s3']['directories'] == location['local']['directories']
+
+
+def test_walk_order(s3_mock):
+    s3 = boto3.resource('s3')
+    s3.create_bucket(Bucket='test-bucket')
+    walk_test_results = [
+        (PosixPath('.'), ['.pytest_cache'], ['LICENSE', 'Makefile', 'setup.cfg', 'README.rst']),
+        (PosixPath('.pytest_cache'), ['v'], ['CACHEDIR.TAG', 'README.md', '.gitignore']),
+        (PosixPath('.pytest_cache/v'), ['cache'], []),
+        (PosixPath('.pytest_cache/v/cache'), [], ['nodeids', 'lastfailed', 'stepwise']),
+    ]
+    for path, directories, files in walk_test_results:
+        for file in files:
+            key = str(path / file)
+            object_summary = s3.ObjectSummary('test-bucket', key)
+            object_summary.put(Body=b'test data')
+
+    for (local_path, local_directories, local_files), (s3_path, s3_directories, s3_files) in zip(walk_test_results, S3Path('/test-bucket').walk()):
+        assert set(local_directories) == set(s3_directories)
+        assert set(local_files) == set(s3_files)
+
+    for (local_path, local_directories, local_files), (s3_path, s3_directories, s3_files) in zip(reversed(walk_test_results), S3Path('/test-bucket').walk(top_down=False)):
+        assert set(local_directories) == set(s3_directories)
+        assert set(local_files) == set(s3_files)
+
+    assert list(p for p in S3Path('/test-bucket/fake/').walk()) == []
+
+    def on_error(exception):
+        assert isinstance(exception, FileNotFoundError)
+        print(exception, '0'*30)
+        raise exception
+    with pytest.raises(FileNotFoundError):
+        for _ in S3Path('/test-bucket/fake/').walk(on_error=on_error):
+            pass

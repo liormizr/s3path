@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from . import accessor
 
-__version__ = '0.6.1'
+__version__ = '0.6.2'
 __all__ = (
     'Path',
     'register_configuration_parameter',

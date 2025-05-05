@@ -277,7 +277,17 @@ class _PathNotSupportedMixin:
         return False
 
 
-class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
+class _PathCacheMixin:
+    """
+    This is a mixin class to cache the results and path state.
+    Note: this is experimental and will be more robust in the future.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cache = {}
+
+
+class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
     def stat(self, *, follow_symlinks: bool = True) -> accessor.StatResult:
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
@@ -431,8 +441,11 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
         self._absolute_path_validation()
-        for name in accessor.listdir(self):
-            yield self / name
+        with accessor.scandir(self) as scandir_iter:
+            for entry in scandir_iter:
+                path = self / entry.name
+                path._cache['is_dir'] = entry.is_dir()
+                yield path
 
     def open(
             self,
@@ -445,6 +458,8 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
         """
         self._absolute_path_validation()
+        if 'r' in mode and not self.exists():
+            raise FileNotFoundError(f'No such file or directory: {self}')
         return accessor.open(
             self,
             mode=mode,
@@ -568,11 +583,12 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             if not missing_ok:
                 raise
 
-    def _scandir(self):
-        """
-        Override _scandir so _Selector will rely on an S3 compliant implementation
-        """
-        return accessor.scandir(self)
+    def walk(self, top_down: bool = True, on_error:bool = None, follow_symlinks: bool = False):
+        if follow_symlinks:
+            raise NotImplementedError(f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
+
+        sys.audit("pathlib.Path.walk", self, on_error, follow_symlinks)
+        yield from accessor.walk(self, topdown=top_down, onerror=on_error)
 
 
 class PureVersionedS3Path(PureS3Path):

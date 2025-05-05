@@ -4,6 +4,7 @@ from warnings import warn
 from os import stat_result
 from threading import Lock
 from itertools import chain
+from collections import deque
 from functools import lru_cache
 from contextlib import suppress
 from collections import namedtuple
@@ -154,13 +155,18 @@ def mkdir(path, mode):
 def is_dir(path):
     if str(path) == path.root:
         return True
+    with suppress(KeyError):
+        return path._cache['is_dir']
+
     resource, config = configuration_map.get_configuration(path)
     bucket = resource.Bucket(path.bucket)
     query = _boto3_method_with_parameters(
         bucket.objects.filter,
         kwargs={'Prefix': _generate_prefix(path)},
         config=config)
-    return any(query)
+    is_dir = any(query)
+    path._cache['is_dir'] = is_dir
+    return is_dir
 
 
 def exists(path):
@@ -263,12 +269,6 @@ def scandir(path):
     return _S3Scandir(path=path)
 
 
-def listdir(path):
-    with scandir(path) as scandir_iter:
-        for entry in scandir_iter:
-            yield entry.name
-
-
 def open(path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
     resource, config = configuration_map.get_configuration(path)
 
@@ -336,8 +336,68 @@ def unlink(path, *args, **kwargs):
             config=config,
             kwargs={"Bucket": bucket_name, "Key": key_name}
         )
-    except ClientError:
-        raise OSError(f'/{bucket_name}/{key_name}')
+    except Exception as error:
+        raise OSError(f'/{bucket_name}/{key_name}') from error
+
+
+def walk(path, *, topdown=True, onerror=None, followlinks=False):
+    try:
+        if not exists(path):
+            raise FileNotFoundError(f'No such file or directory: {path}')
+    except FileNotFoundError as error:
+        if onerror is not None:
+            onerror(error)
+        return
+
+    stack = deque([path])
+
+    while stack:
+        top = stack.pop()
+        if isinstance(top, tuple):
+            yield top
+            continue
+
+        dirs = []
+        nondirs = []
+        walk_dirs = []
+
+        cont = False
+        with scandir(top) as scandir_iter:
+            scandir_iter = iter(scandir_iter)
+            while True:
+                try:
+                    entry = next(scandir_iter)
+                    is_dir = entry.is_dir()
+                    if is_dir:
+                        dirs.append(entry.name)
+                    else:
+                        nondirs.append(entry.name)
+
+                    if not topdown and is_dir:
+                        walk_dirs.append(top / entry.name)
+                except StopIteration:
+                    break
+                except Exception as error:
+                    if onerror is not None:
+                        onerror(error)
+                    cont = True
+                    break
+        if cont:
+            continue
+
+        if topdown:
+            # Yield before sub-directory traversal if going top down
+            yield top, dirs, nondirs
+            # Traverse into sub-directories
+            for dirname in reversed(dirs):
+                new_path = top / dirname
+                stack.append(new_path)
+        else:
+            # Yield after sub-directory traversal if going bottom up
+            stack.append((top, dirs, nondirs))
+            # Traverse into sub-directories
+            for new_path in reversed(walk_dirs):
+                stack.append(new_path)
 
 
 def _is_versioned_path(path):
