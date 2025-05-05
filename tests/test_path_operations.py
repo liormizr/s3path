@@ -913,6 +913,7 @@ def test_buffered_copy(s3_mock):
     assert target_path.read_bytes() == data
 
 
+@pytest.mark.skipif(sys.version_info < (3, 12), reason="requires python 3.12 or higher")
 def test_walk(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')
@@ -977,6 +978,7 @@ def test_walk(s3_mock):
         assert location['s3']['directories'] == location['local']['directories']
 
 
+@pytest.mark.skipif(sys.version_info < (3, 12), reason="requires python 3.12 or higher")
 def test_walk_order(s3_mock):
     s3 = boto3.resource('s3')
     s3.create_bucket(Bucket='test-bucket')

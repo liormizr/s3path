@@ -219,7 +219,7 @@ S3Path.is_fifo()
 AWS S3 Service doesn't have fifo feature,
 There for this method will always return ``False``
 
-Path.iterdir()
+S3Path.iterdir()
 ^^^^^^^^^^^^^^
 
 When the path points to a Bucket or a key prefix,
@@ -449,6 +449,14 @@ Here is an example of using a presigned url:
     >>> print(requests.get(presigned_url).content)
     b"hello world"
 
+S3Path.walk(top_down=True, on_error=None, follow_symlinks=False)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Walks the directory tree rooted at this path, yielding a 3-tuple (dirpath, dirnames, filenames).
+The dirpath is a string, and dirnames and filenames are lists of strings.
+
+Note that this method in AWS S3 Service is very heavy on API calls.
+It will be better to glob recursively instead of using this method for most cases.
 
 Pure paths:
 ===========
