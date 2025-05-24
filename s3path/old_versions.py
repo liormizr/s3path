@@ -501,23 +501,24 @@ class _S3Accessor:
             # This is a good example of the complicity of boto3 and botocore
             # resource arguments from the resource object :-/
             # very annoying...
-
-            try:
-                access_key = resource.meta.client._request_signer._credentials.access_key
-                secret_key = resource.meta.client._request_signer._credentials.secret_key
-                token = resource.meta.client._request_signer._credentials.token
-            except AttributeError:
-                access_key = secret_key = token = None
-            return {
+            resource_kwargs = {
                 'endpoint_url': resource.meta.client.meta._endpoint_url,
                 'config': resource.meta.client._client_config,
                 'region_name': resource.meta.client._client_config.region_name,
                 'use_ssl': resource.meta.client._endpoint.host.startswith('https'),
                 'verify': resource.meta.client._endpoint.http_session._verify,
-                'aws_access_key_id': access_key,
-                'aws_secret_access_key': secret_key,
-                'aws_session_token': token,
             }
+            try:
+                credential_kwargs = {
+                    'aws_access_key_id': resource.meta.client._request_signer._credentials.access_key,
+                    'aws_secret_access_key': resource.meta.client._request_signer._credentials.secret_key,
+                    'aws_session_token': resource.meta.client._request_signer._credentials.token,
+                }
+                resource_kwargs.update(credential_kwargs)
+            except AttributeError:
+                pass
+            
+            return resource_kwargs
 
         initiate_multipart_upload_kwargs = self._update_kwargs_with_config(
             dummy_object.initiate_multipart_upload, config=config)
