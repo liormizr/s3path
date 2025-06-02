@@ -2,22 +2,22 @@ from __future__ import annotations
 
 import re
 import sys
-import typing
 import fnmatch
 import posixpath
 from datetime import timedelta
 from contextlib import suppress
 from urllib.parse import unquote
 from pathlib import PurePath, Path
-from typing import Union, Literal, Optional
+from typing import TYPE_CHECKING, Literal, Self, Generator
 from io import DEFAULT_BUFFER_SIZE, TextIOWrapper
 
 from botocore.exceptions import ClientError
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
+    from os import PathLike
     import smart_open
-    from boto3.resources.factory import ServiceResource
-    KeyFileObjectType = Union[TextIOWrapper, smart_open.s3.Reader, smart_open.s3.MultipartWriter]
+    from boto3.resources.base import ServiceResource
+    KeyFileObjectType = TextIOWrapper | smart_open.s3.Reader | smart_open.s3.MultipartWriter
 
 from . import accessor
 
@@ -25,9 +25,9 @@ from . import accessor
 def register_configuration_parameter(
         path: PureS3Path,
         *,
-        parameters: Optional[dict] = None,
-        resource: Optional[ServiceResource] = None,
-        glob_new_algorithm: Optional[bool] = None):
+        parameters: dict | None = None,
+        resource: ServiceResource | None = None,
+        glob_new_algorithm: bool | None = None):
     if not isinstance(path, PureS3Path):
         raise TypeError(f'path argument have to be a {PurePath} type. got {type(path)}')
     if parameters and not isinstance(parameters, dict):
@@ -74,7 +74,7 @@ class PureS3Path(PurePath):
             self._load_parts()
 
     @classmethod
-    def from_uri(cls, uri: str):
+    def from_uri(cls, uri: str) -> PureS3Path:
         """
         from_uri class method create a class instance from url
 
@@ -88,7 +88,7 @@ class PureS3Path(PurePath):
         return cls(unquoted_uri[4:])
 
     @classmethod
-    def from_bucket_key(cls, bucket: str, key: str):
+    def from_bucket_key(cls, bucket: str | PathLike, key: str | PathLike) -> PureS3Path:
         """
         from_bucket_key class method create a class instance from bucket, key pair's
 
@@ -277,18 +277,9 @@ class _PathNotSupportedMixin:
         return False
 
 
-class _PathCacheMixin:
-    """
-    This is a mixin class to cache the results and path state.
-    Note: this is experimental and will be more robust in the future.
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._cache = {}
 
-
-class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
-    def stat(self, *, follow_symlinks: bool = True) -> accessor.StatResult:
+class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
+    def stat(self, *, follow_symlinks: bool = True) -> accessor.StatResult | None:
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
         For compatibility with pathlib, the returned object some similar attributes like os.stat_result.
@@ -303,7 +294,7 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
             return None
         return accessor.stat(self, follow_symlinks=follow_symlinks)
 
-    def absolute(self) -> S3Path:
+    def absolute(self) -> Self:
         """
         Handle absolute method only if the path is already an absolute one
         since we have no way to compute an absolute path from a relative one in S3.
@@ -313,17 +304,19 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
         # We can't compute the absolute path from a relative one
         raise ValueError("Absolute path can't be determined for relative S3Path objects")
 
-    def owner(self) -> str:
+    def owner(self, *, follow_symlinks: bool = False) -> str:
         """
         Returns the name of the user owning the Bucket or key.
         Similarly to boto3's ObjectSummary owner attribute
         """
         self._absolute_path_validation()
+        if follow_symlinks:
+            raise NotImplementedError(f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
         if not self.is_file():
             raise KeyError('file not found')
         return accessor.owner(self)
 
-    def rename(self, target):
+    def rename(self, target) -> S3Path:
         """
         Renames this file or Bucket / key prefix / key to the given target.
         If target exists and is a file, it will be replaced silently if the user has permission.
@@ -337,7 +330,7 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
         accessor.rename(self, target)
         return type(self)(target)
 
-    def replace(self, target):
+    def replace(self, target) -> S3Path:
         """
         Renames this Bucket / key prefix / key to the given target.
         If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
@@ -355,13 +348,13 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
             raise FileNotFoundError()
         accessor.rmdir(self)
 
-    def samefile(self, other_path: Union[str, S3Path]) -> bool:
+    def samefile(self, other_path: str | PathLike) -> bool:
         """
         Returns whether this path points to the same Bucket key as other_path,
         Which can be either a Path object, or a string
         """
         self._absolute_path_validation()
-        if not isinstance(other_path, Path):
+        if not isinstance(other_path, S3Path):
             other_path = type(self)(other_path)
         return self.bucket == other_path.bucket and self.key == other_path.key and self.is_file()
 
@@ -402,24 +395,28 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
             if not exist_ok:
                 raise
 
-    def is_dir(self) -> bool:
+    def is_dir(self, *, follow_symlinks: bool = False) -> bool:
         """
         Returns True if the path points to a Bucket or a key prefix, False if it points to a full key path.
         False is also returned if the path doesn’t exist.
         Other errors (such as permission errors) are propagated.
         """
         self._absolute_path_validation()
+        if follow_symlinks:
+            raise NotImplementedError(f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
         if self.bucket and not self.key:
             return True
         return accessor.is_dir(self)
 
-    def is_file(self) -> bool:
+    def is_file(self, *, follow_symlinks: bool = False) -> bool:
         """
         Returns True if the path points to a Bucket key, False if it points to Bucket or a key prefix.
         False is also returned if the path doesn’t exist.
         Other errors (such as permission errors) are propagated.
         """
         self._absolute_path_validation()
+        if follow_symlinks:
+            raise NotImplementedError(f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
         if not self.bucket or not self.key:
             return False
         try:
@@ -427,16 +424,18 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
         except ClientError:
             return False
 
-    def exists(self) -> bool:
+    def exists(self, *, follow_symlinks: bool = False) -> bool:
         """
         Whether the path points to an existing Bucket, key or key prefix.
         """
         self._absolute_path_validation()
+        if follow_symlinks:
+            raise NotImplementedError(f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
         if not self.bucket:
             return True
         return accessor.exists(self)
 
-    def iterdir(self):
+    def iterdir(self) -> Generator['S3Path']:
         """
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
@@ -444,16 +443,15 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
         with accessor.scandir(self) as scandir_iter:
             for entry in scandir_iter:
                 path = self / entry.name
-                path._cache['is_dir'] = entry.is_dir()
                 yield path
 
     def open(
             self,
             mode: Literal['r', 'w', 'rb', 'wb'] = 'r',
             buffering: int = DEFAULT_BUFFER_SIZE,
-            encoding: Optional[str] = None,
-            errors: Optional[str] = None,
-            newline: Optional[str] = None) -> KeyFileObjectType:
+            encoding: str | None = None,
+            errors: str | None = None,
+            newline: str | None = None) -> KeyFileObjectType:
         """
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
         """
@@ -468,7 +466,11 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
             errors=errors,
             newline=newline)
 
-    def glob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):
+    def glob(
+            self,
+            pattern: str, *,
+            case_sensitive: bool | None = None,
+            recurse_symlinks: bool = False) -> Generator['S3Path']:
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
@@ -491,7 +493,11 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
         selector = _Selector(self, pattern=pattern)
         yield from selector.select()
 
-    def rglob(self, pattern: str, *, case_sensitive=None, recurse_symlinks=False):
+    def rglob(
+            self,
+            pattern: str, *,
+            case_sensitive: bool | None = None,
+            recurse_symlinks: bool = False) -> Generator['S3Path']:
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
 
@@ -512,7 +518,7 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
         selector = _Selector(self, pattern=pattern)
         yield from selector.select()
 
-    def get_presigned_url(self, expire_in: Union[timedelta, int] = 3600) -> str:
+    def get_presigned_url(self, expire_in: timedelta | int = 3600) -> str:
         """
         Returns a pre-signed url. Anyone with the url can make a GET request to get the file.
         You can set an expiration date with the expire_in argument (integer or timedelta object).
@@ -583,7 +589,11 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
             if not missing_ok:
                 raise
 
-    def walk(self, top_down: bool = True, on_error:bool = None, follow_symlinks: bool = False):
+    def walk(
+            self,
+            top_down: bool = True,
+            on_error:bool = None,
+            follow_symlinks: bool = False) -> Generator[tuple['S3Path', list[str], list[str]]]:
         if follow_symlinks:
             raise NotImplementedError(f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
 
@@ -622,7 +632,7 @@ class PureVersionedS3Path(PureS3Path):
         return new_path
 
     @classmethod
-    def from_uri(cls, uri: str, *, version_id: str):
+    def from_uri(cls, uri: str, *, version_id: str) -> PureVersionedS3Path:
         """
         from_uri class method creates a class instance from uri and version id
 
@@ -635,7 +645,7 @@ class PureVersionedS3Path(PureS3Path):
         return cls(self, version_id=version_id)
 
     @classmethod
-    def from_bucket_key(cls, bucket: str, key: str, *, version_id: str):
+    def from_bucket_key(cls, bucket: str, key: str, *, version_id: str) -> PureVersionedS3Path:
         """
         from_bucket_key class method creates a class instance from bucket, key and version id
 
@@ -647,7 +657,7 @@ class PureVersionedS3Path(PureS3Path):
         self = PureS3Path.from_bucket_key(bucket=bucket, key=key)
         return cls(self, version_id=version_id)
 
-    def with_segments(self, *pathsegments):
+    def with_segments(self, *pathsegments) -> PureVersionedS3Path:
         """Construct a new path object from any number of path-like objects.
         Subclasses may override this method to customize how new path objects
         are created from methods like `iterdir()`.
