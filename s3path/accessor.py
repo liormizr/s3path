@@ -155,8 +155,6 @@ def mkdir(path, mode):
 def is_dir(path):
     if str(path) == path.root:
         return True
-    with suppress(KeyError):
-        return path._cache['is_dir']
 
     resource, config = configuration_map.get_configuration(path)
     bucket = resource.Bucket(path.bucket)
@@ -164,9 +162,7 @@ def is_dir(path):
         bucket.objects.filter,
         kwargs={'Prefix': _generate_prefix(path)},
         config=config)
-    is_dir = any(query)
-    path._cache['is_dir'] = is_dir
-    return is_dir
+    return any(query)
 
 
 def exists(path):

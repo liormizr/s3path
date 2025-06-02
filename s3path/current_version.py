@@ -277,17 +277,8 @@ class _PathNotSupportedMixin:
         return False
 
 
-class _PathCacheMixin:
-    """
-    This is a mixin class to cache the results and path state.
-    Note: this is experimental and will be more robust in the future.
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._cache = {}
 
-
-class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
+class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
     def stat(self, *, follow_symlinks: bool = True) -> accessor.StatResult:
         """
         Returns information about this path (similarly to boto3's ObjectSummary).
@@ -444,7 +435,6 @@ class S3Path(_PathNotSupportedMixin, _PathCacheMixin, PureS3Path, Path):
         with accessor.scandir(self) as scandir_iter:
             for entry in scandir_iter:
                 path = self / entry.name
-                path._cache['is_dir'] = entry.is_dir()
                 yield path
 
     def open(
