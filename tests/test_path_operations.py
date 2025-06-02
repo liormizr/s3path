@@ -402,7 +402,7 @@ def test_read_lines_hint(s3_mock):
     object_summary.put(Body=b'test data\ntest data')
 
     with S3Path('/test-bucket/directory/Test.test').open() as fp:
-        assert len(fp.readlines(1)) == (1 if sys.version_info >= (3, 6) else 2)
+        assert len(fp.readlines(1)) == 1
 
     with S3Path('/test-bucket/directory/Test.test').open('br') as fp:
         assert len(fp.readlines(1)) == 1  # work only in binary mode

@@ -12,6 +12,7 @@ twine = "*"
 pytest-cov = "*"
 smart-open = "*"
 packaging = "*"
+mypy = "*"
 
 [dev-packages]
 ipython = "*"

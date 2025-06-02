@@ -434,14 +434,13 @@ class _S3Accessor:
         return boto3_method(*args, **kwargs)
 
     def _boto3_method_with_extraargs(
-        self,
-        boto3_method,
-        config=None,
-        args=(),
-        kwargs=None,
-        extra_args=None,
-        allowed_extra_args=(),
-    ):
+            self,
+            boto3_method,
+            config=None,
+            args=(),
+            kwargs=None,
+            extra_args=None,
+            allowed_extra_args=()):
         kwargs = kwargs or {}
         extra_args = extra_args or {}
         if config is not None:
@@ -459,8 +458,7 @@ class _S3Accessor:
             resource,
             config,
             transport_params,
-            smart_open_kwargs,
-        ):
+            smart_open_kwargs):
         """
         New Smart-Open (>=5.1.0) api
         Doc: https://github.com/RaRe-Technologies/smart_open/blob/develop/MIGRATING_FROM_OLDER_VERSIONS.rst
@@ -725,8 +723,7 @@ def register_configuration_parameter(
         *,
         parameters: Optional[dict] = None,
         resource: Optional[ServiceResource] = None,
-        glob_new_algorithm: Optional[bool] = None,
-):
+        glob_new_algorithm: Optional[bool] = None):
     if not isinstance(path, PureS3Path):
         raise TypeError(f'path argument have to be a {PurePath} type. got {type(path)}')
     if parameters and not isinstance(parameters, dict):
@@ -964,8 +961,6 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
         """
         self._absolute_path_validation()
-        if smart_open.__version__ < '4.0.0' and mode.startswith('b'):
-            mode = ''.join(reversed(mode))
         return self._accessor.open(
             self,
             mode=mode,
