@@ -74,7 +74,7 @@ class PureS3Path(PurePath):
             self._load_parts()
 
     @classmethod
-    def from_uri(cls, uri: str) -> PureS3Path:
+    def from_uri(cls, uri: str) -> Self:
         """
         from_uri class method create a class instance from url
 
@@ -88,7 +88,7 @@ class PureS3Path(PurePath):
         return cls(unquoted_uri[4:])
 
     @classmethod
-    def from_bucket_key(cls, bucket: str | PathLike, key: str | PathLike) -> PureS3Path:
+    def from_bucket_key(cls, bucket: str | PathLike, key: str | PathLike) -> Self:
         """
         from_bucket_key class method create a class instance from bucket, key pair's
 
