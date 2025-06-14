@@ -50,7 +50,7 @@ class PureS3Path(PurePath):
     """
     PurePath subclass for AWS S3 service.
 
-    S3 is not a file-system but we can look at it like a POSIX system.
+    S3 is not a file-system, but we can look at it like a POSIX system.
     """
 
     parser = _flavour = _S3Parser()  # _flavour is not relevant after Python version 3.13
@@ -316,7 +316,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             raise KeyError('file not found')
         return accessor.owner(self)
 
-    def rename(self, target) -> S3Path:
+    def rename(self, target) -> Self:
         """
         Renames this file or Bucket / key prefix / key to the given target.
         If target exists and is a file, it will be replaced silently if the user has permission.
@@ -330,7 +330,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         accessor.rename(self, target)
         return type(self)(target)
 
-    def replace(self, target) -> S3Path:
+    def replace(self, target) -> Self:
         """
         Renames this Bucket / key prefix / key to the given target.
         If target points to an existing Bucket / key prefix / key, it will be unconditionally replaced.
@@ -435,7 +435,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             return True
         return accessor.exists(self)
 
-    def iterdir(self) -> Generator['S3Path']:
+    def iterdir(self) -> Generator[Self]:
         """
         When the path points to a Bucket or a key prefix, yield path objects of the directory contents
         """
@@ -470,7 +470,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             self,
             pattern: str, *,
             case_sensitive: bool | None = None,
-            recurse_symlinks: bool = False) -> Generator['S3Path']:
+            recurse_symlinks: bool = False) -> Generator[Self]:
         """
         Glob the given relative pattern in the Bucket / key prefix represented by this path,
         yielding all matching files (of any kind)
@@ -497,7 +497,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             self,
             pattern: str, *,
             case_sensitive: bool | None = None,
-            recurse_symlinks: bool = False) -> Generator['S3Path']:
+            recurse_symlinks: bool = False) -> Generator[Self]:
         """
         This is like calling S3Path.glob with "**/" added in front of the given relative pattern
 
@@ -593,7 +593,7 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
             self,
             top_down: bool = True,
             on_error:bool = None,
-            follow_symlinks: bool = False) -> Generator[tuple['S3Path', list[str], list[str]]]:
+            follow_symlinks: bool = False) -> Generator[tuple[Self, list[str], list[str]]]:
         if follow_symlinks:
             raise NotImplementedError(f'Setting follow_symlinks to {follow_symlinks} is unsupported on S3 service.')
 
@@ -632,7 +632,7 @@ class PureVersionedS3Path(PureS3Path):
         return new_path
 
     @classmethod
-    def from_uri(cls, uri: str, *, version_id: str) -> PureVersionedS3Path:
+    def from_uri(cls, uri: str, *, version_id: str) -> Self:
         """
         from_uri class method creates a class instance from uri and version id
 
@@ -645,7 +645,7 @@ class PureVersionedS3Path(PureS3Path):
         return cls(self, version_id=version_id)
 
     @classmethod
-    def from_bucket_key(cls, bucket: str, key: str, *, version_id: str) -> PureVersionedS3Path:
+    def from_bucket_key(cls, bucket: str, key: str, *, version_id: str) -> Self:
         """
         from_bucket_key class method creates a class instance from bucket, key and version id
 
@@ -657,7 +657,7 @@ class PureVersionedS3Path(PureS3Path):
         self = PureS3Path.from_bucket_key(bucket=bucket, key=key)
         return cls(self, version_id=version_id)
 
-    def with_segments(self, *pathsegments) -> PureVersionedS3Path:
+    def with_segments(self, *pathsegments) -> Self:
         """Construct a new path object from any number of path-like objects.
         Subclasses may override this method to customize how new path objects
         are created from methods like `iterdir()`.
