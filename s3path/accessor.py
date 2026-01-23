@@ -190,8 +190,9 @@ def exists(path):
     key_name = str(path.key)
 
     def query_method():
+        method = bucket.object_versions.filter if _is_versioned_path(path) else bucket.objects.filter
         return _boto3_method_with_parameters(
-            bucket.object_versions.filter,
+            method,
             kwargs={'Prefix': key_name},
             config=config)
 
