@@ -542,7 +542,7 @@ class _S3ConfigurationMap:
 
     @property
     def default_resource(self):
-        return boto3.resource('s3')
+        return boto3.Session().resource('s3')
 
     def set_configuration(self, path, *, resource=None, arguments=None):
         self._delayed_setup()
