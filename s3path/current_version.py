@@ -599,6 +599,15 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
         yield from accessor.walk(self, topdown=top_down, onerror=on_error)
 
 
+class S3UriPath(S3Path):
+    """S3UriPath class for pandas compatibility.
+
+    Overrides __fspath__() to ensure s3 scheme is present during pandas read.
+    """
+
+    def __fspath__(self) -> str:
+        return f"s3:/{super().__fspath__()}"
+
 class PureVersionedS3Path(PureS3Path):
     """
     PurePath subclass for AWS S3 service Keys with Versions.

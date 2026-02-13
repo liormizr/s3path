@@ -56,10 +56,32 @@ AWS S3 Service:
 |
 | New in version 0.5.0
 
+.. _S3UriPath:
+
+S3UriPath(\*pathsegments)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A subclass of `S3Path`_ , this class overrides the ``__fspath__`` method for pandas compatibility.
+AWS S3 Service:
+
+.. code:: python
+
+   >>> from s3path import S3UriPath
+   >>> S3UriPath('/<bucket>/<key>')
+   S3UriPath('/<bucket>/<key>')
+
+This class can be used directly with pandas read methods
+
+.. code:: python
+
+   >>> from s3path import S3UriPath
+   >>> import pandas as pd
+   >>> pd.read_parquet(S3UriPath('/<bucket>/<key>'))
+
 Methods:
 ========
 
-S3Path and VersionedS3Path provide the following methods in addition to pure paths methods.
+S3Path, VersionedS3Path and S3UriPath provide the following methods in addition to pure paths methods.
 All the methods below will raise a `ValueError`_ if the path isn't absolute.
 Many of these methods can raise a `botocore.exceptions.ClientError` if `boto3`_ call fails
 (for example because the path doesn't exist).

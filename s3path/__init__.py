@@ -6,7 +6,7 @@ from pathlib import Path
 from . import accessor
 
 __version__ = '0.6.5'
-__all__ = (
+__all__ = [
     'Path',
     'register_configuration_parameter',
     'configuration_map',
@@ -15,17 +15,19 @@ __all__ = (
     'S3Path',
     'VersionedS3Path',
     'PureVersionedS3Path',
-)
+]
 
 if sys.version_info >= (3, 12):
     from .accessor import StatResult, configuration_map
     from .current_version import (
         S3Path,
+        S3UriPath,
         PureS3Path,
         VersionedS3Path,
         PureVersionedS3Path,
         register_configuration_parameter,
     )
+    __all__ += ['S3UriPath']
 else:
     from .old_versions import (
         StatResult,
