@@ -27,6 +27,8 @@ from botocore.docs.docstring import LazyLoadedDocstring
 import smart_open
 import smart_open.s3
 
+from s3path.accessor import _open_exclusive
+
 
 __all__ = (
     'register_configuration_parameter',
@@ -244,6 +246,10 @@ class _S3Accessor:
 
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         resource, config = self.configuration_map.get_configuration(path)
+        if 'x' in mode:
+            return _open_exclusive(
+                path, resource=resource, config=config, mode=mode, buffering=buffering,
+                encoding=encoding, errors=errors, newline=newline)
 
         smart_open_kwargs = {
             'uri': "s3:/" + str(path),
@@ -510,6 +516,10 @@ class _VersionedS3Accessor(_S3Accessor):
 
     def open(self, path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
         resource, config = self.configuration_map.get_configuration(path)
+        if 'x' in mode:
+            return _open_exclusive(
+                path, resource=resource, config=config, mode=mode, buffering=buffering,
+                encoding=encoding, errors=errors, newline=newline)
 
         smart_open_kwargs = {
             'uri': "s3:/" + str(path),
@@ -951,7 +961,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
 
     def open(
             self,
-            mode: Literal["r", "w", "rb", "wb"] = 'r',
+            mode: Literal["r", "w", "rb", "wb", "x", "xt", "tx", "xb", "bx"] = 'r',
             buffering: int = DEFAULT_BUFFER_SIZE,
             encoding: Optional[str] = None,
             errors: Optional[str] = None,
@@ -959,6 +969,7 @@ class S3Path(_PathNotSupportedMixin, Path, PureS3Path):
     ) -> Union[TextIOWrapper, smart_open.s3.Reader,   smart_open.s3.MultipartWriter]:
         """
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
+        Exclusive creation (x/xb) checks for conflicts when closing, not when opening.
         """
         self._absolute_path_validation()
         return self._accessor.open(

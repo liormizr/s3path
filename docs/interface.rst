@@ -260,11 +260,43 @@ returns a file like object that you can read or write with:
    </body>
    </html>'
 
+Use ``'x'`` (or ``'xt'``) for exclusive text creation and ``'xb'`` for exclusive
+binary creation. Text modes accept ``encoding``, ``errors`` and ``newline``.
+Update modes such as ``'x+'`` are unsupported.
+
+.. code:: python
+
+   >>> with S3Path('/my-bucket/new-object').open('x', encoding='utf-8') as f:
+   ...     f.write('new contents')
+
+S3 checks exclusivity when the object is committed, rather than when ``open``
+returns. ``FileExistsError`` may therefore be raised by ``close()`` or on leaving
+the ``with`` block. No empty placeholder reserves the key. If writers compete,
+the first successful conditional commit wins; a later conflicting commit fails
+without replacing that object.
+
+Both multipart completion and the empty-object ``PutObject`` use
+``If-None-Match: *``. This requires boto3/botocore >= 1.35.2 and an S3 service
+supporting `conditional writes <https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html>`_.
+In versioned buckets only the current version is checked: an existing current
+object prevents creation, while a current delete marker allows a new version.
+
+An exception during writing or inside the ``with`` block aborts only that
+writer's multipart upload. Failed writers are closed and cannot later publish
+partial contents. If abort itself fails, its error is retained as exception
+context without replacing the original exception or its explicit cause; the
+incomplete upload may require cleanup by the caller or a bucket
+lifecycle rule. Other errors, including S3's ``409 ConditionalRequestConflict``
+from a concurrent deletion, are not translated to ``FileExistsError``. Start a
+new writer to retry a failed write.
+
 VersionedS3Path.open(mode='r', buffering=-1, encoding=None, errors=None, newline=None)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Behaves the same as `S3Path.open`_ except that ``VersionedS3Path.version_id`` will be used to open
-the specified version of the object pointed to by the `VersionedS3Path`_ object.
+Behaves the same as `S3Path.open`_ except that reads use
+``VersionedS3Path.version_id`` to open the specified version of the object.
+Writing with a ``version_id`` is unsupported, including in exclusive mode.
+Use an ordinary ``S3Path`` to create a new object in a versioned bucket.
 
 S3Path.owner()
 ^^^^^^^^^^^^^^
