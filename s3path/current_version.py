@@ -445,16 +445,17 @@ class S3Path(_PathNotSupportedMixin, PureS3Path, Path):
 
     def open(
             self,
-            mode: Literal['r', 'w', 'rb', 'wb'] = 'r',
+            mode: Literal['r', 'w', 'rb', 'wb', 'x', 'xt', 'tx', 'xb', 'bx'] = 'r',
             buffering: int = DEFAULT_BUFFER_SIZE,
             encoding: str | None = None,
             errors: str | None = None,
             newline: str | None = None) -> KeyFileObjectType:
         """
         Opens the Bucket key pointed to by the path, returns a Key file object that you can read/write with
+        Exclusive creation (x/xb) checks for conflicts when closing, not when opening.
         """
         self._absolute_path_validation()
-        if 'r' in mode and not self.exists():
+        if 'r' in mode and 'x' not in mode and not self.exists():
             raise FileNotFoundError(f'No such file or directory: {self}')
         return accessor.open(
             self,

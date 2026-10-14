@@ -268,6 +268,10 @@ def scandir(path):
 
 def open(path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=None):
     resource, config = configuration_map.get_configuration(path)
+    if 'x' in mode:
+        return _open_exclusive(
+            path, resource=resource, config=config, mode=mode, buffering=buffering,
+            encoding=encoding, errors=errors, newline=newline)
 
     dummy_object = resource.Object('bucket', 'key')
     get_object_kwargs = _update_kwargs_with_config(
@@ -297,6 +301,25 @@ def open(path, *, mode='r', buffering=-1, encoding=None, errors=None, newline=No
         newline=newline,
         compression='disable',
         transport_params=transport_params)
+
+
+def _open_exclusive(path, *, resource, config, mode, buffering, encoding, errors, newline):
+    client = resource.meta.client
+    client_kwargs = {
+        f'S3.Client.{method}': _update_kwargs_with_config(getattr(client, method), config=config)
+        for method in ('create_multipart_upload', 'upload_part', 'abort_multipart_upload',
+                       'put_object', 'complete_multipart_upload')
+    }
+    for method in ('put_object', 'complete_multipart_upload'):
+        # Exclusive mode defines its own precondition, independently of any
+        # conditions configured for reads.
+        client_kwargs[f'S3.Client.{method}'].pop('IfMatch', None)
+        client_kwargs[f'S3.Client.{method}']['IfNoneMatch'] = '*'
+    # Keep smart_open and botocore imports lazy for applications that only use paths.
+    exclusive = importlib.import_module('s3path._exclusive')
+    return exclusive.open(
+        path, mode=mode, client=client, client_kwargs=client_kwargs, buffering=buffering,
+        encoding=encoding, errors=errors, newline=newline)
 
 
 def get_presigned_url(path, expire_in: int) -> str:

@@ -159,9 +159,9 @@ New in version 0.5.0
 Requirements:
 =============
 
-* Python >= 3.4
-* boto3
-* smart-open
+* Python >= 3.9
+* boto3 >= 1.35.2 (conditional writes require botocore >= 1.35.2)
+* smart-open >= 5.1.0
 
 Further Documentation:
 ======================
